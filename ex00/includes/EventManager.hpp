@@ -1,30 +1,32 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   TrainFactory.hpp                                   :+:      :+:    :+:   */
+/*   EventManager.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/09/16 14:07:31 by abaiao-r          #+#    #+#             */
-/*   Updated: 2024/09/16 14:07:50 by abaiao-r         ###   ########.fr       */
+/*   Created: 2024/09/16 13:51:26 by abaiao-r          #+#    #+#             */
+/*   Updated: 2024/09/16 15:25:06 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef TRAINFACTORY_HPP
-# define TRAINFACTORY_HPP
+#ifndef EVENTMANAGER_HPP
+# define EVENTMANAGER_HPP
 
 # include "libraries.hpp"
 
-class TrainFactory
+//singleton
+class EventManager
 {
     private:
 
     public:
-        TrainFactory();
-        TrainFactory(const TrainFactory &src);
-        ~TrainFactory();
-        TrainFactory &operator=(const TrainFactory &src);
+        EventManager();
+        EventManager(const EventManager &src);
+        ~EventManager();
+        EventManager &operator=(const EventManager &src);
 
 };
 
 #endif
+

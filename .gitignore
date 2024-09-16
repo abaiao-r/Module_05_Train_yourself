@@ -1,0 +1,16 @@
+# Build directories
+./obj/
+
+# Visual Studio Code files
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.o
+*.obj
+*.exe
+*.out
+*.dSYM/
+.nfs*
