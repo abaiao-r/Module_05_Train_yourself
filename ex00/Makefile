@@ -3,61 +3,71 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+         #
+#    By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/08/31 15:48:30 by andrefranci       #+#    #+#              #
-#    Updated: 2024/09/14 16:58:25 by andrefranci      ###   ########.fr        #
+#    Updated: 2024/09/16 15:21:25 by abaiao-r         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 # Compiler settings
 CXX = c++
 CXXFLAGS = -Wall -Wextra -Werror -Wshadow -std=c++11 -g #-fstandalone-debug #-fsanitize=address
+TEST_CXXFLAGS = -Wall -Wextra -Werror -Wshadow -std=c++11 -g -DTESTING # Different flags for tests
 
 # Directories
 SRCDIR = src
 OBJDIR = objs
+TESTDIR = tests
 
 # Source Files
+SRCS = $(SRCDIR)/main.cpp
+TEST_SRCS = $(TESTDIR)/SingletonTest.cpp
 
-SRCS =  $(SRCDIR)/main.cpp \
-
-
-
-OBJS = 	$(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+# Object Files
+OBJS = $(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+TEST_OBJS = $(TEST_SRCS:$(TESTDIR)/%.cpp=$(OBJDIR)/%.o)
 
 # Targets
 NAME = Train
+TEST_NAME = SingletonTest
 
-all: 	$(NAME)
+all: $(NAME)
 
-
+# Clean up object files
 clean:
-		rm -rf $(OBJDIR)
+	rm -rf $(OBJDIR)
 
-fclean:	clean
-		rm -f $(NAME)
+# Clean up executable
+fclean: clean
+	rm -f $(NAME) $(TEST_NAME)
 
-run:	fclean all
-		./$(NAME)
+# Run the main program
+run: fclean all
+	./$(NAME)
 
-re:		fclean all
+# Rebuild everything
+re: fclean all
 
-
+# Valgrind for memory checking
 valgrind: fclean all
-		valgrind --leak-check=full --show-leak-kinds=all ./$(NAME)
-		
+	valgrind --leak-check=full --show-leak-kinds=all ./$(NAME)
 
-$(NAME): 	$(OBJS)
-			$(CXX) $(OBJS) $(CXXFLAGS) -o  $(NAME) 
+# Test the Singleton implementation
+testSingleton: fclean $(TEST_NAME)
 
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+$(TEST_NAME): $(TEST_OBJS)
+	$(CXX) $(TEST_OBJS) $(TEST_CXXFLAGS) -o $(TEST_NAME)
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
+# Compile source files into object files
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-.PHONY: all clean fclean re run test
+# Compile test files into object files
+$(OBJDIR)/%.o: $(TESTDIR)/%.cpp | $(OBJDIR)
+	$(CXX) $(TEST_CXXFLAGS) -c $< -o $@
+
+.PHONY: all clean fclean re run valgrind testSingleton

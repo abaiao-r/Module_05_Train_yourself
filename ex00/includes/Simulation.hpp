@@ -1,29 +1,29 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   TrainFactory.hpp                                   :+:      :+:    :+:   */
+/*   Simulation.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/09/16 14:07:31 by abaiao-r          #+#    #+#             */
-/*   Updated: 2024/09/16 14:07:50 by abaiao-r         ###   ########.fr       */
+/*   Created: 2024/09/16 14:06:52 by abaiao-r          #+#    #+#             */
+/*   Updated: 2024/09/16 14:07:05 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef TRAINFACTORY_HPP
-# define TRAINFACTORY_HPP
+#ifndef SIMULATION_HPP
+# define SIMULATION_HPP
 
 # include "libraries.hpp"
 
-class TrainFactory
+class Simulation
 {
     private:
 
     public:
-        TrainFactory();
-        TrainFactory(const TrainFactory &src);
-        ~TrainFactory();
-        TrainFactory &operator=(const TrainFactory &src);
+        Simulation();
+        Simulation(const Simulation &src);
+        ~Simulation();
+        Simulation &operator=(const Simulation &src);
 
 };
 
