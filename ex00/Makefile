@@ -6,7 +6,7 @@
 #    By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/08/31 15:48:30 by andrefranci       #+#    #+#              #
-#    Updated: 2024/09/16 15:21:25 by abaiao-r         ###   ########.fr        #
+#    Updated: 2024/09/16 17:52:05 by abaiao-r         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -21,7 +21,9 @@ OBJDIR = objs
 TESTDIR = tests
 
 # Source Files
-SRCS = $(SRCDIR)/main.cpp
+SRCS =	$(SRCDIR)/main.cpp \
+		$(SRCDIR)/InputHandler.cpp
+
 TEST_SRCS = $(TESTDIR)/SingletonTest.cpp
 
 # Object Files
@@ -56,6 +58,13 @@ valgrind: fclean all
 # Test the Singleton implementation
 testSingleton: fclean $(TEST_NAME)
 
+# Build the main program
+$(NAME): 	$(OBJS)
+			$(CXX) $(OBJS) $(CXXFLAGS) -o  $(NAME) 
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Build the test program
 $(TEST_NAME): $(TEST_OBJS)
 	$(CXX) $(TEST_OBJS) $(TEST_CXXFLAGS) -o $(TEST_NAME)
 
