@@ -3,61 +3,60 @@
 /*                                                        :::      ::::::::   */
 /*   libraries.hpp                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/16 13:44:51 by abaiao-r          #+#    #+#             */
-/*   Updated: 2024/09/16 17:41:53 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2024/09/19 03:48:34 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 // libraries from the standard library
 
 #ifndef LIBRARIES_HPP
-# define LIBRARIES_HPP
+#define LIBRARIES_HPP
 
-# include <iostream>
-# include <string>
-# include <vector>
-# include <list>
-# include <map>
-# include <algorithm>
-# include <iterator>
-# include <fstream>
-# include <sstream>
-# include <iomanip>
-# include <ctime>
-# include <cstdlib>
-# include <cctype>
-# include <limits>
-# include <exception>
-# include <stdexcept>
-# include <utility>
-# include <memory>
-# include <functional>
-# include <chrono>
-# include <thread>
-# include <mutex>
-# include <unordered_map>
-# include <unordered_set>
-# include <queue>
-# include <stack>
-# include <deque>
-# include <set>
-# include <array>
-# include <random>
-# include <cmath>
-# include <cfloat>
-# include <climits>
-# include <cstddef>
-# include <cstdint>
-# include <cinttypes>
-# include <cstdarg>
-# include <cstdbool>
-# include <cstdalign>
-# include <cassert>
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cctype>
+#include <cfloat>
+#include <chrono>
+#include <cinttypes>
+#include <climits>
+#include <cmath>
+#include <cstdalign>
+#include <cstdarg>
+#include <cstdbool>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <ctime>
+#include <deque>
+#include <exception>
+#include <fstream>
+#include <functional>
+#include <iomanip>
+#include <iostream>
+#include <iterator>
+#include <limits>
+#include <list>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <random>
+#include <set>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 // custom libraries
-# include "colours.hpp"
+#include "colours.hpp"
 
 #endif
-
