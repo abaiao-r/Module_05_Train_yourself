@@ -1,0 +1,79 @@
+BasedOnStyle: Google
+
+# Indentation settings
+IndentWidth: 4          # Indent code with 4 spaces
+TabWidth: 4             # Tab width is 4 spaces
+UseTab: Always          # Use real tabulations instead of spaces
+IndentCaseLabels: true  # Indent case labels one level from the switch statement
+IndentWrappedFunctionNames: true  # Indent wrapped function names
+IndentFunctionDeclarationAfterType: false  # Indent function declarations after the type
+ContinuationIndentWidth: 4  # Indent width for line continuations
+IndentPPDirectives: AfterHash  # Indent preprocessor directives after the hash
+IndentExternBlock: AfterExternBlock  # Indent the contents of extern blocks
+IndentGotoLabels: true  # Indent goto labels
+IndentRequires: true  # Indent requires clauses
+IndentAccessModifiers: true  # Indent access modifiers (public, protected, private)
+BreakBeforeBinaryOperators: true
+
+
+# Line length
+ColumnLimit: 80         # Max columns for any line of code
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Empty
+
+# Brace formatting
+BreakBeforeBraces: Allman    # Place braces on a new line after control structures
+
+
+# Pointer alignment
+PointerAlignment: Right     # Align pointer operators (*) with the variable name
+DerivePointerAlignment: false  # Do not derive pointer alignment from the style
+
+# Spaces and operators
+SpaceAfterCStyleCast: false           # Space after a C-style cast
+SpaceAfterTemplateKeyword: true      # Space after template keyword
+SpaceInEmptyParentheses: false       # No space in empty parentheses
+SpacesInParentheses: false           # No spaces inside parentheses
+SpacesInAngles: false                # No spaces inside angle brackets
+SpaceBeforeCpp11BracedList: false     # Space before initializer lists
+SpaceBeforeAssignmentOperators: true # Ensure a space around assignment operators
+SpaceBeforeParens: ControlStatements  # Space before parentheses in control statements
+SpaceBeforeRangeBasedForLoopColon: true  # Space before colon in range-based for loop
+SpaceBeforeSquareBrackets: false          # No space before square brackets
+SpaceInEmptyBlock: false                  # No space in empty blocks
+SpacesInContainerLiterals: false          # No spaces inside container literals
+SpacesInCStyleCastParentheses: false      # No spaces inside C-style cast parentheses
+SpacesInSquareBrackets: false     
+SpaceBeforeInheritanceColon: true         # Space before inheritance colon
+
+# Control structures
+AllowShortIfStatementsOnASingleLine: false   # Braces are required for control structures
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Allman     # Control structures with braces must be preceded and followed by a newline
+
+
+
+# Formatting functions
+AllowShortFunctionsOnASingleLine: Empty      # Do not allow short functions on a single line
+PenaltyBreakBeforeFirstCallParameter: 19 
+
+# Variable declarations
+AlignConsecutiveDeclarations: true      # Align consecutive variable declarations
+
+SortIncludes: true  # Sort includes alphabetically
+
+# Comment formatting
+CommentPragmas: '^ IWYU pragma:'  # Comment pragma regex
+ReflowComments: true              # Reflow comments
+
+SeparateDefinitionBlocks: Always  # Separate definition blocks
+EmptyLineBeforeAccessModifier: Always  # Empty line before access modifier
+KeepEmptyLinesAtTheStartOfBlocks: false  # Do not keep empty lines at the start of blocks
+MaxEmptyLinesToKeep: 1  # Keep a maximum of 1 empty line
+
+
+
+
+# Custom C/C++ naming convention rules
+# Ensure naming conventions are followed; these are not enforceable directly via Clang-Format, so review must be done manually or with additional linting tools.
+Language: Cpp     
