@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/18 17:10:53 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/09/19 03:58:44 by andrefranci      ###   ########.fr       */
+/*   Updated: 2024/09/20 12:08:25 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,12 +18,10 @@
 class IMediator
 {
 	private:
-		int						 _id;
-		int const				 _jumps;
 		std::vector<IObserver *> _observers;
 
 	public:
-		virtual void notify(std::string const &message) const = 0;
+		virtual void notify(std::string const &Event, std::string const &Message) = 0;
 };
 
 #endif
