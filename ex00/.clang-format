@@ -18,8 +18,8 @@ BreakBeforeBinaryOperators: true
 
 # Line length
 ColumnLimit: 80         # Max columns for any line of code
-AllowShortBlocksOnASingleLine: Empty
-AllowShortFunctionsOnASingleLine: Empty
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
 
 # Brace formatting
 BreakBeforeBraces: Allman    # Place braces on a new line after control structures
@@ -54,7 +54,7 @@ BreakBeforeBraces: Allman     # Control structures with braces must be preceded 
 
 
 # Formatting functions
-AllowShortFunctionsOnASingleLine: Empty      # Do not allow short functions on a single line
+AllowShortFunctionsOnASingleLine: None  # Do not allow short functions on a single line
 PenaltyBreakBeforeFirstCallParameter: 19 
 
 # Variable declarations
