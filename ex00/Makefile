@@ -3,16 +3,16 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+         #
+#    By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/08/31 15:48:30 by andrefranci       #+#    #+#              #
-#    Updated: 2024/09/16 17:52:05 by abaiao-r         ###   ########.fr        #
+#    Updated: 2024/10/13 20:00:56 by andrefranci      ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 # Compiler settings
 CXX = c++
-CXXFLAGS = -Wall -Wextra -Werror -Wshadow -std=c++11 -g #-fstandalone-debug #-fsanitize=address
+CXXFLAGS = -Wall -Wextra -Werror -Wshadow -std=c++14 -g #-fstandalone-debug #-fsanitize=address
 TEST_CXXFLAGS = -Wall -Wextra -Werror -Wshadow -std=c++11 -g -DTESTING # Different flags for tests
 
 # Directories
@@ -22,7 +22,7 @@ TESTDIR = tests
 
 # Source Files
 SRCS =	$(SRCDIR)/main.cpp \
-		$(SRCDIR)/InputHandler.cpp
+		$(SRCDIR)/InputHandler.cpp \
 
 TEST_SRCS = $(TESTDIR)/SingletonTest.cpp
 
