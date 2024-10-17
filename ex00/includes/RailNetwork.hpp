@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/15 21:54:26 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/10/13 21:06:31 by andrefranci      ###   ########.fr       */
+/*   Updated: 2024/10/17 15:34:29 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,9 +19,10 @@
 #include <vector>
 
 #include "Node.hpp"
+#include "Singleton.hpp"
 #include "libraries.hpp"
 
-class RailNetwork
+class RailNetwork : public Singleton<RailNetwork>
 {
 	private:
 		// Adjacency list representation of the rail network
@@ -34,11 +35,6 @@ class RailNetwork
 		AdjacencyList _adjacencyList;
 
 	public:
-		RailNetwork();
-		RailNetwork(const RailNetwork &src);
-		~RailNetwork();
-		RailNetwork &operator=(const RailNetwork &src);
-
 		// Add a node to the rail network
 		void addNode(std::shared_ptr<Node> node);
 
@@ -46,11 +42,11 @@ class RailNetwork
 		void addConnection(std::shared_ptr<Node> node1,
 						   std::shared_ptr<Node> node2, size_t distance);
 
-		// Get the neighbours of a node
+		// Get the neighbors of a node
 		const std::vector<std::pair<std::shared_ptr<Node>, size_t>>
 			&getNeighbours(std::shared_ptr<Node> node) const;
 
-		// Get the nodes in the rail network
+		// Get all nodes in the rail network
 		const std::vector<std::shared_ptr<Node>> getNodes() const;
 };
 
