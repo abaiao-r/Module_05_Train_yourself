@@ -46,12 +46,16 @@ jobs:
       run: mkdir -p bin
 
     - name: Compile Singleton tests with coverage
-      if: matrix.build-type == 'build'
       run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton src/SingletonTest.cpp
 
     - name: Run Singleton tests
-      if: matrix.build-type == 'test'
-      run: ./bin/testSingleton
+      run: |
+        if [ -f ./bin/testSingleton ]; then
+          ./bin/testSingleton
+        else
+          echo "testSingleton binary not found"
+          exit 1
+        fi
 
     - name: Generate coverage report
       if: matrix.build-type == 'test'
