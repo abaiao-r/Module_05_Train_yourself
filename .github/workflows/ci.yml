@@ -40,7 +40,7 @@ jobs:
     - name: Run main program  # Step to run the main program
       run: |
         if [ -f ./bin/Train ]; then
-          ./bin/Train
+          ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
         else
           echo "main binary not found"
           exit 1
