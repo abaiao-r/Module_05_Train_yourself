@@ -38,7 +38,7 @@ jobs:
         genhtml coverage.info --output-directory coverage  # Generate HTML report
 
     - name: Upload coverage report  # Step to upload coverage report
-      uses: actions/upload-artifact@v2  # Use the upload-artifact action
+      uses: actions/upload-artifact@v3  # Use the upload-artifact action
       with:
         name: coverage-report  # Name of the artifact
         path: coverage  # Path to the coverage report directory
