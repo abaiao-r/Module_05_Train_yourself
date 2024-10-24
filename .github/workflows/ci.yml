@@ -20,13 +20,10 @@ jobs:
       run: sudo apt-get install -y g++  # Install g++ compiler
 
     - name: Install dependencies  # Step to install necessary dependencies
-      run: sudo apt-get install -y build-essential lcov python3-pip  # Install build-essential, lcov, and pip packages
+      run: sudo apt-get install -y build-essential lcov  # Install build-essential and lcov packages
 
-    - name: Install gcovr  # Step to install gcovr
-      run: pip3 install gcovr  # Install gcovr using pip
-
-    - name: Build project  # Step to build the project
-      run: make  # Run the make command to build the project
+    - name: Create bin directory  # Step to create the bin directory
+      run: mkdir -p bin  # Create the bin directory if it doesn't exist
 
     - name: Compile Singleton tests with coverage  # Step to compile Singleton tests with coverage flags
       run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton src/SingletonTest.cpp  # Compile the Singleton tests with coverage flags
@@ -41,7 +38,7 @@ jobs:
         genhtml coverage.info --output-directory coverage  # Generate HTML report
 
     - name: Upload coverage report  # Step to upload coverage report
-      uses: actions/upload-artifact@v3  # Use the upload-artifact action
+      uses: actions/upload-artifact@v2  # Use the upload-artifact action
       with:
         name: coverage-report  # Name of the artifact
         path: coverage  # Path to the coverage report directory
