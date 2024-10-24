@@ -6,7 +6,7 @@
 #    By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/08/31 15:48:30 by andrefranci       #+#    #+#              #
-#    Updated: 2024/10/24 10:30:33 by andrefranci      ###   ########.fr        #
+#    Updated: 2024/10/24 18:23:00 by andrefranci      ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -54,6 +54,11 @@ re: fclean all
 # Valgrind for memory checking
 valgrind: fclean all
 	valgrind --leak-check=full --show-leak-kinds=all ./$(NAME)
+
+# Format the code (src and headers) according to the .clang-format file
+format:
+    find includes src -type f \( -name '*.hpp' -o -name '*.cpp' \) -exec clang-format -i -style=file {} +
+
 
 # Test the Singleton implementation
 testSingleton: fclean $(TEST_NAME)
