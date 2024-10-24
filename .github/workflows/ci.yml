@@ -25,7 +25,7 @@ jobs:
       uses: actions/checkout@v4  # Use the latest version of the checkout action
 
     - name: Set up C++ environment  # Step to set up the C++ environment
-      run: sudo apt-get install -y g++ clang-format lcov  # Install g++, clang-format, and lcov
+      run: sudo apt-get install -y g++ clang-format lcov valgrind  # Install g++, clang-format, lcov, and valgrind
 
     - name: Check code formatting  # Step to check code formatting
       run: |
@@ -47,12 +47,30 @@ jobs:
         fi
 
     - name: Compile Node tests with coverage  # Step to compile Node tests with coverage flags
-      run: g++ -Wall -Wextra -Werror -g --coverage -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with coverage flags
+      run: g++ -Wall -Wextra -Werror -g --coverage -o bin/testNode src/NodeTest.cpp src/Node.cpp  # Compile the Node tests with coverage flags
 
     - name: Run Node tests  # Step to run Node tests
       run: |
         if [ -f ./bin/testNode ]; then
           ./bin/testNode
+        else
+          echo "testNode binary not found"
+          exit 1
+        fi
+
+    - name: Run Singleton tests with Valgrind  # Step to run Singleton tests with Valgrind
+      run: |
+        if [ -f ./bin/testSingleton ]; then
+          valgrind --leak-check=full --show-leak-kinds=all ./bin/testSingleton
+        else
+          echo "testSingleton binary not found"
+          exit 1
+        fi
+
+    - name: Run Node tests with Valgrind  # Step to run Node tests with Valgrind
+      run: |
+        if [ -f ./bin/testNode ]; then
+          valgrind --leak-check=full --show-leak-kinds=all ./bin/testNode
         else
           echo "testNode binary not found"
           exit 1
