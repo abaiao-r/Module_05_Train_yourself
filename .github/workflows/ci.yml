@@ -62,12 +62,12 @@ jobs:
           exit 1
         fi
 
-    - name: Compile Singleton tests with coverage  # Step to compile Singleton tests with coverage flags
+    - name: Compile Singleton tests with coverage and debug flags  # Step to compile Singleton tests with coverage and debug flags
       run: |
         if [ ${{ matrix.compiler }} == 'gcc' ]; then
-          g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with g++
+          g++ -Wall -Wextra -std=c++14 --coverage -g -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with g++
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
-          clang++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with clang++
+          clang++ -Wall -Wextra -std=c++14 --coverage -g -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with clang++
         fi
 
     - name: Run Singleton tests  # Step to run Singleton tests
@@ -85,15 +85,6 @@ jobs:
           g++ -Wall -Wextra -std=c++14 --coverage -g -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with g++
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
           clang++ -Wall -Wextra -std=c++14 --coverage -g -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with clang++
-        fi
-
-    - name: Run Node tests  # Step to run Node tests
-      run: |
-        if [ -f ./bin/testNode ]; then
-          ./bin/testNode
-        else
-          echo "testNode binary not found"
-          exit 1
         fi
 
     - name: Run Node tests with Valgrind  # Step to run Node tests with Valgrind
