@@ -34,6 +34,18 @@ jobs:
     - name: Create bin directory  # Step to create the bin directory
       run: mkdir -p bin  # Create the bin directory if it doesn't exist
 
+    - name: Compile main program  # Step to compile the main program
+      run: make  # Compile the main program
+
+    - name: Run main program  # Step to run the main program
+      run: |
+        if [ -f ./bin/main ]; then
+          ./bin/Train
+        else
+          echo "main binary not found"
+          exit 1
+        fi
+
     - name: Compile Singleton tests with coverage  # Step to compile Singleton tests with coverage flags
       run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with coverage flags
 
