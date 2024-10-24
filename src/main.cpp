@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/14 16:58:42 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/10/24 19:58:43 by andrefranci      ###   ########.fr       */
+/*   Updated: 2024/10/24 20:55:31 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,6 +24,7 @@ int main(int argc, char **argv)
 				  << std::endl;
 		return (EXIT_FAILURE);
 	}
+	(void)argv;
 
 	/* try
 	{
