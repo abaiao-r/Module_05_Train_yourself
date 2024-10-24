@@ -14,7 +14,7 @@ jobs:
 
     steps:
     - name: Checkout repository  # Step to check out the repository
-      uses: actions/checkout@v2  # Use the checkout action to clone the repository
+      uses: actions/checkout@v3  # Use the latest version of the checkout action
 
     - name: Set up C++ environment  # Step to set up the C++ environment
       run: sudo apt-get install -y g++  # Install g++ compiler
@@ -38,7 +38,7 @@ jobs:
         genhtml coverage.info --output-directory coverage  # Generate HTML report
 
     - name: Upload coverage report  # Step to upload coverage report
-      uses: actions/upload-artifact@v3  # Use the upload-artifact action
+      uses: actions/upload-artifact@v4  # Use the latest version of the upload-artifact action
       with:
         name: coverage-report  # Name of the artifact
         path: coverage  # Path to the coverage report directory
@@ -48,7 +48,7 @@ jobs:
 
     steps:
     - name: Checkout repository  # Step to check out the repository
-      uses: actions/checkout@v2  # Use the checkout action to clone the repository
+      uses: actions/checkout@v3  # Use the latest version of the checkout action
 
     - name: Set up C++ environment  # Step to set up the C++ environment
       uses: actions/setup-cpp@v1  # Use the setup-cpp action
