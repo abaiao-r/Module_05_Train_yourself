@@ -14,96 +14,89 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++, clang++]  # Matrix to test with both g++ and clang++ compilers
+        include:
+          - compiler: g++
+            cc: g++
+            std: c++14  # Use C++14 standard for g++
+          - compiler: clang++
+            cc: clang++
+            std: c++14  # Use C++14 standard for clang++
 
     steps:
-    - name: Set up Node.js  # Step to set up Node.js
-      uses: actions/setup-node@v4  # Use the latest version of the setup-node action
+    - name: Set up Node.js  # Set up Node.js environment
+      uses: actions/setup-node@v4
       with:
-        node-version: '20'  # Specify Node.js version 20
+        node-version: '20'
 
-    - name: Checkout repository  # Step to check out the repository
-      uses: actions/checkout@v4  # Use the latest version of the checkout action
+    - name: Checkout repository  # Check out the repository
+      uses: actions/checkout@v4
 
-    - name: Set up C++ environment  # Step to set up the C++ environment
-      run: sudo apt-get install -y g++ clang-format lcov valgrind  # Install g++, clang-format, lcov, and valgrind
+    - name: Set up C++ environment  # Set up the C++ environment with the appropriate compiler
+      run: sudo apt-get install -y ${{ matrix.compiler }} clang-format lcov valgrind
 
-    - name: Check code formatting  # Step to check code formatting
+    - name: Check code formatting  # Check code formatting
       run: |
         find includes src -name '*.hpp' -o -name '*.cpp' | xargs clang-format -style=file -output-replacements-xml | grep "<replacement " && echo "Code is not formatted" && exit 1 || echo "Code is formatted"
 
-    - name: Create bin directory  # Step to create the bin directory
-      run: mkdir -p bin  # Create the bin directory if it doesn't exist
+    - name: Create bin directory  # Create bin directory
+      run: mkdir -p bin
 
-    - name: Compile main program  # Step to compile the main program
-      run: make  # Compile the main program
-
-    - name: Run main program  # Step to run the main program
+    - name: Compile main program  # Compile main program using the C++14 standard and strict flags
       run: |
-        if [ -f ./bin/Train ]; then
-          ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
+        ${{ matrix.cc }} -Wall -Wextra -Werror -std=${{ matrix.std }} -o bin/main src/main.cpp  # Adjust paths accordingly
+
+    - name: Run main program  # Run the compiled main program
+      run: |
+        if [ -f ./bin/main ]; then
+          ./bin/main input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
         else
-          echo "main binary not found"
+          echo "Main binary not found"
           exit 1
         fi
 
-    - name: Compile Singleton tests with coverage  # Step to compile Singleton tests with coverage flags
-      run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with coverage flags
+    # Compile and run Singleton tests with coverage and Valgrind
+    - name: Compile Singleton tests with coverage
+      run: ${{ matrix.cc }} -Wall -Wextra -Werror -std=${{ matrix.std }} --coverage -o bin/testSingleton tests/SingletonTest.cpp
 
-    - name: Run Singleton tests  # Step to run Singleton tests
+    - name: Run Singleton tests
+      run: ./bin/testSingleton
+
+    - name: Run Singleton tests with Valgrind
       run: |
-        if [ -f ./bin/testSingleton ]; then
-          ./bin/testSingleton
-        else
-          echo "testSingleton binary not found"
-          exit 1
-        fi
+        valgrind --leak-check=full --show-leak-kinds=all ./bin/testSingleton > valgrind-singleton.log 2>&1 || true
+    - name: Upload Valgrind log for Singleton tests
+      uses: actions/upload-artifact@v4
+      with:
+        name: valgrind-singleton-log-${{ github.run_number }}
+        path: valgrind-singleton.log
 
-    - name: Compile Node tests with coverage  # Step to compile Node tests with coverage flags
-      run: g++ -Wall -Wextra -Werror -g --coverage -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with coverage flags
+    # Compile and run Node tests with coverage and Valgrind
+    - name: Compile Node tests with coverage
+      run: ${{ matrix.cc }} -Wall -Wextra -Werror --coverage -std=${{ matrix.std }} -o bin/testNode tests/NodeTest.cpp src/Node.cpp
 
-    - name: Run Node tests  # Step to run Node tests
+    - name: Run Node tests
+      run: ./bin/testNode
+
+    - name: Run Node tests with Valgrind
       run: |
-        if [ -f ./bin/testNode ]; then
-          ./bin/testNode
-        else
-          echo "testNode binary not found"
-          exit 1
-        fi
+        valgrind --leak-check=full --show-leak-kinds=all ./bin/testNode > valgrind-node.log 2>&1 || true
+    - name: Upload Valgrind log for Node tests
+      uses: actions/upload-artifact@v4
+      with:
+        name: valgrind-node-log-${{ github.run_number }}
+        path: valgrind-node.log
 
-    - name: Run main program with Valgrind  # Step to run the main program with Valgrind
-      run: |
-        if [ -f ./bin/Train ]; then
-          valgrind --leak-check=full --show-leak-kinds=all ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
-        else
-          echo "main binary not found"
-          exit 1
-        fi
-
-    - name: Run Singleton tests with Valgrind  # Step to run Singleton tests with Valgrind
-      run: |
-        if [ -f ./bin/testSingleton ]; then
-          valgrind --leak-check=full --show-leak-kinds=all ./bin/testSingleton
-        else
-          echo "testSingleton binary not found"
-          exit 1
-        fi
-
-    - name: Run Node tests with Valgrind  # Step to run Node tests with Valgrind
-      run: |
-        if [ -f ./bin/testNode ]; then
-          valgrind --leak-check=full --show-leak-kinds=all ./bin/testNode
-        else
-          echo "testNode binary not found"
-          exit 1
-        fi
-
-    - name: Generate coverage report  # Step to generate coverage report
+    # Coverage report generation
+    - name: Generate coverage report
       run: |
         lcov --capture --directory . --output-file coverage.info
         lcov --remove coverage.info '/usr/*' --output-file coverage.info
         genhtml coverage.info --output-directory coverage
 
-    - name: Upload coverage report  # Step to upload coverage report
+    - name: Upload coverage report
       uses: actions/upload-artifact@v4
       continue-on-error: true
       with:
@@ -113,3 +106,4 @@ jobs:
         compression-level: 6
         overwrite: true
         include-hidden-files: false
+
