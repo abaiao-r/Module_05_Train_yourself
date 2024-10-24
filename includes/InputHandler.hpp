@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   InputHandler.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/16 16:48:17 by abaiao-r          #+#    #+#             */
-/*   Updated: 2024/09/16 19:01:55 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2024/10/24 10:54:27 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,7 @@ class InputHandler
         bool railStr;
 
     public:
-        InputHandler(const std::string &railNetworkPrintFilePath, const std::string &trainPrintFilePath);
+        InputHandler(const std::string &railNetworkPrintFilePath,   const std::string &trainPrintFilePathParam);
         InputHandler(const InputHandler &src);
         InputHandler &operator=(const InputHandler &src);
         InputHandler(InputHandler &&src);
