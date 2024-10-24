@@ -39,7 +39,7 @@ jobs:
 
     - name: Run main program  # Step to run the main program
       run: |
-        if [ -f ./bin/main ]; then
+        if [ -f ./bin/Train ]; then
           ./bin/Train
         else
           echo "main binary not found"
