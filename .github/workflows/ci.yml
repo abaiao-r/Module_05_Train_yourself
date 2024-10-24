@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        compiler: [g++, clang++]  # Matrix to test with both g++ and clang++ compilers
+        compiler: [g++, clang++]  # Matrix to test with both g++ and clang++
         include:
           - compiler: g++
             cc: g++
@@ -34,19 +34,22 @@ jobs:
     - name: Checkout repository  # Check out the repository
       uses: actions/checkout@v4
 
-    - name: Set up C++ environment  # Set up the C++ environment with the appropriate compiler
+    - name: Fix broken dependencies
+      run: sudo apt-get update && sudo apt-get install -f
+
+    - name: Install C++ Tools
       run: sudo apt-get install -y ${{ matrix.compiler }} clang-format lcov valgrind
 
     - name: Check code formatting  # Check code formatting
       run: |
-        find includes src -name '*.hpp' -o -name '*.cpp' | xargs clang-format -style=file -output-replacements-xml | grep "<replacement " && echo "Code is not formatted" && exit 1 || echo "Code is formatted"
+        find include src -name '*.hpp' -o -name '*.cpp' | xargs clang-format -style=file -output-replacements-xml | grep "<replacement " && echo "Code is not formatted" && exit 1 || echo "Code is formatted"
 
     - name: Create bin directory  # Create bin directory
       run: mkdir -p bin
 
-    - name: Compile main program  # Compile main program using the C++14 standard and strict flags
+    - name: Compile main program  # Compile main program
       run: |
-        ${{ matrix.cc }} -Wall -Wextra -Werror -std=${{ matrix.std }} -o bin/main src/main.cpp  # Adjust paths accordingly
+        ${{ matrix.cc }} -Wall -Wextra -Werror -std=${{ matrix.std }} -o bin/main src/main.cpp
 
     - name: Run main program  # Run the compiled main program
       run: |
@@ -57,7 +60,6 @@ jobs:
           exit 1
         fi
 
-    # Compile and run Singleton tests with coverage and Valgrind
     - name: Compile Singleton tests with coverage
       run: ${{ matrix.cc }} -Wall -Wextra -Werror -std=${{ matrix.std }} --coverage -o bin/testSingleton tests/SingletonTest.cpp
 
@@ -73,7 +75,6 @@ jobs:
         name: valgrind-singleton-log-${{ github.run_number }}
         path: valgrind-singleton.log
 
-    # Compile and run Node tests with coverage and Valgrind
     - name: Compile Node tests with coverage
       run: ${{ matrix.cc }} -Wall -Wextra -Werror --coverage -std=${{ matrix.std }} -o bin/testNode tests/NodeTest.cpp src/Node.cpp
 
@@ -89,7 +90,6 @@ jobs:
         name: valgrind-node-log-${{ github.run_number }}
         path: valgrind-node.log
 
-    # Coverage report generation
     - name: Generate coverage report
       run: |
         lcov --capture --directory . --output-file coverage.info
@@ -106,4 +106,3 @@ jobs:
         compression-level: 6
         overwrite: true
         include-hidden-files: false
-
