@@ -22,7 +22,6 @@ class Singleton
 		static std::unique_ptr<T> instance;
 		static std::once_flag	  initInstanceFlag;
 
-
 	protected:
 		// Private constructor to prevent instancing
 		Singleton() = default;

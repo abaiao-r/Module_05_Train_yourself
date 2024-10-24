@@ -11,20 +11,19 @@
 /* ************************************************************************** */
 
 #ifndef DIJKSTRAPATHFINDING_HPP
-# define DIJKSTRAPATHFINDING_HPP
+#define DIJKSTRAPATHFINDING_HPP
 
-# include "libraries.hpp"
+#include "libraries.hpp"
 
 class DijkstraPathfinding : public IPathfindingAlgorithm
 {
-    private:
+	private:
 
-    public:
-        DijkstraPathfinding();
-        DijkstraPathfinding(const DijkstraPathfinding &src);
-        virtual ~DijkstraPathfinding();
-        DijkstraPathfinding &operator=(const DijkstraPathfinding &src);
-
+	public:
+		DijkstraPathfinding();
+		DijkstraPathfinding(const DijkstraPathfinding &src);
+		virtual ~DijkstraPathfinding();
+		DijkstraPathfinding &operator=(const DijkstraPathfinding &src);
 };
 
 #endif

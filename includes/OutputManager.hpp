@@ -11,20 +11,19 @@
 /* ************************************************************************** */
 
 #ifndef OUTPUTMANAGER_HPP
-# define OUTPUTMANAGER_HPP
+#define OUTPUTMANAGER_HPP
 
-# include "libraries.hpp"
+#include "libraries.hpp"
 
 class OutputManager
 {
-    private:
+	private:
 
-    public:
-        OutputManager();
-        OutputManager(const OutputManager &src);
-        ~OutputManager();
-        OutputManager &operator=(const OutputManager &src);
-
+	public:
+		OutputManager();
+		OutputManager(const OutputManager &src);
+		~OutputManager();
+		OutputManager &operator=(const OutputManager &src);
 };
 
 #endif

@@ -11,20 +11,19 @@
 /* ************************************************************************** */
 
 #ifndef IPATHFINDINGALGORITHM_HPP
-# define IPATHFINDINGALGORITHM_HPP
+#define IPATHFINDINGALGORITHM_HPP
 
-# include "libraries.hpp"
+#include "libraries.hpp"
 
 class IPathfindingAlgorithm
 {
-    private:
+	private:
 
-    public:
-        IPathfindingAlgorithm();
-        IPathfindingAlgorithm(const IPathfindingAlgorithm &src);
-        virtual ~IPathfindingAlgorithm();
-        IPathfindingAlgorithm &operator=(const IPathfindingAlgorithm &src);
-
+	public:
+		IPathfindingAlgorithm();
+		IPathfindingAlgorithm(const IPathfindingAlgorithm &src);
+		virtual ~IPathfindingAlgorithm();
+		IPathfindingAlgorithm &operator=(const IPathfindingAlgorithm &src);
 };
 
 #endif

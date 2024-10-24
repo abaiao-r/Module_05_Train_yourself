@@ -12,10 +12,9 @@
 
 #include "../includes/Singleton.hpp"
 
-class MyClass: public Singleton<MyClass>
+class MyClass : public Singleton<MyClass>
 {
 	public:
-
 		void display()
 		{
 			std::cout << "MyClass Instance: " << this << std::endl;

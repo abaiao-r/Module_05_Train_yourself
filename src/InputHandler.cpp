@@ -14,9 +14,9 @@
 
 // Parameterized constructor
 InputHandler::InputHandler(const std::string &railNetworkPrintFilePath,
-                           const std::string &trainPrintFilePathParam)
-    : railNetworkFilePath(railNetworkPrintFilePath),
-      trainPrintFilePath(trainPrintFilePathParam) // No shadowing
+						   const std::string &trainPrintFilePathParam)
+	: railNetworkFilePath(railNetworkPrintFilePath),
+	  trainPrintFilePath(trainPrintFilePathParam)  // No shadowing
 {
 }
 

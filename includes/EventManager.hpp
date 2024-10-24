@@ -24,11 +24,10 @@ class EventManager
 	public:
 		EventManager();
 		EventManager(const EventManager &src);
-        EventManager &operator=(const EventManager &src);
-        EventManager(EventManager &&src);
-        EventManager &operator=(EventManager &&src);
-        ~EventManager();
-        
+		EventManager &operator=(const EventManager &src);
+		EventManager(EventManager &&src);
+		EventManager &operator=(EventManager &&src);
+		~EventManager();
 
 		// Getters
 		const std::vector<Event> &getEvents() const;

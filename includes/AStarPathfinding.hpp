@@ -11,20 +11,19 @@
 /* ************************************************************************** */
 
 #ifndef ASTARPATHFINDING_HPP
-# define ASTARPATHFINDING_HPP
+#define ASTARPATHFINDING_HPP
 
-# include "libraries.hpp"
+#include "libraries.hpp"
 
 class AStarPathfinding : public IPathfindingAlgorithm
 {
-    private:
+	private:
 
-    public:
-        AStarPathfinding();
-        AStarPathfinding(const AStarPathfinding &src);
-        virtual ~AStarPathfinding();
-        AStarPathfinding &operator=(const AStarPathfinding &src);
-
+	public:
+		AStarPathfinding();
+		AStarPathfinding(const AStarPathfinding &src);
+		virtual ~AStarPathfinding();
+		AStarPathfinding &operator=(const AStarPathfinding &src);
 };
 
 #endif

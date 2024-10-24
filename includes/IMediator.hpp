@@ -21,7 +21,9 @@ class IMediator
 		std::vector<IObserver *> _observers;
 
 	public:
-		virtual void notify(std::string const &Event, std::string const &Message) = 0;
+		virtual void notify(std::string const &Event,
+							std::string const &Message)
+			= 0;
 };
 
 #endif

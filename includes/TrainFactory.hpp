@@ -11,20 +11,19 @@
 /* ************************************************************************** */
 
 #ifndef TRAINFACTORY_HPP
-# define TRAINFACTORY_HPP
+#define TRAINFACTORY_HPP
 
-# include "libraries.hpp"
+#include "libraries.hpp"
 
 class TrainFactory
 {
-    private:
+	private:
 
-    public:
-        TrainFactory();
-        TrainFactory(const TrainFactory &src);
-        ~TrainFactory();
-        TrainFactory &operator=(const TrainFactory &src);
-
+	public:
+		TrainFactory();
+		TrainFactory(const TrainFactory &src);
+		~TrainFactory();
+		TrainFactory &operator=(const TrainFactory &src);
 };
 
 #endif
