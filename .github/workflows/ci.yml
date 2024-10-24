@@ -12,100 +12,62 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE20: true  # Enforce Node.js 20
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
-    steps:
-    - name: Set up Node.js  # Step to set up Node.js
-      uses: actions/setup-node@v4  # Use the latest version of the setup-node action
-      with:
-        node-version: '20'  # Specify Node.js version 20
-
-    - name: Checkout repository  # Step to check out the repository
-      uses: actions/checkout@v4  # Use the latest version of the checkout action
-
-    - name: Set up C++ environment  # Step to set up the C++ environment
-      run: sudo apt-get install -y g++ clang-format  # Install g++ compiler and clang-format
-
-    - name: Install dependencies  # Step to install necessary dependencies
-      run: sudo apt-get install -y build-essential lcov  # Install build-essential and lcov packages
-
-    - name: Check code formatting  # Step to check code formatting
-      run: |
-        find includes src -name '*.hpp' -o -name '*.cpp' | xargs clang-format -style=file -output-replacements-xml | grep "<replacement " && echo "Code is not formatted" && exit 1 || echo "Code is formatted"
-      continue-on-error: true  # Continue the workflow even if this step fails
-
-    - name: Create bin directory  # Step to create the bin directory
-      run: mkdir -p bin  # Create the bin directory if it doesn't exist
-
-    - name: Compile Singleton tests with coverage  # Step to compile Singleton tests with coverage flags
-      run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton src/SingletonTest.cpp  # Compile the Singleton tests with coverage flags
-
-    - name: Run Singleton tests  # Step to run Singleton tests
-      run: ./bin/testSingleton  # Run the Singleton tests binary
-
-    - name: Generate coverage report  # Step to generate coverage report
-      run: |
-        lcov --capture --directory . --output-file coverage.info  # Capture the coverage data
-        lcov --remove coverage.info '/usr/*' --output-file coverage.info  # Remove coverage data for system files
-        genhtml coverage.info --output-directory coverage  # Generate HTML report
-
-    - name: Upload coverage report  # Step to upload coverage report
-      uses: actions/upload-artifact@v4  # Use the latest version of the upload-artifact action
-      continue-on-error: true  # Continue the workflow even if this step fails
-      with:
-        name: coverage-report-${{ github.run_number }}  # Name of the artifact with run number
-        path: coverage  # Path to the coverage report directory
-        if-no-files-found: warn  # Warn if no files are found
-        compression-level: 6  # Set compression level
-        overwrite: true  # Allow overwriting the existing artifact
-        include-hidden-files: false  # Do not include hidden files
-
-  test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20]
+        include:
+          - build-type: build
+          - build-type: test
 
     steps:
-    - name: Set up Node.js  # Step to set up Node.js
-      uses: actions/setup-node@v4 # Use the latest version of the setup-node action
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
       with:
-        node-version: '20'  # Specify Node.js version 20
+        node-version: ${{ matrix.node-version }}
 
-    - name: Checkout repository  # Step to check out the repository
-      uses: actions/checkout@v4  # Use the latest version of the checkout action
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-    - name: Set up C++ environment  # Step to set up the C++ environment
-      run: sudo apt-get install -y g++ clang-format  # Install g++ compiler and clang-format
+    - name: Set up C++ environment
+      run: sudo apt-get install -y g++ clang-format
 
-    - name: Install dependencies  # Step to install necessary dependencies
-      run: sudo apt-get install -y build-essential lcov  # Install build-essential and lcov packages
+    - name: Install dependencies
+      run: sudo apt-get install -y build-essential lcov
 
-    - name: Check code formatting  # Step to check code formatting
+    - name: Check code formatting
       run: |
         find includes src -name '*.hpp' -o -name '*.cpp' | xargs clang-format -style=file -output-replacements-xml | grep "<replacement " && echo "Code is not formatted" && exit 1 || echo "Code is formatted"
-      continue-on-error: true  # Continue the workflow even if this step fails
+      continue-on-error: true
 
-    - name: Create bin directory  # Step to create the bin directory
-      run: mkdir -p bin  # Create the bin directory if it doesn't exist
+    - name: Create bin directory
+      run: mkdir -p bin
 
-    - name: Compile Singleton tests with coverage  # Step to compile Singleton tests with coverage flags
-      run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton src/SingletonTest.cpp  # Compile the Singleton tests with coverage flags
+    - name: Compile Singleton tests with coverage
+      if: matrix.build-type == 'build'
+      run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton src/SingletonTest.cpp
 
-    - name: Run Singleton tests  # Step to run Singleton tests
-      run: ./bin/testSingleton  # Run the Singleton tests binary
+    - name: Run Singleton tests
+      if: matrix.build-type == 'test'
+      run: ./bin/testSingleton
 
-    - name: Generate coverage report  # Step to generate coverage report
+    - name: Generate coverage report
+      if: matrix.build-type == 'test'
       run: |
-        lcov --capture --directory . --output-file coverage.info  # Capture the coverage data
-        lcov --remove coverage.info '/usr/*' --output-file coverage.info  # Remove coverage data for system files
-        genhtml coverage.info --output-directory coverage  # Generate HTML report
+        lcov --capture --directory . --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' --output-file coverage.info
+        genhtml coverage.info --output-directory coverage
 
-    - name: Upload coverage report  # Step to upload coverage report
-      uses: actions/upload-artifact@v4  # Use the latest version of the upload-artifact action
-      continue-on-error: true  # Continue the workflow even if this step fails
+    - name: Upload coverage report
+      if: matrix.build-type == 'test'
+      uses: actions/upload-artifact@v4
+      continue-on-error: true
       with:
-        name: coverage-report-${{ github.run_number }}  # Name of the artifact with run number
-        path: coverage  # Path to the coverage report directory
-        if-no-files-found: warn  # Warn if no files are found
-        compression-level: 6  # Set compression level
-        overwrite: true  # Allow overwriting the existing artifact
-        include-hidden-files: false  # Do not include hidden files
+        name: coverage-report-${{ github.run_number }}
+        path: coverage
+        if-no-files-found: warn
+        compression-level: 6
+        overwrite: true
+        include-hidden-files: false
