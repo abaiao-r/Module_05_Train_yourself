@@ -34,6 +34,20 @@ jobs:
     - name: Checkout repository  # Check out the repository
       uses: actions/checkout@v4
 
+    - name: Remove conflicting packages
+      run: |
+        sudo apt-get remove -y libopencl-clang-12-dev libopencl-clang-dev python3-clang-11 python3-clang-12 python3-clang-13 python3-clang-14 python3-clang-15
+
+    - name: Update package list
+      run: sudo apt-get update
+
+    - name: Install required packages
+      run: |
+        sudo apt-get install -y clang++ clang-format lcov valgrind
+      shell: /usr/bin/bash -e {0}
+      env:
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE20: true
+
     - name: Fix broken dependencies
       run: sudo apt-get update && sudo apt-get install -f
 
