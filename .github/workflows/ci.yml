@@ -7,6 +7,10 @@ on:
   pull_request:
     branches:
       - master
+      
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE20: true  # Enforce Node.js 20
+
 
 jobs:
   build:
