@@ -12,43 +12,32 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE20: true  # Enforce Node.js 20
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [20]
-        include:
-          - build-type: build
-          - build-type: test
-
     steps:
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
+    - name: Set up Node.js  # Step to set up Node.js
+      uses: actions/setup-node@v4  # Use the latest version of the setup-node action
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: '20'  # Specify Node.js version 20
 
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - name: Checkout repository  # Step to check out the repository
+      uses: actions/checkout@v4  # Use the latest version of the checkout action
 
-    - name: Set up C++ environment
-      run: sudo apt-get install -y g++ clang-format
+    - name: Set up C++ environment  # Step to set up the C++ environment
+      run: sudo apt-get install -y g++ clang-format lcov  # Install g++, clang-format, and lcov
 
-    - name: Install dependencies
-      run: sudo apt-get install -y build-essential lcov
-
-    - name: Check code formatting
+    - name: Check code formatting  # Step to check code formatting
       run: |
         find includes src -name '*.hpp' -o -name '*.cpp' | xargs clang-format -style=file -output-replacements-xml | grep "<replacement " && echo "Code is not formatted" && exit 1 || echo "Code is formatted"
-      continue-on-error: true
 
-    - name: Create bin directory
-      run: mkdir -p bin
+    - name: Create bin directory  # Step to create the bin directory
+      run: mkdir -p bin  # Create the bin directory if it doesn't exist
 
-    - name: Compile Singleton tests with coverage
-      run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton src/SingletonTest.cpp
+    - name: Compile Singleton tests with coverage  # Step to compile Singleton tests with coverage flags
+      run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with coverage flags
 
-    - name: Run Singleton tests
+    - name: Run Singleton tests  # Step to run Singleton tests
       run: |
         if [ -f ./bin/testSingleton ]; then
           ./bin/testSingleton
@@ -57,15 +46,25 @@ jobs:
           exit 1
         fi
 
-    - name: Generate coverage report
-      if: matrix.build-type == 'test'
+    - name: Compile Node tests with coverage  # Step to compile Node tests with coverage flags
+      run: g++ -Wall -Wextra -Werror -g --coverage -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with coverage flags
+
+    - name: Run Node tests  # Step to run Node tests
+      run: |
+        if [ -f ./bin/testNode ]; then
+          ./bin/testNode
+        else
+          echo "testNode binary not found"
+          exit 1
+        fi
+
+    - name: Generate coverage report  # Step to generate coverage report
       run: |
         lcov --capture --directory . --output-file coverage.info
         lcov --remove coverage.info '/usr/*' --output-file coverage.info
         genhtml coverage.info --output-directory coverage
 
-    - name: Upload coverage report
-      if: matrix.build-type == 'test'
+    - name: Upload coverage report  # Step to upload coverage report
       uses: actions/upload-artifact@v4
       continue-on-error: true
       with:
