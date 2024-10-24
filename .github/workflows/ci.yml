@@ -70,6 +70,15 @@ jobs:
           exit 1
         fi
 
+    - name: Run main program with Valgrind  # Step to run the main program with Valgrind
+      run: |
+        if [ -f ./bin/Train ]; then
+          valgrind --leak-check=full --show-leak-kinds=all ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
+        else
+          echo "main binary not found"
+          exit 1
+        fi
+
     - name: Run Singleton tests with Valgrind  # Step to run Singleton tests with Valgrind
       run: |
         if [ -f ./bin/testSingleton ]; then
