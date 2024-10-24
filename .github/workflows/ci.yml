@@ -47,7 +47,7 @@ jobs:
         fi
 
     - name: Compile Node tests with coverage  # Step to compile Node tests with coverage flags
-      run: g++ -Wall -Wextra -Werror -g --coverage -o bin/testNode src/NodeTest.cpp src/Node.cpp  # Compile the Node tests with coverage flags
+      run: g++ -Wall -Wextra -Werror -g --coverage -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with coverage flags
 
     - name: Run Node tests  # Step to run Node tests
       run: |
