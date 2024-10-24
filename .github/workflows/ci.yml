@@ -15,6 +15,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        compiler: [gcc, clang]  # Test against different compilers
+
     steps:
     - name: Set up Node.js  # Step to set up Node.js
       uses: actions/setup-node@v4  # Use the latest version of the setup-node action
@@ -28,8 +32,11 @@ jobs:
       run: |
         sudo apt-get update  # Update package lists
         sudo apt-get install -f  # Attempt to fix broken dependencies
-        sudo apt-get install -y g++ clang-format lcov valgrind  # Install g++, clang-format, lcov, and valgrind
-
+        if [ ${{ matrix.compiler }} == 'gcc' ]; then
+          sudo apt-get install -y g++ lcov valgrind  # Install g++, lcov, and valgrind
+        elif [ ${{ matrix.compiler }} == 'clang' ]; then
+          sudo apt-get install -y clang lcov valgrind  # Install clang, lcov, and valgrind
+        fi
 
     - name: Check code formatting  # Step to check code formatting
       run: |
@@ -39,7 +46,12 @@ jobs:
       run: mkdir -p bin  # Create the bin directory if it doesn't exist
 
     - name: Compile main program  # Step to compile the main program
-      run: make  # Compile the main program
+      run: |
+        if [ ${{ matrix.compiler }} == 'gcc' ]; then
+          make CC=g++  # Compile the main program with g++
+        elif [ ${{ matrix.compiler }} == 'clang' ]; then
+          make CC=clang++  # Compile the main program with clang++
+        fi
 
     - name: Run main program  # Step to run the main program
       run: |
@@ -51,7 +63,12 @@ jobs:
         fi
 
     - name: Compile Singleton tests with coverage  # Step to compile Singleton tests with coverage flags
-      run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with coverage flags
+      run: |
+        if [ ${{ matrix.compiler }} == 'gcc' ]; then
+          g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with g++
+        elif [ ${{ matrix.compiler }} == 'clang' ]; then
+          clang++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with clang++
+        fi
 
     - name: Run Singleton tests  # Step to run Singleton tests
       run: |
@@ -63,7 +80,12 @@ jobs:
         fi
 
     - name: Compile Node tests with coverage  # Step to compile Node tests with coverage flags
-      run: g++ -Wall -Wextra -Werror -g --coverage -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with coverage flags
+      run: |
+        if [ ${{ matrix.compiler }} == 'gcc' ]; then
+          g++ -Wall -Wextra -Werror -g --coverage -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with g++
+        elif [ ${{ matrix.compiler }} == 'clang' ]; then
+          clang++ -Wall -Wextra -Werror -g --coverage -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with clang++
+        fi
 
     - name: Run Node tests  # Step to run Node tests
       run: |
