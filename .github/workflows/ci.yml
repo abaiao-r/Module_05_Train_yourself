@@ -1,0 +1,79 @@
+name: CI  # Name of the workflow
+
+on:
+  push:
+    branches:
+      - main  # Trigger the workflow on push events to the main branch
+  pull_request:
+    branches:
+      - main  # Trigger the workflow on pull request events targeting the main branch
+
+jobs:
+  build:  # Define a job named "build"
+    runs-on: ubuntu-latest  # Use the latest version of Ubuntu as the runner
+
+    steps:
+    - name: Checkout repository  # Step to check out the repository
+      uses: actions/checkout@v2  # Use the checkout action to clone the repository
+
+    - name: Set up C++ environment  # Step to set up the C++ environment
+      uses: actions/setup-cpp@v1  # Use the setup-cpp action
+      with:
+        compiler: g++  # Specify the compiler to use (g++)
+
+    - name: Install dependencies  # Step to install necessary dependencies
+      run: sudo apt-get install -y build-essential lcov  # Install build-essential and lcov packages
+
+    - name: Build project  # Step to build the project
+      run: make  # Run the make command to build the project
+
+    - name: Compile Singleton tests with coverage  # Step to compile Singleton tests with coverage flags
+      run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton src/SingletonTest.cpp  # Compile the Singleton tests with coverage flags
+
+    - name: Run Singleton tests  # Step to run Singleton tests
+      run: ./bin/testSingleton  # Run the Singleton tests binary
+
+    - name: Generate coverage report  # Step to generate coverage report
+      run: |
+        lcov --capture --directory . --output-file coverage.info  # Capture the coverage data
+        lcov --remove coverage.info '/usr/*' --output-file coverage.info  # Remove coverage data for system files
+        genhtml coverage.info --output-directory coverage  # Generate HTML report
+
+    - name: Upload coverage report  # Step to upload coverage report
+      uses: actions/upload-artifact@v2  # Use the upload-artifact action
+      with:
+        name: coverage-report  # Name of the artifact
+        path: coverage  # Path to the coverage report directory
+
+  test:  # Define a job named "test"
+    runs-on: ubuntu-latest  # Use the latest version of Ubuntu as the runner
+
+    steps:
+    - name: Checkout repository  # Step to check out the repository
+      uses: actions/checkout@v2  # Use the checkout action to clone the repository
+
+    - name: Set up C++ environment  # Step to set up the C++ environment
+      uses: actions/setup-cpp@v1  # Use the setup-cpp action
+      with:
+        compiler: g++  # Specify the compiler to use (g++)
+
+    - name: Install dependencies  # Step to install necessary dependencies
+      run: sudo apt-get install -y build-essential lcov  # Install build-essential and lcov packages
+
+    - name: Compile Singleton tests with coverage  # Step to compile Singleton tests with coverage flags
+      run: g++ -Wall -Wextra -std=c++14 --coverage -o bin/testSingleton src/SingletonTest.cpp  # Compile the Singleton tests with coverage flags
+
+    - name: Run Singleton tests  # Step to run Singleton tests
+      run: ./bin/testSingleton  # Run the Singleton tests binary
+
+    - name: Generate coverage report  # Step to generate coverage report
+      run: |
+        lcov --capture --directory . --output-file coverage.info  # Capture the coverage data
+        lcov --remove coverage.info '/usr/*' --output-file coverage.info  # Remove coverage data for system files
+        genhtml coverage.info --output-directory coverage  # Generate HTML report
+
+    - name: Upload coverage report  # Step to upload coverage report
+      uses: actions/upload-artifact@v2  # Use the upload-artifact action
+      with:
+        name: coverage-report  # Name of the artifact
+        path: coverage  # Path to the coverage report directory

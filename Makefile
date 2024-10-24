@@ -6,14 +6,14 @@
 #    By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/08/31 15:48:30 by andrefranci       #+#    #+#              #
-#    Updated: 2024/10/13 20:00:56 by andrefranci      ###   ########.fr        #
+#    Updated: 2024/10/24 10:30:33 by andrefranci      ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 # Compiler settings
 CXX = c++
 CXXFLAGS = -Wall -Wextra -Werror -Wshadow -std=c++14 -g #-fstandalone-debug #-fsanitize=address
-TEST_CXXFLAGS = -Wall -Wextra -Werror -Wshadow -std=c++11 -g -DTESTING # Different flags for tests
+TEST_CXXFLAGS = -Wall -Wextra -Werror -Wshadow -std=c++14 -g -DTESTING # Different flags for tests
 
 # Directories
 SRCDIR = src
