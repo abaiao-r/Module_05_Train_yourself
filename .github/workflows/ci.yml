@@ -49,7 +49,7 @@ jobs:
     - name: Upload coverage report  # Step to upload coverage report
       uses: actions/upload-artifact@v4  # Use the latest version of the upload-artifact action
       with:
-        name: coverage-report  # Name of the artifact
+        name: coverage-report-${{ github.run_number }}  # Name of the artifact with run number
         path: coverage  # Path to the coverage report directory
         if-no-files-found: warn  # Warn if no files are found
         compression-level: 6  # Set compression level
@@ -92,7 +92,7 @@ jobs:
     - name: Upload coverage report  # Step to upload coverage report
       uses: actions/upload-artifact@v4  # Use the latest version of the upload-artifact action
       with:
-        name: coverage-report  # Name of the artifact
+        name: coverage-report-${{ github.run_number }}  # Name of the artifact with run number
         path: coverage  # Path to the coverage report directory
         if-no-files-found: warn  # Warn if no files are found
         compression-level: 6  # Set compression level
