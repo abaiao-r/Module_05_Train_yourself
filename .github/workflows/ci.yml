@@ -127,14 +127,22 @@ jobs:
 
     - name: Generate coverage report
       run: |
+        # Verify gcov version
         if [ ${{ matrix.compiler }} == 'gcc' ]; then
           gcov --version  # Ensure the correct version of gcov is used
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
           llvm-cov gcov --version  # Ensure the correct version of llvm-cov gcov is used
         fi
+
+        # Generate coverage info
         lcov --gcov-tool $(which gcov) --capture --directory . --output-file coverage.info
-        lcov --remove coverage.info '/usr/*' --output-file coverage.info
+
+        # Remove unnecessary paths from coverage
+        lcov --remove coverage.info '/usr/*' '/path/to/exclude/*' --output-file coverage.info
+        
+        # Generate HTML report
         genhtml coverage.info --output-directory coverage
+  
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
