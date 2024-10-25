@@ -128,9 +128,9 @@ jobs:
     - name: Generate coverage report
       run: |
         if [ ${{ matrix.compiler }} == 'gcc' ]; then
-          gcov -v  # Ensure the correct version of gcov is used
+          gcov --version  # Ensure the correct version of gcov is used
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
-          llvm-cov gcov -v  # Ensure the correct version of llvm-cov gcov is used
+          llvm-cov --version  # Ensure the correct version of llvm-cov is used
         fi
         lcov --capture --directory . --output-file coverage.info
         lcov --remove coverage.info '/usr/*' --output-file coverage.info
