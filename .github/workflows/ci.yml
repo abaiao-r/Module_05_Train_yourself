@@ -132,9 +132,12 @@ jobs:
           GCOV_TOOL=$(which gcov)  # Use gcov for GCC
           echo "Using gcov version:" $($GCOV_TOOL --version)
         elif [ "${{ matrix.compiler }}" == 'clang' ]; then
-          GCOV_TOOL="llvm-cov gcov"  # Directly use llvm-cov gcov for Clang
+          GCOV_TOOL="llvm-cov gcov"  # Use llvm-cov gcov for Clang
           echo "Using llvm-cov gcov version:"
           llvm-cov gcov --version
+          
+          # Create a symbolic link or alias if needed
+          sudo ln -sf $(which llvm-cov) /usr/local/bin/gcov
         fi
 
         # Generate coverage data with the selected gcov tool
@@ -145,6 +148,7 @@ jobs:
 
         # Generate HTML coverage report
         genhtml coverage.info --output-directory coverage
+  
   
   
   
