@@ -48,8 +48,10 @@ jobs:
     - name: Compile main program  # Step to compile the main program
       run: |
         if [ ${{ matrix.compiler }} == 'gcc' ]; then
+          make clean
           make CC=g++  # Compile the main program with g++
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
+          make clean
           make CC=clang++  # Compile the main program with clang++
         fi
 
@@ -62,15 +64,15 @@ jobs:
           exit 1
         fi
 
-    - name: Compile Singleton tests with coverage and debug flags  # Step to compile Singleton tests with coverage and debug flags
+    - name: Compile Singleton tests with coverage and debug flags
       run: |
         if [ ${{ matrix.compiler }} == 'gcc' ]; then
-          g++ -Wall -Wextra -std=c++14 --coverage -g -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with g++
+          g++ -Wall -Wextra -Werror --coverage -g -gdwarf-4 -o bin/testSingleton tests/SingletonTest.cpp
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
-          clang++ -Wall -Wextra -std=c++14 --coverage -g -o bin/testSingleton tests/SingletonTest.cpp  # Compile the Singleton tests with clang++
+          clang++ -Wall -Wextra -Werror --coverage -g -gdwarf-4 -o bin/testSingleton tests/SingletonTest.cpp
         fi
 
-    - name: Run Singleton tests  # Step to run Singleton tests
+    - name: Run Singleton tests
       run: |
         if [ -f ./bin/testSingleton ]; then
           ./bin/testSingleton
@@ -79,15 +81,24 @@ jobs:
           exit 1
         fi
 
-    - name: Compile Node tests with coverage and debug flags  # Step to compile Node tests with coverage and debug flags
+    - name: Compile Node tests with coverage and debug flags
       run: |
         if [ ${{ matrix.compiler }} == 'gcc' ]; then
-          g++ -Wall -Wextra -std=c++14 --coverage -g -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with g++
+          g++ -Wall -Wextra -Werror --coverage -g -gdwarf-4 -o bin/testNode tests/NodeTest.cpp src/Node.cpp
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
-          clang++ -Wall -Wextra -std=c++14 --coverage -g -o bin/testNode tests/NodeTest.cpp src/Node.cpp  # Compile the Node tests with clang++
+          clang++ -Wall -Wextra -Werror --coverage -g -gdwarf-4 -o bin/testNode tests/NodeTest.cpp src/Node.cpp
         fi
 
-    - name: Run Node tests with Valgrind  # Step to run Node tests with Valgrind
+    - name: Run Node tests
+      run: |
+        if [ -f ./bin/testNode ]; then
+          ./bin/testNode
+        else
+          echo "testNode binary not found"
+          exit 1
+        fi
+
+    - name: Run Node tests with Valgrind
       run: |
         if [ -f ./bin/testNode ]; then
           valgrind --leak-check=full --show-leak-kinds=all ./bin/testNode
@@ -95,11 +106,8 @@ jobs:
           echo "testNode binary not found"
           exit 1
         fi
-      shell: /usr/bin/bash -e {0}
-      env:
-        FORCE_JAVASCRIPT_ACTIONS_TO_NODE20: true
 
-    - name: Run main program with Valgrind  # Step to run the main program with Valgrind
+    - name: Run main program with Valgrind
       run: |
         if [ -f ./bin/Train ]; then
           valgrind --leak-check=full --show-leak-kinds=all ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
@@ -108,7 +116,7 @@ jobs:
           exit 1
         fi
 
-    - name: Run Singleton tests with Valgrind  # Step to run Singleton tests with Valgrind
+    - name: Run Singleton tests with Valgrind
       run: |
         if [ -f ./bin/testSingleton ]; then
           valgrind --leak-check=full --show-leak-kinds=all ./bin/testSingleton
@@ -117,13 +125,13 @@ jobs:
           exit 1
         fi
 
-    - name: Generate coverage report  # Step to generate coverage report
+    - name: Generate coverage report
       run: |
         lcov --capture --directory . --output-file coverage.info
         lcov --remove coverage.info '/usr/*' --output-file coverage.info
         genhtml coverage.info --output-directory coverage
 
-    - name: Upload coverage report  # Step to upload coverage report
+    - name: Upload coverage report
       uses: actions/upload-artifact@v4
       continue-on-error: true
       with:
