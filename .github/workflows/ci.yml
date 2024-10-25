@@ -138,7 +138,7 @@ jobs:
           llvm-cov gcov --version
           
           # Create a symbolic link or alias if needed
-          sudo ln -sf $(which llvm-cov) /usr/local/bin/gcov
+          sudo ln -sf $(which llvm-cov) /usr/local/bin/llvm-cov-gcov
         fi
 
         # Generate coverage data with the selected gcov tool
