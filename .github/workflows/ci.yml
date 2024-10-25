@@ -36,6 +36,7 @@ jobs:
           sudo apt-get install -y g++ lcov valgrind  # Install g++, lcov, and valgrind
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
           sudo apt-get install -y clang llvm lcov valgrind  # Install clang, llvm, lcov, and valgrind
+          sudo ln -sf $(which llvm-cov) /usr/local/bin/gcov  # Create symbolic link to llvm-cov
         fi
 
     - name: Check code formatting  # Step to check code formatting
