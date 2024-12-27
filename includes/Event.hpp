@@ -17,23 +17,23 @@
 
 class Event
 {
-    private:
-        std::string _eventName;
-        float _eventProbability;
-        // std::chrono::duration<int> _eventDuration;
-        std::string _node; // node where the event will happen
+	private:
+		std::string _eventName;
+		float		_eventProbability;
+		// std::chrono::duration<int> _eventDuration;
+		std::string _node;	// node where the event will happen
 
-    public:
-        Event();
-        Event(const Event &src);
-        ~Event();
-        Event &operator=(const Event &src);
+	public:
+		Event();
+		Event(const Event &src);
+		~Event();
+		Event &operator=(const Event &src);
 
-        // Getters
-        const std::string &getEventName() const;
-        const float &getEventProbability() const;
-        // const std::chrono::duration<int> &getEventDuration() const;
-        const std::string &getNode() const;
+		// Getters
+		const std::string &getEventName() const;
+		const float		&getEventProbability() const;
+		// const std::chrono::duration<int> &getEventDuration() const;
+		const std::string &getNode() const;
 };
 
 #endif
