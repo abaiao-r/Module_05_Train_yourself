@@ -1,30 +1,29 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   TrainFactory.hpp                                   :+:      :+:    :+:   */
+/*    IPathfindingAlgorithm.hpp                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/09/16 14:07:31 by abaiao-r          #+#    #+#             */
-/*   Updated: 2024/09/16 14:07:50 by abaiao-r         ###   ########.fr       */
+/*   Created: 2024/09/16 14:03:46 by abaiao-r          #+#    #+#             */
+/*   Updated: 2024/09/16 14:04:12 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef TRAINFACTORY_HPP
-# define TRAINFACTORY_HPP
+#ifndef IPATHFINDINGALGORITHM_HPP
+#define IPATHFINDINGALGORITHM_HPP
 
-# include "libraries.hpp"
+#include "libraries.hpp"
 
-class TrainFactory
+class IPathfindingAlgorithm
 {
-    private:
+	private:
 
-    public:
-        TrainFactory();
-        TrainFactory(const TrainFactory &src);
-        ~TrainFactory();
-        TrainFactory &operator=(const TrainFactory &src);
-
+	public:
+		IPathfindingAlgorithm();
+		IPathfindingAlgorithm(const IPathfindingAlgorithm &src);
+		virtual ~IPathfindingAlgorithm();
+		IPathfindingAlgorithm &operator=(const IPathfindingAlgorithm &src);
 };
 
 #endif

@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/14 16:58:42 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/09/19 04:04:32 by andrefranci      ###   ########.fr       */
+/*   Updated: 2024/10/24 20:55:31 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,8 +24,9 @@ int main(int argc, char **argv)
 				  << std::endl;
 		return (EXIT_FAILURE);
 	}
+	(void)argv;
 
-	try
+	/* try
 	{
 		// Create an InputHandler object with the provided file paths
 		InputHandler inputHandler(argv[1], argv[2]);
@@ -40,7 +41,7 @@ int main(int argc, char **argv)
 	{
 		std::cerr << "Error: " << ex.what() << std::endl;
 		return EXIT_FAILURE;
-	}
+	} */
 
 	return (EXIT_SUCCESS);
 }

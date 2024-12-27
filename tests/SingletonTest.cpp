@@ -6,21 +6,15 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/16 15:06:53 by abaiao-r          #+#    #+#             */
-/*   Updated: 2024/09/19 04:03:54 by andrefranci      ###   ########.fr       */
+/*   Updated: 2024/10/17 14:46:20 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/Singleton.hpp"
 
-class MyClass
+class MyClass : public Singleton<MyClass>
 {
 	public:
-		MyClass()
-		{
-			std::cout << GREEN << "MyClass Constructor Called!" << RESET
-					  << std::endl;
-		}
-
 		void display()
 		{
 			std::cout << "MyClass Instance: " << this << std::endl;
@@ -32,6 +26,7 @@ void testBasicFunctionality()
 {
 	MyClass &instance = Singleton<MyClass>::getInstance();
 	instance.display();
+
 	std::cout << GREEN << "Basic Functionality Test Passed!" << RESET
 			  << std::endl;
 }

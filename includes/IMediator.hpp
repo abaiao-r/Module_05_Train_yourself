@@ -1,37 +1,29 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   EventManager.hpp                                   :+:      :+:    :+:   */
+/*   IMediator.hpp                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/09/16 13:51:26 by abaiao-r          #+#    #+#             */
-/*   Updated: 2024/09/20 12:25:48 by andrefranci      ###   ########.fr       */
+/*   Created: 2024/09/18 17:10:53 by andrefranci       #+#    #+#             */
+/*   Updated: 2024/09/20 12:08:25 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef EVENTMANAGER_HPP
-#define EVENTMANAGER_HPP
+#ifndef IMEDIATOR_HPP
+#define IMEDIATOR_HPP
 
-#include "Event.hpp"
 #include "libraries.hpp"
 
-class EventManager
+class IMediator
 {
 	private:
-		std::vector<Event> _events;
+		std::vector<IObserver *> _observers;
 
 	public:
-		EventManager();
-		EventManager(const EventManager &src);
-        EventManager &operator=(const EventManager &src);
-        EventManager(EventManager &&src);
-        EventManager &operator=(EventManager &&src);
-        ~EventManager();
-        
-
-		// Getters
-		const std::vector<Event> &getEvents() const;
+		virtual void notify(std::string const &Event,
+							std::string const &Message)
+			= 0;
 };
 
 #endif

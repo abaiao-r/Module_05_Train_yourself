@@ -1,30 +1,29 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   DijkstraPathfinding.hpp                            :+:      :+:    :+:   */
+/*   OutputManager.hpp                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/09/16 14:05:57 by abaiao-r          #+#    #+#             */
-/*   Updated: 2024/09/16 14:06:19 by abaiao-r         ###   ########.fr       */
+/*   Created: 2024/09/16 14:08:05 by abaiao-r          #+#    #+#             */
+/*   Updated: 2024/09/16 14:08:22 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef DIJKSTRAPATHFINDING_HPP
-# define DIJKSTRAPATHFINDING_HPP
+#ifndef OUTPUTMANAGER_HPP
+#define OUTPUTMANAGER_HPP
 
-# include "libraries.hpp"
+#include "libraries.hpp"
 
-class DijkstraPathfinding : public IPathfindingAlgorithm
+class OutputManager
 {
-    private:
+	private:
 
-    public:
-        DijkstraPathfinding();
-        DijkstraPathfinding(const DijkstraPathfinding &src);
-        virtual ~DijkstraPathfinding();
-        DijkstraPathfinding &operator=(const DijkstraPathfinding &src);
-
+	public:
+		OutputManager();
+		OutputManager(const OutputManager &src);
+		~OutputManager();
+		OutputManager &operator=(const OutputManager &src);
 };
 
 #endif
