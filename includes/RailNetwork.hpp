@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/15 21:54:26 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/10/17 15:34:29 by andrefranci      ###   ########.fr       */
+/*   Updated: 2024/12/28 13:34:04 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,6 +48,9 @@ class RailNetwork : public Singleton<RailNetwork>
 
 		// Get all nodes in the rail network
 		const std::vector<std::shared_ptr<Node>> getNodes() const;
+
+		// debug function
+		void printNetwork() const;
 };
 
 #endif
