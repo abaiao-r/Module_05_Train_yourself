@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/15 14:22:37 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/10/17 15:34:27 by andrefranci      ###   ########.fr       */
+/*   Updated: 2024/12/28 14:32:17 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,4 +57,24 @@ const std::vector<std::shared_ptr<Node>> RailNetwork::getNodes() const
 		nodes.push_back(pair.first);
 	}
 	return nodes;
+}
+
+// Debug function to print the rail network
+void RailNetwork::printNetwork() const
+{
+	std::cout << CYAN << "==================================================" << std::endl;
+	std::cout << "               RAIL NETWORK OVERVIEW              " << std::endl;
+	std::cout << "==================================================" << RESET << std::endl;
+
+	for (const auto &pair : _adjacencyList)
+	{
+		std::cout << BLUE << "[Node] " << pair.first->getName() << RESET << std::endl;
+		std::cout << YELLOW << "  Neighbors:" << RESET << std::endl;
+		for (const auto &neighbor : pair.second)
+		{
+			std::cout << "    " << GREEN << neighbor.first->getName() << RESET
+					  << " [distance: " << neighbor.second << "]" << std::endl;
+		}
+		std::cout << std::endl;
+	}
 }
