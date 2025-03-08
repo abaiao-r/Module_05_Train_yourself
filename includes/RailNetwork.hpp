@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/15 21:54:26 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/12/28 13:34:04 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/03/08 12:03:27 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,6 +51,19 @@ class RailNetwork : public Singleton<RailNetwork>
 
 		// debug function
 		void printNetwork() const;
+
+		// Custom exception class for existing connection
+		class ConnectionAlreadyExistsException : public std::runtime_error
+		{
+			public:
+				ConnectionAlreadyExistsException(const std::string &node1Name,
+												 const std::string &node2Name)
+					: std::runtime_error(
+						"Error: Connection already exists between " + node1Name
+						+ " and " + node2Name)
+				{
+				}
+		};
 };
 
 #endif

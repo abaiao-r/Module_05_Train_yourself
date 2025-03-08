@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/15 14:22:37 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/12/28 14:32:17 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/03/08 11:51:51 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,9 +27,24 @@ void RailNetwork::addNode(std::shared_ptr<Node> node)
 void RailNetwork::addConnection(std::shared_ptr<Node> node1,
 								std::shared_ptr<Node> node2, size_t distance)
 {
+	if (node1 == node2)
+	{
+		throw Node::SelfEdgeException(node1->getName());
+	}
+
 	// Ensure both nodes exist in the network, otherwise add them
 	addNode(node1);
 	addNode(node2);
+
+	// Check if the connection already exists
+	for (const auto &neighbor : _adjacencyList[node1])
+	{
+		if (neighbor.first == node2)
+		{
+			throw ConnectionAlreadyExistsException(node1->getName(),
+												   node2->getName());
+		}
+	}
 
 	// Add the connection in both directions (undirected graph)
 	_adjacencyList[node1].push_back(std::make_pair(node2, distance));
@@ -62,13 +77,17 @@ const std::vector<std::shared_ptr<Node>> RailNetwork::getNodes() const
 // Debug function to print the rail network
 void RailNetwork::printNetwork() const
 {
-	std::cout << CYAN << "==================================================" << std::endl;
-	std::cout << "               RAIL NETWORK OVERVIEW              " << std::endl;
-	std::cout << "==================================================" << RESET << std::endl;
+	std::cout << CYAN << "=================================================="
+			  << std::endl;
+	std::cout << "               RAIL NETWORK OVERVIEW              "
+			  << std::endl;
+	std::cout << "==================================================" << RESET
+			  << std::endl;
 
 	for (const auto &pair : _adjacencyList)
 	{
-		std::cout << BLUE << "[Node] " << pair.first->getName() << RESET << std::endl;
+		std::cout << BLUE << "[Node] " << pair.first->getName() << RESET
+				  << std::endl;
 		std::cout << YELLOW << "  Neighbors:" << RESET << std::endl;
 		for (const auto &neighbor : pair.second)
 		{

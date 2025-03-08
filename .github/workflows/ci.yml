@@ -98,6 +98,23 @@ jobs:
           exit 1
         fi
 
+    - name: Compile test_RailNetwork
+      run: |
+        if [ ${{ matrix.compiler }} == 'gcc' ]; then
+          g++ -Wall -Wextra -Werror -g -gdwarf-4 -o bin/testRailNetwork tests/test_RailNetwork.cpp src/RailNetwork.cpp src/Node.cpp
+        elif [ ${{ matrix.compiler }} == 'clang' ]; then
+          clang++ -Wall -Wextra -Werror -g -gdwarf-4 -o bin/testRailNetwork tests/test_RailNetwork.cpp src/RailNetwork.cpp src/Node.cpp
+        fi
+
+    - name: Run test_RailNetwork
+      run: |
+        if [ -f ./bin/testRailNetwork ]; then
+          ./bin/testRailNetwork
+        else
+          echo "testRailNetwork binary not found"
+          exit 1
+        fi
+
     - name: Run Node tests with Valgrind
       run: |
         if [ -f ./bin/testNode ]; then
@@ -122,5 +139,14 @@ jobs:
           valgrind --leak-check=full --show-leak-kinds=all ./bin/testSingleton
         else
           echo "testSingleton binary not found"
+          exit 1
+        fi
+
+    - name: Run test_RailNetwork with Valgrind
+      run: |
+        if [ -f ./bin/testRailNetwork ]; then
+          valgrind --leak-check=full --show-leak-kinds=all ./bin/testRailNetwork
+        else
+          echo "testRailNetwork binary not found"
           exit 1
         fi
