@@ -2,33 +2,42 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "../includes/RailNetwork.hpp"
-#include "../includes/Node.hpp"
-#include "../includes/colours.hpp"
 #include <iostream>
 
+#include "../includes/Node.hpp"
+#include "../includes/RailNetwork.hpp"
+#include "../includes/colours.hpp"
 
 static void printTestSuiteHeader()
 {
-	std::cout << CYAN << "------------------------------------------" << std::endl;
+	std::cout << CYAN << "------------------------------------------"
+			  << std::endl;
 	std::cout << "         RAIL NETWORK TEST SUITE         " << std::endl;
-	std::cout << "------------------------------------------" << RESET << std::endl << std::endl;
+	std::cout << "------------------------------------------" << RESET
+			  << std::endl
+			  << std::endl;
 }
 
-static void printResult(const std::string &testName, bool passed,
+static bool printResult(const std::string &testName, bool passed,
 						const std::string &expected, const std::string &actual)
 {
 	std::cout << YELLOW << "Test: " << testName << RESET << std::endl;
 	std::cout << "  Expected: " << expected << std::endl;
 	std::cout << "  Actual: " << actual << std::endl;
 	if (passed)
+	{
 		std::cout << GREEN << "  Result: PASS" << RESET << std::endl;
+		return true;
+	}
 	else
+	{
 		std::cout << RED << "  Result: FAIL" << RESET << std::endl;
+		return false;
+	}
 	std::cout << std::endl;
 }
 
-static void testAddNode()
+static bool testAddNode()
 {
 	std::cout << BLUE << "[TEST] AddNode" << RESET << std::endl;
 	auto &network = RailNetwork::getInstance();
@@ -43,16 +52,16 @@ static void testAddNode()
 			break;
 		}
 	}
-	printResult("AddNode", found, "Node 'TestNode' in RailNetwork",
-				found ? "Node present" : "Node not found");
+	return printResult("AddNode", found, "Node 'TestNode' in RailNetwork",
+					   found ? "Node present" : "Node not found");
 }
 
-static void testAddConnection()
+static bool testAddConnection()
 {
 	std::cout << BLUE << "[TEST] AddConnection" << RESET << std::endl;
 	auto &network = RailNetwork::getInstance();
-	auto nodeA = std::make_shared<Node>("NodeA");
-	auto nodeB = std::make_shared<Node>("NodeB");
+	auto  nodeA = std::make_shared<Node>("NodeA");
+	auto  nodeB = std::make_shared<Node>("NodeB");
 	network.addConnection(nodeA, nodeB, 5);
 
 	bool connectionExists = false;
@@ -64,12 +73,13 @@ static void testAddConnection()
 			break;
 		}
 	}
-	printResult("AddConnection", connectionExists,
-				"Connection from NodeA to NodeB with distance 5",
-				connectionExists ? "Connection correct" : "Connection missing");
+	return printResult("AddConnection", connectionExists,
+					   "Connection from NodeA to NodeB with distance 5",
+					   connectionExists ? "Connection correct"
+										: "Connection missing");
 }
 
-static void testGetNodes()
+static bool testGetNodes()
 {
 	std::cout << BLUE << "[TEST] GetNodes" << RESET << std::endl;
 	auto &network = RailNetwork::getInstance();
@@ -77,16 +87,16 @@ static void testGetNodes()
 	network.addNode(std::make_shared<Node>("NodeY"));
 	auto nodeCount = network.getNodes().size();
 	bool correctCount = (nodeCount >= 2);
-	printResult("GetNodes", correctCount, "At least 2 nodes",
-				std::to_string(nodeCount) + " nodes");
+	return printResult("GetNodes", correctCount, "At least 2 nodes",
+					   std::to_string(nodeCount) + " nodes");
 }
 
-static void testGetNeighbours()
+static bool testGetNeighbours()
 {
 	std::cout << BLUE << "[TEST] GetNeighbours" << RESET << std::endl;
 	auto &network = RailNetwork::getInstance();
-	auto nodeA = std::make_shared<Node>("NodeC");
-	auto nodeB = std::make_shared<Node>("NodeD");
+	auto  nodeA = std::make_shared<Node>("NodeC");
+	auto  nodeB = std::make_shared<Node>("NodeD");
 	network.addConnection(nodeA, nodeB, 7);
 
 	auto neighbours = network.getNeighbours(nodeA);
@@ -99,28 +109,30 @@ static void testGetNeighbours()
 			break;
 		}
 	}
-	printResult("GetNeighbours", foundB, "Neighbor NodeD with distance 7",
-				foundB ? "Found correct neighbor" : "Wrong/missing neighbor");
+	return printResult(
+		"GetNeighbours", foundB, "Neighbor NodeD with distance 7",
+		foundB ? "Found correct neighbor" : "Wrong/missing neighbor");
 }
 
-static void testPrintNetwork()
+static bool testPrintNetwork()
 {
 	std::cout << BLUE << "[TEST] PrintNetwork" << RESET << std::endl;
 	auto &network = RailNetwork::getInstance();
-	auto nodeX = std::make_shared<Node>("PrintNodeX");
-	auto nodeY = std::make_shared<Node>("PrintNodeY");
-    auto nodeZ = std::make_shared<Node>("PrintNodeZ");
+	auto  nodeX = std::make_shared<Node>("PrintNodeX");
+	auto  nodeY = std::make_shared<Node>("PrintNodeY");
+	auto  nodeZ = std::make_shared<Node>("PrintNodeZ");
 	network.addNode(nodeX);
 	network.addNode(nodeY);
-    network.addNode(nodeZ);
+	network.addNode(nodeZ);
 	network.addConnection(nodeX, nodeY, 10);
-    network.addConnection(nodeX, nodeZ, 15);
-	std::cout << "Testing printNetwork() (no validation, just ensure no crash):" 
+	network.addConnection(nodeX, nodeZ, 15);
+	std::cout << "Testing printNetwork() (no validation, just ensure no crash):"
 			  << std::endl;
 	network.printNetwork();
+	return true;
 }
 
-static void testDuplicateNode()
+static bool testDuplicateNode()
 {
 	std::cout << BLUE << "[TEST] DuplicateNode" << RESET << std::endl;
 	auto &network = RailNetwork::getInstance();
@@ -134,15 +146,15 @@ static void testDuplicateNode()
 	{
 		exceptionThrown = true;
 	}
-	printResult("DuplicateNode", exceptionThrown, "Exception thrown",
-				exceptionThrown ? "Exception thrown" : "No exception");
+	return printResult("DuplicateNode", exceptionThrown, "Exception thrown",
+					   exceptionThrown ? "Exception thrown" : "No exception");
 }
 
-static void testSelfEdge()
+static bool testSelfEdge()
 {
 	std::cout << BLUE << "[TEST] SelfEdge" << RESET << std::endl;
 	auto &network = RailNetwork::getInstance();
-	auto node = std::make_shared<Node>("SelfEdgeNode");
+	auto  node = std::make_shared<Node>("SelfEdgeNode");
 	network.addNode(node);
 	bool exceptionThrown = false;
 	try
@@ -153,36 +165,36 @@ static void testSelfEdge()
 	{
 		exceptionThrown = true;
 	}
-	printResult("SelfEdge", exceptionThrown, "Exception thrown",
-				exceptionThrown ? "Exception thrown" : "No exception");
+	return printResult("SelfEdge", exceptionThrown, "Exception thrown",
+					   exceptionThrown ? "Exception thrown" : "No exception");
 }
 
-static void testEdgeAlreadyExists()
+static bool testEdgeAlreadyExists()
 {
 	std::cout << BLUE << "[TEST] EdgeAlreadyExists" << RESET << std::endl;
 	auto &network = RailNetwork::getInstance();
-	auto nodeA = std::make_shared<Node>("NodeA");
-	auto nodeB = std::make_shared<Node>("NodeB");
+	auto  nodeA = std::make_shared<Node>("NodeA");
+	auto  nodeB = std::make_shared<Node>("NodeB");
 	network.addConnection(nodeA, nodeB, 5);
 	bool exceptionThrown = false;
 	try
 	{
 		network.addConnection(nodeA, nodeB, 5);
 	}
-	catch (const Node::EdgeAlreadyExistsException &)
+	catch (const RailNetwork::ConnectionAlreadyExistsException &)
 	{
 		exceptionThrown = true;
 	}
-	printResult("EdgeAlreadyExists", exceptionThrown, "Exception thrown",
-				exceptionThrown ? "Exception thrown" : "No exception");
+	return printResult("EdgeAlreadyExists", exceptionThrown, "Exception thrown",
+					   exceptionThrown ? "Exception thrown" : "No exception");
 }
 
-static void testNonExistentNode()
+static bool testNonExistentNode()
 {
 	std::cout << BLUE << "[TEST] NonExistentNode" << RESET << std::endl;
 	auto &network = RailNetwork::getInstance();
-	auto node = std::make_shared<Node>("NonExistentNode");
-	bool exceptionThrown = false;
+	auto  node = std::make_shared<Node>("NonExistentNode");
+	bool  exceptionThrown = false;
 	try
 	{
 		network.getNeighbours(node);
@@ -191,55 +203,63 @@ static void testNonExistentNode()
 	{
 		exceptionThrown = true;
 	}
-	printResult("NonExistentNode", exceptionThrown, "Exception thrown",
-				exceptionThrown ? "Exception thrown" : "No exception");
+	return printResult("NonExistentNode", exceptionThrown, "Exception thrown",
+					   exceptionThrown ? "Exception thrown" : "No exception");
 }
 
-static void testEmptyNetwork()
+static bool testEmptyNetwork()
 {
 	std::cout << BLUE << "[TEST] EmptyNetwork" << RESET << std::endl;
 	auto &network = RailNetwork::getInstance();
-	auto nodes = network.getNodes();
-	bool isEmpty = nodes.empty();
-	printResult("EmptyNetwork", isEmpty, "No nodes in network",
-				isEmpty ? "No nodes" : "Nodes present");
+	auto  nodes = network.getNodes();
+	bool  isEmpty = nodes.empty();
+	return printResult("EmptyNetwork", isEmpty, "No nodes in network",
+					   isEmpty ? "No nodes" : "Nodes present");
 }
 
-static void runTest(void (*testFunc)())
+/*  Helper function to run a test function in a child process
+ *  Returns true if the test passed, false otherwise
+ * This done to ensure that each test runs in isolation and does not affect the
+ * state of other tests
+ */
+static bool runTest(bool (*testFunc)())
 {
 	pid_t pid = fork();
 	if (pid < 0)
 	{
 		std::cerr << "Fork failed." << std::endl;
-		return;
+		return false;
 	}
 	if (pid == 0)
 	{
 		// Child process executes the test, then exits
-		testFunc();
-		_exit(0);
+		bool result = testFunc();
+		_exit(result ? 0 : 1);
 	}
 	else
 	{
 		// Parent waits for the child to finish, then continues
 		int status;
 		waitpid(pid, &status, 0);
+		return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 	}
 }
 
-int main()
+int main(void)
 {
 	printTestSuiteHeader();
-	runTest(testAddNode);
-	runTest(testAddConnection);
-	runTest(testGetNodes);
-	runTest(testGetNeighbours);
-	runTest(testPrintNetwork);
-	runTest(testDuplicateNode);
-	runTest(testSelfEdge);
-	runTest(testEdgeAlreadyExists);
-	runTest(testNonExistentNode);
-	runTest(testEmptyNetwork);
-	std::cout << GREEN << "All tests completed successfully." << RESET << std::endl;
-	return 0;
+	bool allTestsPassed = true;
+	allTestsPassed &= runTest(testAddNode);
+	allTestsPassed &= runTest(testAddConnection);
+	allTestsPassed &= runTest(testGetNodes);
+	allTestsPassed &= runTest(testGetNeighbours);
+	allTestsPassed &= runTest(testPrintNetwork);
+	allTestsPassed &= runTest(testDuplicateNode);
+	allTestsPassed &= runTest(testSelfEdge);
+	allTestsPassed &= runTest(testEdgeAlreadyExists);
+	allTestsPassed &= runTest(testNonExistentNode);
+	allTestsPassed &= runTest(testEmptyNetwork);
+	std::cout << (allTestsPassed ? GREEN : RED) << "All tests completed."
+			  << RESET << std::endl;
+	return allTestsPassed ? 0 : 1;
 }
