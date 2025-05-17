@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 20:36:48 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/10/13 23:11:14 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/17 16:24:21 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,8 +21,16 @@ class Node
 		// Static set to keep track of existing node names
 		static std::unordered_set<std::string> _existingNames;
 		std::string							   _name;
+
 		// PAIR OF NODE AND DISTANCE
-		std::vector<std::pair<std::weak_ptr<Node>, size_t>> _edges;
+		struct Edge
+		{
+				std::weak_ptr<Node> node;
+				size_t				distance;
+				size_t				speedLimit;
+		};
+
+		std::vector<Edge> _edges;
 
 	public:
 		Node() = delete;
@@ -33,10 +41,10 @@ class Node
 		Node &operator=(const Node &src) = delete;
 		Node &operator=(Node &&src) = delete;
 
-		void			   addEdge(std::weak_ptr<Node> node, size_t distance);
+		void			   addEdge(std::weak_ptr<Node> node, size_t distance,
+								   size_t speedLimit);
 		const std::string &getName() const;
-		const std::vector<std::pair<std::weak_ptr<Node>, size_t>> &getEdges()
-			const;
+		const std::vector<Edge> &getEdges() const;
 
 		// Custom exception class
 		class SelfEdgeException : public std::runtime_error
