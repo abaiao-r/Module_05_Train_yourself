@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 20:36:48 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/17 16:24:21 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/17 17:49:53 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,7 +22,11 @@ class Node
 		static std::unordered_set<std::string> _existingNames;
 		std::string							   _name;
 
-		// PAIR OF NODE AND DISTANCE
+		// Represents a connection (edge) between two nodes in the graph.
+		// Fields:
+		// - node: A weak pointer to the connected node.
+		// - distance: The distance to the connected node (in meters).
+		// - speedLimit: The speed limit on the edge (in kilometers per hour).
 		struct Edge
 		{
 				std::weak_ptr<Node> node;
@@ -30,6 +34,7 @@ class Node
 				size_t				speedLimit;
 		};
 
+		// Vector to store edges
 		std::vector<Edge> _edges;
 
 	public:
