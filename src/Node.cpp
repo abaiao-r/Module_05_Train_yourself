@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 21:11:20 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/10/13 23:12:54 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/17 17:50:29 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,7 @@ Node::~Node()
 }
 
 // Add an edge to the node
-void Node::addEdge(std::weak_ptr<Node> node, size_t distance)
+void Node::addEdge(std::weak_ptr<Node> node, size_t distance, size_t speedLimit)
 {
 	// Check if the node is trying to add itself
 	std::shared_ptr<Node> sharedNode = node.lock();
@@ -43,19 +43,16 @@ void Node::addEdge(std::weak_ptr<Node> node, size_t distance)
 	}
 
 	// Check if the edge already exists
-	for (const std::pair<std::weak_ptr<Node>, size_t> &edge : _edges)
+	for (const Node::Edge &edge : _edges)
 	{
-		std::shared_ptr<Node> existingNode = edge.first.lock();
-		if (existingNode)
+		auto existingNode = edge.node.lock();
+		if (existingNode && existingNode == sharedNode)
 		{
-			if (existingNode == sharedNode)
-			{
-				throw EdgeAlreadyExistsException(this->_name,
-												 sharedNode->getName());
-			}
+			throw EdgeAlreadyExistsException(this->_name,
+											 sharedNode->getName());
 		}
 	}
-	_edges.push_back(std::make_pair(node, distance));
+	_edges.push_back({node, distance, speedLimit});
 }
 
 // Get the name of the node
@@ -65,10 +62,9 @@ const std::string &Node::getName() const
 }
 
 // Get the edges of the node
-const std::vector<std::pair<std::weak_ptr<Node>, size_t>> &Node::getEdges()
-	const
+const std::vector<Node::Edge> &Node::getEdges() const
 {
-	return (this->_edges);
+	return _edges;
 }
 
 // main to test the Node class
