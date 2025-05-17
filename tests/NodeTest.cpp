@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/24 18:23:49 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/10/24 19:01:09 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/17 16:52:50 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,13 +27,13 @@ bool testAddEdges()
 	try
 	{
 		// Create nodes
-		std::shared_ptr<Node> nodeA = std::make_shared<Node>("A1");
-		std::shared_ptr<Node> nodeB = std::make_shared<Node>("B1");
-		std::shared_ptr<Node> nodeC = std::make_shared<Node>("C1");
+		std::shared_ptr<Node> nodeA = std::make_shared<Node>("A");
+		std::shared_ptr<Node> nodeB = std::make_shared<Node>("B");
+		std::shared_ptr<Node> nodeC = std::make_shared<Node>("C");
 
 		// Add edges
-		nodeA->addEdge(nodeB, 10);
-		nodeA->addEdge(nodeC, 20);
+		nodeA->addEdge(nodeB, 10, 80);
+		nodeA->addEdge(nodeC, 20, 90);
 
 		// Verify edges
 		auto edges = nodeA->getEdges();
@@ -49,13 +49,15 @@ bool testAddEdges()
 
 		for (const auto &edge : edges)
 		{
-			if (auto targetNode = edge.first.lock())
+			if (auto targetNode = edge.node.lock())
 			{
-				if (targetNode == nodeB && edge.second == 10)
+				if (targetNode == nodeB && edge.distance == 10
+					&& edge.speedLimit == 80)
 				{
 					foundEdgeB = true;
 				}
-				if (targetNode == nodeC && edge.second == 20)
+				if (targetNode == nodeC && edge.distance == 20
+					&& edge.speedLimit == 90)
 				{
 					foundEdgeC = true;
 				}
@@ -65,14 +67,16 @@ bool testAddEdges()
 		if (!foundEdgeB)
 		{
 			std::cerr << RED
-					  << "Error: Edge to node B with distance 10 not found"
+					  << "Error: Edge to node B with distance 10 and speed "
+						 "limit 80 not found"
 					  << RESET << std::endl;
 			testPassed = false;
 		}
 		if (!foundEdgeC)
 		{
 			std::cerr << RED
-					  << "Error: Edge to node C with distance 20 not found"
+					  << "Error: Edge to node C with distance 20 and speed "
+						 "limit 90 not found"
 					  << RESET << std::endl;
 			testPassed = false;
 		}
@@ -103,12 +107,12 @@ bool testDuplicateEdge()
 		std::shared_ptr<Node> nodeB = std::make_shared<Node>("B2");
 
 		// Add edge
-		nodeA->addEdge(nodeB, 10);
+		nodeA->addEdge(nodeB, 10, 50);
 
 		// Attempt to add a duplicate edge
 		try
 		{
-			nodeA->addEdge(nodeB, 10);
+			nodeA->addEdge(nodeB, 10, 50);
 			std::cerr << RED
 					  << "Error: Expected EdgeAlreadyExistsException not thrown"
 					  << RESET << std::endl;
@@ -148,7 +152,7 @@ bool testSelfEdge()
 		// Attempt to add a self-edge
 		try
 		{
-			nodeA->addEdge(nodeA, 5);
+			nodeA->addEdge(nodeA, 5, 100);
 			std::cerr << RED << "Error: Expected SelfEdgeException not thrown"
 					  << RESET << std::endl;
 			testPassed = false;
@@ -217,10 +221,12 @@ void printNodeEdges(const std::shared_ptr<Node> &node)
 			  << std::endl;
 	for (const auto &edge : node->getEdges())
 	{
-		if (auto targetNode = edge.first.lock())
+		if (auto targetNode = edge.node.lock())
 		{
 			std::cout << CYAN << "  Node " << targetNode->getName()
-					  << " with distance " << edge.second << RESET << std::endl;
+					  << " with distance " << edge.distance
+					  << " and speed limit " << edge.speedLimit << RESET
+					  << std::endl;
 		}
 	}
 }
@@ -240,8 +246,8 @@ int main(void)
 	std::shared_ptr<Node> nodeC = std::make_shared<Node>("C5");
 
 	// Add edges
-	nodeA->addEdge(nodeB, 10);
-	nodeA->addEdge(nodeC, 20);
+	nodeA->addEdge(nodeB, 10, 80);
+	nodeA->addEdge(nodeC, 20, 90);
 
 	// Print node names and edges
 	printNodeEdges(nodeA);
