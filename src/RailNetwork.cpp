@@ -21,10 +21,10 @@ void RailNetwork::addNode(std::shared_ptr<Node> node)
 	}
 }
 
-// Add a connection (edge) between two nodes with a specific distance and speed limit
+// Add a connection (edge) between two nodes with a specific distance and speed
+// limit
 void RailNetwork::addConnection(std::shared_ptr<Node> node1,
-								std::shared_ptr<Node> node2,
-								size_t distance,
+								std::shared_ptr<Node> node2, size_t distance,
 								size_t speedLimit)
 {
 	if (node1 == node2)
@@ -57,8 +57,8 @@ void RailNetwork::addConnection(std::shared_ptr<Node> node1,
 }
 
 // Get the neighbors of a node
-const std::vector<Edge>
-	&RailNetwork::getNeighbours(std::shared_ptr<Node> node) const
+const std::vector<Edge> &RailNetwork::getNeighbours(
+	std::shared_ptr<Node> node) const
 {
 	auto it = _adjacencyList.find(node);
 	if (it != _adjacencyList.end())

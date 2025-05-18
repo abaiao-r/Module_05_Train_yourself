@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 20:36:48 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/18 00:38:28 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/18 16:40:16 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,7 +35,8 @@ class Node
 		Node &operator=(const Node &src) = delete;
 		Node &operator=(Node &&src) = delete;
 
-		void addEdge(std::weak_ptr<Node> node, size_t distance, size_t speedLimit);
+		void			   addEdge(std::weak_ptr<Node> node, size_t distance,
+								   size_t speedLimit);
 		const std::string &getName() const;
 		const std::vector<Edge> &getEdges() const;
 
@@ -62,13 +63,33 @@ class Node
 				}
 		};
 
-		// Custom exception class for duplicate node
-		class DuplicateNodeException : public std::runtime_error
+		// Custom exception class for duplicate node or invalid node name
+		class InvalidNodeException : public std::runtime_error
 		{
 			public:
-				DuplicateNodeException(const std::string &nodeName)
-					: std::runtime_error("Error: Node already exists: "
-										 + nodeName)
+				InvalidNodeException(const std::string &nodeName,
+									 bool				isNull = false)
+					: std::runtime_error(
+						isNull
+							? "Error: Node name is null."
+							: (nodeName.empty()
+								   ? "Error: Node name cannot be empty."
+								   : "Error: Node already exists: " + nodeName))
+				{
+				}
+		};
+
+		// Custom exception class for invalid edge parameters (distance, speed,
+		// etc.)
+		class InvalidEdgeException : public std::runtime_error
+		{
+			public:
+				InvalidEdgeException(const std::string &nodeName,
+									 const std::string &targetNodeName,
+									 const std::string &reason)
+					: std::runtime_error("Error: Invalid edge from node '"
+										 + nodeName + "' to '" + targetNodeName
+										 + "': " + reason)
 				{
 				}
 		};

@@ -6,12 +6,12 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/15 14:22:37 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/03/08 11:51:51 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/18 16:18:10 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "Edge.hpp"
 #include "../includes/RailNetwork.hpp"
+#include "Edge.hpp"
 
 // Add a node to the rail network
 void RailNetwork::addNode(std::shared_ptr<Node> node)
@@ -22,10 +22,10 @@ void RailNetwork::addNode(std::shared_ptr<Node> node)
 	}
 }
 
-// Add a connection (edge) between two nodes with a specific distance and speed limit
+// Add a connection (edge) between two nodes with a specific distance and speed
+// limit
 void RailNetwork::addConnection(std::shared_ptr<Node> node1,
-								std::shared_ptr<Node> node2,
-								size_t distance,
+								std::shared_ptr<Node> node2, size_t distance,
 								size_t speedLimit)
 {
 	if (node1 == node2)
@@ -58,8 +58,8 @@ void RailNetwork::addConnection(std::shared_ptr<Node> node1,
 }
 
 // Get the neighbors of a node
-const std::vector<Edge>
-	&RailNetwork::getNeighbours(std::shared_ptr<Node> node) const
+const std::vector<Edge> &RailNetwork::getNeighbours(
+	std::shared_ptr<Node> node) const
 {
 	auto it = _adjacencyList.find(node);
 	if (it != _adjacencyList.end())

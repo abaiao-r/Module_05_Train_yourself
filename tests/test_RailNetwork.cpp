@@ -4,10 +4,10 @@
 
 #include <iostream>
 
+#include "../includes/Edge.hpp"
 #include "../includes/Node.hpp"
 #include "../includes/RailNetwork.hpp"
 #include "../includes/colours.hpp"
-#include "../includes/Edge.hpp"
 
 static void printTestSuiteHeader()
 {
@@ -63,12 +63,13 @@ static bool testAddConnection()
 	auto &network = RailNetwork::getInstance();
 	auto  nodeA = std::make_shared<Node>("NodeA");
 	auto  nodeB = std::make_shared<Node>("NodeB");
-	network.addConnection(nodeA, nodeB, 5, 100); // Add speedLimit argument
+	network.addConnection(nodeA, nodeB, 5, 100);  // Add speedLimit argument
 
 	bool connectionExists = false;
 	for (auto &neighbor : network.getNeighbours(nodeA))
 	{
-		if (neighbor.node.lock()->getName() == "NodeB" && neighbor.distance == 5)
+		if (neighbor.node.lock()->getName() == "NodeB"
+			&& neighbor.distance == 5)
 		{
 			connectionExists = true;
 			break;
@@ -98,7 +99,7 @@ static bool testGetNeighbours()
 	auto &network = RailNetwork::getInstance();
 	auto  nodeA = std::make_shared<Node>("NodeC");
 	auto  nodeB = std::make_shared<Node>("NodeD");
-	network.addConnection(nodeA, nodeB, 7, 80); // Add speedLimit argument
+	network.addConnection(nodeA, nodeB, 7, 80);	 // Add speedLimit argument
 
 	auto neighbours = network.getNeighbours(nodeA);
 	bool foundB = false;
@@ -125,8 +126,8 @@ static bool testPrintNetwork()
 	network.addNode(nodeX);
 	network.addNode(nodeY);
 	network.addNode(nodeZ);
-	network.addConnection(nodeX, nodeY, 10, 100); // Add speedLimit argument
-	network.addConnection(nodeX, nodeZ, 15, 100); // Add speedLimit argument
+	network.addConnection(nodeX, nodeY, 10, 100);  // Add speedLimit argument
+	network.addConnection(nodeX, nodeZ, 15, 100);  // Add speedLimit argument
 	std::cout << "Testing printNetwork() (no validation, just ensure no crash):"
 			  << std::endl;
 	network.printNetwork();
@@ -143,7 +144,7 @@ static bool testDuplicateNode()
 	{
 		network.addNode(std::make_shared<Node>("DuplicateNode"));
 	}
-	catch (const Node::DuplicateNodeException &)
+	catch (const Node::InvalidNodeException &)
 	{
 		exceptionThrown = true;
 	}
@@ -160,7 +161,7 @@ static bool testSelfEdge()
 	bool exceptionThrown = false;
 	try
 	{
-		network.addConnection(node, node, 5, 100); // Add speedLimit argument
+		network.addConnection(node, node, 5, 100);	// Add speedLimit argument
 	}
 	catch (const Node::SelfEdgeException &)
 	{
@@ -176,11 +177,11 @@ static bool testEdgeAlreadyExists()
 	auto &network = RailNetwork::getInstance();
 	auto  nodeA = std::make_shared<Node>("NodeA");
 	auto  nodeB = std::make_shared<Node>("NodeB");
-	network.addConnection(nodeA, nodeB, 5, 100); // Add speedLimit argument
+	network.addConnection(nodeA, nodeB, 5, 100);  // Add speedLimit argument
 	bool exceptionThrown = false;
 	try
 	{
-		network.addConnection(nodeA, nodeB, 5, 100); // Add speedLimit argument
+		network.addConnection(nodeA, nodeB, 5, 100);  // Add speedLimit argument
 	}
 	catch (const RailNetwork::ConnectionAlreadyExistsException &)
 	{
@@ -216,6 +217,111 @@ static bool testEmptyNetwork()
 	bool  isEmpty = nodes.empty();
 	return printResult("EmptyNetwork", isEmpty, "No nodes in network",
 					   isEmpty ? "No nodes" : "Nodes present");
+}
+
+static bool testAddSameConnectionTwice()
+{
+	std::cout << BLUE << "[TEST] AddSameConnectionTwice" << RESET << std::endl;
+	auto &network = RailNetwork::getInstance();
+	auto  nodeA = std::make_shared<Node>("SameConnA");
+	auto  nodeB = std::make_shared<Node>("SameConnB");
+	network.addConnection(nodeA, nodeB, 12, 90);
+	bool exceptionThrown = false;
+	try
+	{
+		network.addConnection(nodeA, nodeB, 12, 90);
+	}
+	catch (const RailNetwork::ConnectionAlreadyExistsException &)
+	{
+		exceptionThrown = true;
+	}
+	return printResult("AddSameConnectionTwice", exceptionThrown,
+					   "Exception thrown",
+					   exceptionThrown ? "Exception thrown" : "No exception");
+}
+
+static bool testAddConnectionWithNegativeDistance()
+{
+	std::cout << BLUE << "[TEST] AddConnectionWithNegativeDistance" << RESET
+			  << std::endl;
+	auto &network = RailNetwork::getInstance();
+	auto  nodeA = std::make_shared<Node>("NegDistA");
+	auto  nodeB = std::make_shared<Node>("NegDistB");
+	network.addNode(nodeA);
+	network.addNode(nodeB);
+	bool exceptionThrown = false;
+	try
+	{
+		network.addConnection(nodeA, nodeB, -5, 100);
+	}
+	catch (const Node::InvalidEdgeException &)
+	{
+		exceptionThrown = true;
+	}
+	catch (const std::invalid_argument &)
+	{
+		exceptionThrown = true;
+	}
+	if (!exceptionThrown)
+	{
+		std::cout
+			<< YELLOW
+			<< "[DEBUG] Printing network after negative distance connection:"
+			<< RESET << std::endl;
+		network.printNetwork();
+	}
+	return printResult("AddConnectionWithNegativeDistance", exceptionThrown,
+					   "Exception thrown",
+					   exceptionThrown ? "Exception thrown" : "No exception");
+}
+
+static bool testAddConnectionWithNegativeSpeed()
+{
+	std::cout << BLUE << "[TEST] AddConnectionWithNegativeSpeed" << RESET
+			  << std::endl;
+	auto &network = RailNetwork::getInstance();
+	auto  nodeA = std::make_shared<Node>("NegSpeedA");
+	auto  nodeB = std::make_shared<Node>("NegSpeedB");
+	network.addNode(nodeA);
+	network.addNode(nodeB);
+	bool exceptionThrown = false;
+	try
+	{
+		network.addConnection(nodeA, nodeB, 10, -50);
+	}
+	catch (const Node::InvalidEdgeException &)
+	{
+		exceptionThrown = true;
+	}
+	catch (const std::invalid_argument &)
+	{
+		exceptionThrown = true;
+	}
+	return printResult("AddConnectionWithNegativeSpeed", exceptionThrown,
+					   "Exception thrown",
+					   exceptionThrown ? "Exception thrown" : "No exception");
+}
+
+static bool testAddNodeWithEmptyName()
+{
+	std::cout << BLUE << "[TEST] AddNodeWithEmptyName" << RESET << std::endl;
+	auto &network = RailNetwork::getInstance();
+	bool  exceptionThrown = false;
+	try
+	{
+		network.addNode(std::make_shared<Node>(""));
+	}
+	catch (const Node::InvalidNodeException &)
+	{
+		exceptionThrown = true;
+	}
+	catch (const std::invalid_argument &)
+	{
+		exceptionThrown = true;
+	}
+	return printResult("AddNodeWithEmptyName", exceptionThrown,
+					   "Exception thrown",
+					   exceptionThrown ? "Exception thrown" : "No exception");
 }
 
 /*  Helper function to run a test function in a child process
@@ -260,6 +366,10 @@ int main(void)
 	allTestsPassed &= runTest(testEdgeAlreadyExists);
 	allTestsPassed &= runTest(testNonExistentNode);
 	allTestsPassed &= runTest(testEmptyNetwork);
+	allTestsPassed &= runTest(testAddSameConnectionTwice);
+	allTestsPassed &= runTest(testAddConnectionWithNegativeDistance);
+	allTestsPassed &= runTest(testAddConnectionWithNegativeSpeed);
+	allTestsPassed &= runTest(testAddNodeWithEmptyName);
 	std::cout << (allTestsPassed ? GREEN : RED) << "All tests completed."
 			  << RESET << std::endl;
 	return allTestsPassed ? 0 : 1;
