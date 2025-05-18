@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/20 12:14:08 by andrefranci       #+#    #+#             */
-/*   Updated: 2024/09/20 12:17:41 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/18 20:13:52 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,22 +18,40 @@
 class Event
 {
 	private:
-		std::string _eventName;
-		float		_eventProbability;
-		// std::chrono::duration<int> _eventDuration;
-		std::string _node;	// node where the event will happen
+		std::string			 _eventName;
+		float				 _eventProbability;
+		std::chrono::seconds _eventDuration;
 
 	public:
-		Event();
-		Event(const Event &src);
+		Event() = delete;
+		Event(const std::string &eventName, float probability,
+			  std::chrono::seconds duration);
+		Event(const Event &src) = delete;
+		Event(Event &&src) = delete;
 		~Event();
-		Event &operator=(const Event &src);
+		Event &operator=(const Event &src) = delete;
+		Event &operator=(Event &&src) = delete;
 
-		// Getters
-		const std::string &getEventName() const;
-		const float		&getEventProbability() const;
-		// const std::chrono::duration<int> &getEventDuration() const;
-		const std::string &getNode() const;
+		const std::string		  &getEventName() const;
+		const float				&getEventProbability() const;
+		const std::chrono::seconds &getEventDuration() const;
+
+		// Custom exception classes
+		class InvalidEventNameException : public std::invalid_argument {
+		public:
+			InvalidEventNameException()
+				: std::invalid_argument("Event name cannot be empty.") {}
+		};
+		class InvalidEventProbabilityException : public std::invalid_argument {
+		public:
+			InvalidEventProbabilityException()
+				: std::invalid_argument("Event probability must be between 0.0 and 1.0.") {}
+		};
+		class InvalidEventDurationException : public std::invalid_argument {
+		public:
+			InvalidEventDurationException()
+				: std::invalid_argument("Event duration must be positive.") {}
+		};
 };
 
 #endif

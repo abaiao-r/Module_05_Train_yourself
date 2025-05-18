@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 20:36:48 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/18 16:40:16 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/18 20:32:38 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,7 @@
 #define NODE_HPP
 
 #include "Edge.hpp"
+#include "Event.hpp"  // Add this include
 #include "libraries.hpp"
 
 class Node
@@ -24,7 +25,8 @@ class Node
 		std::string							   _name;
 
 		// Vector to store edges
-		std::vector<Edge> _edges;
+		std::vector<Edge>  _edges;
+		std::vector<std::shared_ptr<Event>> _events;	 // Node owns its events
 
 	public:
 		Node() = delete;
@@ -38,7 +40,10 @@ class Node
 		void			   addEdge(std::weak_ptr<Node> node, size_t distance,
 								   size_t speedLimit);
 		const std::string &getName() const;
-		const std::vector<Edge> &getEdges() const;
+		const std::vector<Edge>	&getEdges() const;
+		void addEvent(const std::shared_ptr<Event>& event);
+		void addEvent(const std::string &eventName, float probability, std::chrono::seconds duration);
+		const std::vector<std::shared_ptr<Event>> &getEvents() const;
 
 		// Custom exception class
 		class SelfEdgeException : public std::runtime_error
@@ -90,6 +95,18 @@ class Node
 					: std::runtime_error("Error: Invalid edge from node '"
 										 + nodeName + "' to '" + targetNodeName
 										 + "': " + reason)
+				{
+				}
+		};
+
+		// Custom exception class for duplicate event name
+		class InvalidEventException : public std::runtime_error
+		{
+			public:
+				InvalidEventException(const std::string &nodeName,
+									  const std::string &eventName)
+					: std::runtime_error("Duplicate event name '" + eventName
+										 + "' for node: " + nodeName)
 				{
 				}
 		};

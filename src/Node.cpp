@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 21:11:20 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/18 16:46:36 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/18 20:32:28 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -104,6 +104,32 @@ void Node::addEdge(std::weak_ptr<Node> node, size_t distance, size_t speedLimit)
 	_edges.push_back({node, distance, speedLimit});
 }
 
+// Add an event to the node
+void Node::addEvent(const std::shared_ptr<Event> &event)
+{
+	for (size_t i = 0; i < _events.size(); ++i)
+	{
+		if (_events[i]->getEventName() == event->getEventName())
+		{
+			throw InvalidEventException(_name, event->getEventName());
+		}
+	}
+	_events.push_back(event);
+}
+
+void Node::addEvent(const std::string &eventName, float probability, std::chrono::seconds duration)
+{
+	std::shared_ptr<Event> event = std::make_shared<Event>(eventName, probability, duration);
+	for (size_t i = 0; i < _events.size(); ++i)
+	{
+		if (_events[i]->getEventName() == event->getEventName())
+		{
+			throw InvalidEventException(_name, event->getEventName());
+		}
+	}
+	_events.push_back(event);
+}
+
 // Get the name of the node
 const std::string &Node::getName() const
 {
@@ -114,6 +140,12 @@ const std::string &Node::getName() const
 const std::vector<Edge> &Node::getEdges() const
 {
 	return _edges;
+}
+
+// Get the events of the node
+const std::vector<std::shared_ptr<Event>> &Node::getEvents() const
+{
+	return _events;
 }
 
 // main to test the Node class
