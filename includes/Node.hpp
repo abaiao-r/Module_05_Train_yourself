@@ -6,13 +6,14 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 20:36:48 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/17 17:49:53 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/18 16:40:16 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef NODE_HPP
 #define NODE_HPP
 
+#include "Edge.hpp"
 #include "libraries.hpp"
 
 class Node
@@ -21,18 +22,6 @@ class Node
 		// Static set to keep track of existing node names
 		static std::unordered_set<std::string> _existingNames;
 		std::string							   _name;
-
-		// Represents a connection (edge) between two nodes in the graph.
-		// Fields:
-		// - node: A weak pointer to the connected node.
-		// - distance: The distance to the connected node (in meters).
-		// - speedLimit: The speed limit on the edge (in kilometers per hour).
-		struct Edge
-		{
-				std::weak_ptr<Node> node;
-				size_t				distance;
-				size_t				speedLimit;
-		};
 
 		// Vector to store edges
 		std::vector<Edge> _edges;
@@ -74,13 +63,33 @@ class Node
 				}
 		};
 
-		// Custom exception class for duplicate node
-		class DuplicateNodeException : public std::runtime_error
+		// Custom exception class for duplicate node or invalid node name
+		class InvalidNodeException : public std::runtime_error
 		{
 			public:
-				DuplicateNodeException(const std::string &nodeName)
-					: std::runtime_error("Error: Node already exists: "
-										 + nodeName)
+				InvalidNodeException(const std::string &nodeName,
+									 bool				isNull = false)
+					: std::runtime_error(
+						isNull
+							? "Error: Node name is null."
+							: (nodeName.empty()
+								   ? "Error: Node name cannot be empty."
+								   : "Error: Node already exists: " + nodeName))
+				{
+				}
+		};
+
+		// Custom exception class for invalid edge parameters (distance, speed,
+		// etc.)
+		class InvalidEdgeException : public std::runtime_error
+		{
+			public:
+				InvalidEdgeException(const std::string &nodeName,
+									 const std::string &targetNodeName,
+									 const std::string &reason)
+					: std::runtime_error("Error: Invalid edge from node '"
+										 + nodeName + "' to '" + targetNodeName
+										 + "': " + reason)
 				{
 				}
 		};

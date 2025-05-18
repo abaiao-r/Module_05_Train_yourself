@@ -1,16 +1,17 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   RailNetwork.cpp                                    :+:      :+:    :+:   */
+/*   RailNetworkTest.cpp                                :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/15 14:22:37 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/03/08 11:51:51 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/18 16:18:10 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/RailNetwork.hpp"
+#include "Edge.hpp"
 
 // Add a node to the rail network
 void RailNetwork::addNode(std::shared_ptr<Node> node)
