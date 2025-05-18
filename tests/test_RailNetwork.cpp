@@ -7,6 +7,7 @@
 #include "../includes/Node.hpp"
 #include "../includes/RailNetwork.hpp"
 #include "../includes/colours.hpp"
+#include "../includes/Edge.hpp"
 
 static void printTestSuiteHeader()
 {
@@ -62,12 +63,12 @@ static bool testAddConnection()
 	auto &network = RailNetwork::getInstance();
 	auto  nodeA = std::make_shared<Node>("NodeA");
 	auto  nodeB = std::make_shared<Node>("NodeB");
-	network.addConnection(nodeA, nodeB, 5);
+	network.addConnection(nodeA, nodeB, 5, 100); // Add speedLimit argument
 
 	bool connectionExists = false;
 	for (auto &neighbor : network.getNeighbours(nodeA))
 	{
-		if (neighbor.first->getName() == "NodeB" && neighbor.second == 5)
+		if (neighbor.node.lock()->getName() == "NodeB" && neighbor.distance == 5)
 		{
 			connectionExists = true;
 			break;
@@ -97,13 +98,13 @@ static bool testGetNeighbours()
 	auto &network = RailNetwork::getInstance();
 	auto  nodeA = std::make_shared<Node>("NodeC");
 	auto  nodeB = std::make_shared<Node>("NodeD");
-	network.addConnection(nodeA, nodeB, 7);
+	network.addConnection(nodeA, nodeB, 7, 80); // Add speedLimit argument
 
 	auto neighbours = network.getNeighbours(nodeA);
 	bool foundB = false;
 	for (auto &n : neighbours)
 	{
-		if (n.first->getName() == "NodeD" && n.second == 7)
+		if (n.node.lock()->getName() == "NodeD" && n.distance == 7)
 		{
 			foundB = true;
 			break;
@@ -124,8 +125,8 @@ static bool testPrintNetwork()
 	network.addNode(nodeX);
 	network.addNode(nodeY);
 	network.addNode(nodeZ);
-	network.addConnection(nodeX, nodeY, 10);
-	network.addConnection(nodeX, nodeZ, 15);
+	network.addConnection(nodeX, nodeY, 10, 100); // Add speedLimit argument
+	network.addConnection(nodeX, nodeZ, 15, 100); // Add speedLimit argument
 	std::cout << "Testing printNetwork() (no validation, just ensure no crash):"
 			  << std::endl;
 	network.printNetwork();
@@ -159,7 +160,7 @@ static bool testSelfEdge()
 	bool exceptionThrown = false;
 	try
 	{
-		network.addConnection(node, node, 5);
+		network.addConnection(node, node, 5, 100); // Add speedLimit argument
 	}
 	catch (const Node::SelfEdgeException &)
 	{
@@ -175,11 +176,11 @@ static bool testEdgeAlreadyExists()
 	auto &network = RailNetwork::getInstance();
 	auto  nodeA = std::make_shared<Node>("NodeA");
 	auto  nodeB = std::make_shared<Node>("NodeB");
-	network.addConnection(nodeA, nodeB, 5);
+	network.addConnection(nodeA, nodeB, 5, 100); // Add speedLimit argument
 	bool exceptionThrown = false;
 	try
 	{
-		network.addConnection(nodeA, nodeB, 5);
+		network.addConnection(nodeA, nodeB, 5, 100); // Add speedLimit argument
 	}
 	catch (const RailNetwork::ConnectionAlreadyExistsException &)
 	{

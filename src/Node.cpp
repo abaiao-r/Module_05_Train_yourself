@@ -43,7 +43,7 @@ void Node::addEdge(std::weak_ptr<Node> node, size_t distance, size_t speedLimit)
 	}
 
 	// Check if the edge already exists
-	for (const Node::Edge &edge : _edges)
+	for (const Edge &edge : _edges)
 	{
 		auto existingNode = edge.node.lock();
 		if (existingNode && existingNode == sharedNode)
@@ -62,7 +62,7 @@ const std::string &Node::getName() const
 }
 
 // Get the edges of the node
-const std::vector<Node::Edge> &Node::getEdges() const
+const std::vector<Edge> &Node::getEdges() const
 {
 	return _edges;
 }

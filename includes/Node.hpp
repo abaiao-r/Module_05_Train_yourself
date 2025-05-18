@@ -6,13 +6,14 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 20:36:48 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/17 17:49:53 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/18 00:38:28 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef NODE_HPP
 #define NODE_HPP
 
+#include "Edge.hpp"
 #include "libraries.hpp"
 
 class Node
@@ -21,18 +22,6 @@ class Node
 		// Static set to keep track of existing node names
 		static std::unordered_set<std::string> _existingNames;
 		std::string							   _name;
-
-		// Represents a connection (edge) between two nodes in the graph.
-		// Fields:
-		// - node: A weak pointer to the connected node.
-		// - distance: The distance to the connected node (in meters).
-		// - speedLimit: The speed limit on the edge (in kilometers per hour).
-		struct Edge
-		{
-				std::weak_ptr<Node> node;
-				size_t				distance;
-				size_t				speedLimit;
-		};
 
 		// Vector to store edges
 		std::vector<Edge> _edges;
@@ -46,8 +35,7 @@ class Node
 		Node &operator=(const Node &src) = delete;
 		Node &operator=(Node &&src) = delete;
 
-		void			   addEdge(std::weak_ptr<Node> node, size_t distance,
-								   size_t speedLimit);
+		void addEdge(std::weak_ptr<Node> node, size_t distance, size_t speedLimit);
 		const std::string &getName() const;
 		const std::vector<Edge> &getEdges() const;
 

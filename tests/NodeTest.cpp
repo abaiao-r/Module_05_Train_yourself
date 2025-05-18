@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "../includes/Node.hpp"
+#include "../includes/Edge.hpp" // Include the Edge header
 #include "../includes/colours.hpp"	// Include the colours header
 
 bool testAddEdges()
