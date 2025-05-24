@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/24 12:17:36 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/24 14:23:15 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/24 15:23:44 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,7 @@ class Edge
 		size_t			   _speedLimit;
 		std::vector<Event> _events;	 // Store events by value, not shared_ptr
 
-		void addEdgeToNodes();	// Helper to add this edge to both nodes
+		void addEdgeToNodes();	// Makes no sense
 
 	public:
 		Edge() = delete;  // Only allow parametric constructor

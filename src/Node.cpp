@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 21:11:20 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/24 13:44:15 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/24 15:19:05 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,7 @@ Node::Node(const std::string &name) : _name(name)
 		throw InvalidNodeException(name);
 	}
 	_existingNames.insert(name);
+	addNodeToNetwork();
 }
 
 // Destructor
@@ -35,7 +36,7 @@ const std::string &Node::getName() const
 	return (this->_name);
 }
 
-const std::vector<Edge> &Node::getEdges() const
+const std::vector<std::shared_ptr<Edge>> &Node::getEdges() const
 {
 	return (this->_edges);
 }
@@ -48,7 +49,7 @@ const std::vector<Event> &Node::getEvents() const
 // Add an edge to the node
 void Node::addEdge(const Edge &edge)
 {
-	_edges.push_back(edge);
+	this->_edges.push_back(std::make_shared<Edge>(edge));
 }
 
 // Add an event to the node
@@ -57,67 +58,19 @@ void Node::addEvent(const Event &event)
 	_events.push_back(event);
 }
 
-// main to test the Node class
-
-/* int main()
+void Node::addNodeToNetwork()
 {
-	try
-	{
-		// Create nodes
-		std::shared_ptr<Node> nodeA = std::make_shared<Node>("A");
-		std::shared_ptr<Node> nodeB = std::make_shared<Node>("B");
-		std::shared_ptr<Node> nodeC = std::make_shared<Node>("C");
+	// This function cannot safely register 'this' as a shared_ptr<Node> from inside the constructor.
+	// Instead, registration should be done externally, right after creating the shared_ptr<Node>:
+	// Example usage:
+	// auto node = std::make_shared<Node>("A");
+	// RailNetwork::getInstance().addNode(node);
+	// 
+	// If you want to register from inside the class, Node must inherit from std::enable_shared_from_this<Node>
+	// and you must create Node with std::make_shared<Node>(...).
+	// Then you can use shared_from_this() here:
+	// RailNetwork::getInstance().addNode(shared_from_this());
+	//
+	// Otherwise, leave this function empty or remove it, and always register nodes externally.
+}
 
-		// Add edges
-		nodeA->addEdge(nodeB, 10);
-		nodeA->addEdge(nodeC, 20);
-
-		// Attempt to add a duplicate edge
-		try
-		{
-			nodeA->addEdge(nodeB, 10);
-		}
-		catch (const Node::EdgeAlreadyExistsException &e)
-		{
-			std::cerr << e.what() << std::endl;
-		}
-
-		// Attempt to add a self-edge
-		try
-		{
-			nodeA->addEdge(nodeA, 5);
-		}
-		catch (const Node::SelfEdgeException &e)
-		{
-			std::cerr << e.what() << std::endl;
-		}
-
-		// Attempt to create a node with a duplicate name
-		try
-		{
-			std::shared_ptr<Node> nodeDuplicate = std::make_shared<Node>("A");
-		}
-		catch (const Node::DuplicateNodeException &e)
-		{
-			std::cerr << e.what() << std::endl;
-		}
-
-		// Print node names and edges
-		std::cout << "Node " << nodeA->getName()
-				  << " has edges to:" << std::endl;
-		for (const auto &edge : nodeA->getEdges())
-		{
-			if (auto targetNode = edge.first.lock())
-			{
-				std::cout << "  Node " << targetNode->getName()
-						  << " with distance " << edge.second << std::endl;
-			}
-		}
-	}
-	catch (const std::exception &e)
-	{
-		std::cerr << "Exception: " << e.what() << std::endl;
-	}
-
-	return 0;
-} */

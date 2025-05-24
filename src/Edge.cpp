@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/05/24 12:18:41 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/24 15:03:52 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/24 15:23:02 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,39 +62,23 @@ void Edge::addEvent(const Event &event)
 
 void Edge::addEdgeToNodes()
 {
-	// Find Node instances by name (requires Node::findByName implementation)
-	Node *n1 = Node::findByName(this->_node1);
-	Node *n2 = Node::findByName(this->_node2);
-	if (!n1 || !n2)
-		return;	 // Or throw
+	// This approach does not make sense if Node stores edges as
+	// std::shared_ptr<Edge> and you are passing *this (an Edge by value) to
+	// Node::addEdge. This will create a new shared_ptr<Edge> for each node, so
+	// each node will have a different copy of the edge. If you want the same
+	// Edge instance to be shared, you must create a shared_ptr<Edge> first,
+	// then add that same shared_ptr to both nodes.
 
-	// Check if this edge already exists in n1
-	bool existsInN1 = false;
-	for (const auto &e : n1->getEdges())
-	{
-		if (e.getNode1() == this->_node1 && e.getNode2() == this->_node2
-			&& e.getDistance() == this->_distance
-			&& e.getSpeedLimit() == this->_speedLimit)
-		{
-			existsInN1 = true;
-			break;
-		}
-	}
-	if (!existsInN1)
-		n1->addEdge(*this);
+	// The correct approach is to create the shared_ptr<Edge> outside, then add
+	// it to both nodes: Example (not inside Edge): auto edgePtr =
+	// std::make_shared<Edge>(...); node1->addEdge(edgePtr);
+	// node2->addEdge(edgePtr);
 
-	// Check if this edge already exists in n2
-	bool existsInN2 = false;
-	for (const auto &e : n2->getEdges())
-	{
-		if (e.getNode1() == this->_node1 && e.getNode2() == this->_node2
-			&& e.getDistance() == this->_distance
-			&& e.getSpeedLimit() == this->_speedLimit)
-		{
-			existsInN2 = true;
-			break;
-		}
-	}
-	if (!existsInN2)
-		n2->addEdge(*this);
+	// If you want to keep this logic inside Edge, you need to redesign so that
+	// Edge is created as a shared_ptr and passed to both nodes at construction
+	// time. Otherwise, this function will always add different copies of the
+	// edge to each node.
+
+	// Recommendation: Remove addEdgeToNodes() from Edge and manage edge sharing
+	// externally.
 }

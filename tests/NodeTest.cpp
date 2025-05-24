@@ -38,8 +38,8 @@ bool testAddEdge()
 					  << RESET << std::endl;
 			testPassed = false;
 		}
-		else if (edges[0].getNode2() != "B" || edges[0].getDistance() != 10
-				 || edges[0].getSpeedLimit() != 80)
+		else if (edges[0]->getNode2() != "B" || edges[0]->getDistance() != 10
+				 || edges[0]->getSpeedLimit() != 80)
 		{
 			std::cerr << RED << "Error: Edge fields not set correctly" << RESET
 					  << std::endl;

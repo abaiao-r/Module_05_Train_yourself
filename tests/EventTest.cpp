@@ -173,36 +173,30 @@ bool testInvalidEventDuration()
 bool testDuplicateEventNameOnNode()
 {
 	std::cout << YELLOW << "-----------------------" << RESET << std::endl;
-	std::cout << YELLOW << "Running testDuplicateEventNameOnNode..." << RESET
-			  << std::endl;
+	std::cout << YELLOW << "Running testDuplicateEventNameOnNode..." << RESET << std::endl;
 	bool testPassed = true;
 	try
 	{
-		std::shared_ptr<Node> node = std::make_shared<Node>("CityA");
-		node->addEvent("EventX", 0.5f, std::chrono::seconds(60));
+		Node node("CityA");
+		Event event1("EventX", 0.5f, std::chrono::seconds(60), "node");
+		Event event2("EventX", 0.7f, std::chrono::seconds(120), "node");
+		node.addEvent(event1);
 
 		try
 		{
-			node->addEvent("EventX", 0.7f, std::chrono::seconds(120));
-			std::cerr << RED
-					  << "Error: Expected InvalidEventException not thrown"
-					  << RESET << std::endl;
+			node.addEvent(event2);
+			std::cerr << RED << "Error: Expected InvalidEventException not thrown" << RESET << std::endl;
 			testPassed = false;
 		}
-		catch (const Node::InvalidEventException &e)
+		catch (const Node::InvalidNodeException &e)
 		{
-			std::cerr << GREEN
-					  << "Caught expected exception (duplicate event name): "
-					  << e.what() << RESET << std::endl;
+			std::cerr << GREEN << "Caught expected exception (duplicate event name): " << e.what() << RESET << std::endl;
 		}
-		std::cout << GREEN << "testDuplicateEventNameOnNode completed." << RESET
-				  << std::endl;
+		std::cout << GREEN << "testDuplicateEventNameOnNode completed." << RESET << std::endl;
 	}
 	catch (const std::exception &e)
 	{
-		std::cerr << RED
-				  << "Exception in testDuplicateEventNameOnNode: " << e.what()
-				  << RESET << std::endl;
+		std::cerr << RED << "Exception in testDuplicateEventNameOnNode: " << e.what() << RESET << std::endl;
 		testPassed = false;
 	}
 	return testPassed;
@@ -260,30 +254,26 @@ bool testLongEventName()
 bool testManyEventsOnNode()
 {
 	std::cout << YELLOW << "-----------------------" << RESET << std::endl;
-	std::cout << YELLOW << "Running testManyEventsOnNode..." << RESET
-			  << std::endl;
+	std::cout << YELLOW << "Running testManyEventsOnNode..." << RESET << std::endl;
 	bool testPassed = true;
 	try
 	{
-		std::shared_ptr<Node> node = std::make_shared<Node>("CityB");
+		Node node("CityB");
 		for (int i = 0; i < 100; ++i)
 		{
-			node->addEvent("Event" + std::to_string(i), 0.1f * (i % 10),
-						   std::chrono::seconds(10 + i));
+			Event event("Event" + std::to_string(i), 0.1f * (i % 10), std::chrono::seconds(10 + i), "node");
+			node.addEvent(event);
 		}
-		if (node->getEvents().size() != 100)
+		if (node.getEvents().size() != 100)
 		{
-			std::cerr << RED << "Error: Expected 100 events, got "
-					  << node->getEvents().size() << RESET << std::endl;
+			std::cerr << RED << "Error: Expected 100 events, got " << node.getEvents().size() << RESET << std::endl;
 			testPassed = false;
 		}
-		std::cout << GREEN << "testManyEventsOnNode completed." << RESET
-				  << std::endl;
+		std::cout << GREEN << "testManyEventsOnNode completed." << RESET << std::endl;
 	}
 	catch (const std::exception &e)
 	{
-		std::cerr << RED << "Exception in testManyEventsOnNode: " << e.what()
-				  << RESET << std::endl;
+		std::cerr << RED << "Exception in testManyEventsOnNode: " << e.what() << RESET << std::endl;
 		testPassed = false;
 	}
 	return testPassed;

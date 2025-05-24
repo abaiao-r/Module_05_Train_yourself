@@ -6,106 +6,73 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/15 14:22:37 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/18 16:18:10 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/24 15:35:54 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+#include <iostream>
+#include <memory>
+#include <chrono>
+
+#include "../includes/Edge.hpp"
+#include "../includes/Event.hpp"
+#include "../includes/Node.hpp"
 #include "../includes/RailNetwork.hpp"
-#include "Edge.hpp"
+#include "../includes/colours.hpp"
 
-// Add a node to the rail network
-void RailNetwork::addNode(std::shared_ptr<Node> node)
+bool testRailNetworkAddAndPrint()
 {
-	if (_adjacencyList.find(node) == _adjacencyList.end())
+	std::cout << YELLOW << "-----------------------" << RESET << std::endl;
+	std::cout << YELLOW << "Running testRailNetworkAddAndPrint..." << RESET << std::endl;
+	bool testPassed = true;
+
+	try
 	{
-		_adjacencyList[node] = std::vector<Edge>();
+		auto nodeA = std::make_shared<Node>("A");
+		auto nodeB = std::make_shared<Node>("B");
+		auto nodeC = std::make_shared<Node>("C");
+
+		RailNetwork::getInstance().addNode(nodeA);
+		RailNetwork::getInstance().addNode(nodeB);
+		RailNetwork::getInstance().addNode(nodeC);
+
+		auto edgeAB = std::make_shared<Edge>("A", "B", 10, 80);
+		auto edgeAC = std::make_shared<Edge>("A", "C", 20, 90);
+
+		nodeA->addEdge(*edgeAB);
+		nodeA->addEdge(*edgeAC);
+		nodeB->addEdge(*edgeAB);
+		nodeC->addEdge(*edgeAC);
+
+		Event eventNodeA("Riot", 0.2f, std::chrono::seconds(300), "node");
+		Event eventEdgeAB("Track Blocked", 0.3f, std::chrono::seconds(3600), "edge");
+		nodeA->addEvent(eventNodeA);
+		edgeAB->addEvent(eventEdgeAB);
+
+		RailNetwork::getInstance().printNetwork();
+
+		std::cout << GREEN << "testRailNetworkAddAndPrint completed." << RESET << std::endl;
 	}
+	catch (const std::exception &e)
+	{
+		std::cerr << RED << "Exception in testRailNetworkAddAndPrint: " << e.what() << RESET << std::endl;
+		testPassed = false;
+	}
+	return testPassed;
 }
 
-// Add a connection (edge) between two nodes with a specific distance and speed
-// limit
-void RailNetwork::addConnection(std::shared_ptr<Node> node1,
-								std::shared_ptr<Node> node2, size_t distance,
-								size_t speedLimit)
+int main()
 {
-	if (node1 == node2)
+	bool allTestsPassed = true;
+	allTestsPassed &= testRailNetworkAddAndPrint();
+
+	if (allTestsPassed)
 	{
-		throw Node::SelfEdgeException(node1->getName());
+		std::cout << GREEN << "All RailNetwork tests passed." << RESET << std::endl;
 	}
-
-	// Ensure both nodes exist in the network, otherwise add them
-	addNode(node1);
-	addNode(node2);
-
-	// Check if the connection already exists
-	for (const auto &edge : _adjacencyList[node1])
+	else
 	{
-		auto neighbor = edge.node.lock();
-		if (neighbor && neighbor == node2)
-		{
-			throw ConnectionAlreadyExistsException(node1->getName(),
-												   node2->getName());
-		}
+		std::cerr << RED << "Some RailNetwork tests failed." << RESET << std::endl;
 	}
-
-	// Add the connection in both directions (undirected graph)
-	_adjacencyList[node1].push_back({node2, distance, speedLimit});
-	_adjacencyList[node2].push_back({node1, distance, speedLimit});
-
-	// Keep Node's edge list in sync
-	node1->addEdge(node2, distance, speedLimit);
-	node2->addEdge(node1, distance, speedLimit);
-}
-
-// Get the neighbors of a node
-const std::vector<Edge> &RailNetwork::getNeighbours(
-	std::shared_ptr<Node> node) const
-{
-	auto it = _adjacencyList.find(node);
-	if (it != _adjacencyList.end())
-	{
-		return it->second;
-	}
-	throw std::runtime_error("Node does not exist in the network");
-}
-
-// Get all nodes in the rail network
-const std::vector<std::shared_ptr<Node>> RailNetwork::getNodes() const
-{
-	std::vector<std::shared_ptr<Node>> nodes;
-	for (const auto &pair : _adjacencyList)
-	{
-		nodes.push_back(pair.first);
-	}
-	return nodes;
-}
-
-// Debug function to print the rail network
-void RailNetwork::printNetwork() const
-{
-	std::cout << CYAN << "=================================================="
-			  << std::endl;
-	std::cout << "               RAIL NETWORK OVERVIEW              "
-			  << std::endl;
-	std::cout << "==================================================" << RESET
-			  << std::endl;
-
-	for (const auto &pair : _adjacencyList)
-	{
-		std::cout << BLUE << "[Node] " << pair.first->getName() << RESET
-				  << std::endl;
-		std::cout << YELLOW << "  Neighbors:" << RESET << std::endl;
-		for (const auto &edge : pair.second)
-		{
-			auto neighbor = edge.node.lock();
-			if (neighbor)
-			{
-				std::cout << "    " << GREEN << neighbor->getName() << RESET
-						  << " [distance: " << edge.distance
-						  << ", speed limit: " << edge.speedLimit << "]"
-						  << std::endl;
-			}
-		}
-		std::cout << std::endl;
-	}
+	return allTestsPassed ? 0 : 1;
 }
