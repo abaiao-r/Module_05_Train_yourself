@@ -14,9 +14,10 @@ bool testValidEvent()
 	bool testPassed = true;
 	try
 	{
-		Event e("TestEvent", 0.5f, std::chrono::seconds(60));
+		Event e("TestEvent", 0.5f, std::chrono::seconds(60), "CityA");
 		if (e.getEventName() != "TestEvent" || e.getEventProbability() != 0.5f
-			|| e.getEventDuration() != std::chrono::seconds(60))
+			|| e.getEventDuration() != std::chrono::seconds(60)
+			|| e.getEventLocalization() != "CityA")
 		{
 			std::cerr << RED << "Error: Event fields not set correctly" << RESET
 					  << std::endl;
@@ -44,7 +45,7 @@ bool testInvalidEventName()
 	{
 		try
 		{
-			Event e("", 0.5f, std::chrono::seconds(60));
+			Event e("", 0.5f, std::chrono::seconds(60), "CityA");
 			std::cerr << RED
 					  << "Error: Expected InvalidEventNameException not thrown"
 					  << RESET << std::endl;
@@ -78,7 +79,7 @@ bool testInvalidEventProbability()
 	{
 		try
 		{
-			Event e("E", -0.1f, std::chrono::seconds(60));
+			Event e("E", -0.1f, std::chrono::seconds(60), "CityA");
 			std::cerr
 				<< RED
 				<< "Error: Expected InvalidEventProbabilityException not thrown"
@@ -93,7 +94,7 @@ bool testInvalidEventProbability()
 		}
 		try
 		{
-			Event e("E", 1.1f, std::chrono::seconds(60));
+			Event e("E", 1.1f, std::chrono::seconds(60), "CityA");
 			std::cerr
 				<< RED
 				<< "Error: Expected InvalidEventProbabilityException not thrown"
@@ -128,7 +129,7 @@ bool testInvalidEventDuration()
 	{
 		try
 		{
-			Event e("E", 0.5f, std::chrono::seconds(0));
+			Event e("E", 0.5f, std::chrono::seconds(0), "CityA");
 			std::cerr
 				<< RED
 				<< "Error: Expected InvalidEventDurationException not thrown"
@@ -143,7 +144,7 @@ bool testInvalidEventDuration()
 		}
 		try
 		{
-			Event e("E", 0.5f, std::chrono::seconds(-10));
+			Event e("E", 0.5f, std::chrono::seconds(-10), "CityA");
 			std::cerr
 				<< RED
 				<< "Error: Expected InvalidEventDurationException not thrown"
@@ -172,7 +173,8 @@ bool testInvalidEventDuration()
 bool testDuplicateEventNameOnNode()
 {
 	std::cout << YELLOW << "-----------------------" << RESET << std::endl;
-	std::cout << YELLOW << "Running testDuplicateEventNameOnNode..." << RESET << std::endl;
+	std::cout << YELLOW << "Running testDuplicateEventNameOnNode..." << RESET
+			  << std::endl;
 	bool testPassed = true;
 	try
 	{
@@ -182,18 +184,25 @@ bool testDuplicateEventNameOnNode()
 		try
 		{
 			node->addEvent("EventX", 0.7f, std::chrono::seconds(120));
-			std::cerr << RED << "Error: Expected InvalidEventException not thrown" << RESET << std::endl;
+			std::cerr << RED
+					  << "Error: Expected InvalidEventException not thrown"
+					  << RESET << std::endl;
 			testPassed = false;
 		}
 		catch (const Node::InvalidEventException &e)
 		{
-			std::cerr << GREEN << "Caught expected exception (duplicate event name): " << e.what() << RESET << std::endl;
+			std::cerr << GREEN
+					  << "Caught expected exception (duplicate event name): "
+					  << e.what() << RESET << std::endl;
 		}
-		std::cout << GREEN << "testDuplicateEventNameOnNode completed." << RESET << std::endl;
+		std::cout << GREEN << "testDuplicateEventNameOnNode completed." << RESET
+				  << std::endl;
 	}
 	catch (const std::exception &e)
 	{
-		std::cerr << RED << "Exception in testDuplicateEventNameOnNode: " << e.what() << RESET << std::endl;
+		std::cerr << RED
+				  << "Exception in testDuplicateEventNameOnNode: " << e.what()
+				  << RESET << std::endl;
 		testPassed = false;
 	}
 	return testPassed;
@@ -207,8 +216,8 @@ bool testExtremeProbability()
 	bool testPassed = true;
 	try
 	{
-		Event e0("ZeroProb", 0.0f, std::chrono::seconds(10));
-		Event e1("OneProb", 1.0f, std::chrono::seconds(10));
+		Event e0("ZeroProb", 0.0f, std::chrono::seconds(10), "CityA");
+		Event e1("OneProb", 1.0f, std::chrono::seconds(10), "CityA");
 		std::cout << GREEN << "testExtremeProbability completed." << RESET
 				  << std::endl;
 	}
@@ -229,7 +238,7 @@ bool testLongEventName()
 	try
 	{
 		std::string longName(1000, 'A');
-		Event		e(longName, 0.5f, std::chrono::seconds(10));
+		Event		e(longName, 0.5f, std::chrono::seconds(10), "CityA");
 		if (e.getEventName() != longName)
 		{
 			std::cerr << RED << "Error: Long event name not set correctly"
@@ -251,25 +260,30 @@ bool testLongEventName()
 bool testManyEventsOnNode()
 {
 	std::cout << YELLOW << "-----------------------" << RESET << std::endl;
-	std::cout << YELLOW << "Running testManyEventsOnNode..." << RESET << std::endl;
+	std::cout << YELLOW << "Running testManyEventsOnNode..." << RESET
+			  << std::endl;
 	bool testPassed = true;
 	try
 	{
 		std::shared_ptr<Node> node = std::make_shared<Node>("CityB");
 		for (int i = 0; i < 100; ++i)
 		{
-			node->addEvent("Event" + std::to_string(i), 0.1f * (i % 10), std::chrono::seconds(10 + i));
+			node->addEvent("Event" + std::to_string(i), 0.1f * (i % 10),
+						   std::chrono::seconds(10 + i));
 		}
 		if (node->getEvents().size() != 100)
 		{
-			std::cerr << RED << "Error: Expected 100 events, got " << node->getEvents().size() << RESET << std::endl;
+			std::cerr << RED << "Error: Expected 100 events, got "
+					  << node->getEvents().size() << RESET << std::endl;
 			testPassed = false;
 		}
-		std::cout << GREEN << "testManyEventsOnNode completed." << RESET << std::endl;
+		std::cout << GREEN << "testManyEventsOnNode completed." << RESET
+				  << std::endl;
 	}
 	catch (const std::exception &e)
 	{
-		std::cerr << RED << "Exception in testManyEventsOnNode: " << e.what() << RESET << std::endl;
+		std::cerr << RED << "Exception in testManyEventsOnNode: " << e.what()
+				  << RESET << std::endl;
 		testPassed = false;
 	}
 	return testPassed;
@@ -285,7 +299,7 @@ bool testDurationEdgeCases()
 	{
 		try
 		{
-			Event e("Short", 0.5f, std::chrono::seconds(1));
+			Event e("Short", 0.5f, std::chrono::seconds(1), "CityA");
 		}
 		catch (...)
 		{
@@ -295,7 +309,7 @@ bool testDurationEdgeCases()
 		}
 		try
 		{
-			Event e("Long", 0.5f, std::chrono::seconds(1000000));
+			Event e("Long", 0.5f, std::chrono::seconds(1000000), "CityA");
 		}
 		catch (...)
 		{

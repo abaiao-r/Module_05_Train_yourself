@@ -6,7 +6,7 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/20 12:14:08 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/18 20:13:52 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/24 13:53:37 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,11 +21,13 @@ class Event
 		std::string			 _eventName;
 		float				 _eventProbability;
 		std::chrono::seconds _eventDuration;
+		std::string			 _eventLocalization;  // "node" or "edge"
 
 	public:
 		Event() = delete;
 		Event(const std::string &eventName, float probability,
-			  std::chrono::seconds duration);
+			  std::chrono::seconds duration,
+			  const std::string	&eventLocalization);  // "node" or "edge"
 		Event(const Event &src) = delete;
 		Event(Event &&src) = delete;
 		~Event();
@@ -35,22 +37,35 @@ class Event
 		const std::string		  &getEventName() const;
 		const float				&getEventProbability() const;
 		const std::chrono::seconds &getEventDuration() const;
+		const std::string		  &getEventLocalization() const;
 
 		// Custom exception classes
-		class InvalidEventNameException : public std::invalid_argument {
-		public:
-			InvalidEventNameException()
-				: std::invalid_argument("Event name cannot be empty.") {}
+		class InvalidEventNameException : public std::invalid_argument
+		{
+			public:
+				InvalidEventNameException()
+					: std::invalid_argument("Event name cannot be empty.")
+				{
+				}
 		};
-		class InvalidEventProbabilityException : public std::invalid_argument {
-		public:
-			InvalidEventProbabilityException()
-				: std::invalid_argument("Event probability must be between 0.0 and 1.0.") {}
+
+		class InvalidEventProbabilityException : public std::invalid_argument
+		{
+			public:
+				InvalidEventProbabilityException()
+					: std::invalid_argument(
+						"Event probability must be between 0.0 and 1.0.")
+				{
+				}
 		};
-		class InvalidEventDurationException : public std::invalid_argument {
-		public:
-			InvalidEventDurationException()
-				: std::invalid_argument("Event duration must be positive.") {}
+
+		class InvalidEventDurationException : public std::invalid_argument
+		{
+			public:
+				InvalidEventDurationException()
+					: std::invalid_argument("Event duration must be positive.")
+				{
+				}
 		};
 };
 
