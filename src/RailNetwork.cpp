@@ -6,105 +6,98 @@
 /*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/15 14:22:37 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/03/08 11:51:51 by andrefranci      ###   ########.fr       */
+/*   Updated: 2025/05/24 14:47:26 by andrefranci      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/RailNetwork.hpp"
 
-// Add a node to the rail network
-void RailNetwork::addNode(std::shared_ptr<Node> node)
+#include <iostream>
+
+#include "../includes/colours.hpp"
+
+RailNetwork::RailNetwork()
 {
-	if (_adjacencyList.find(node) == _adjacencyList.end())
-	{
-		_adjacencyList[node] = std::vector<Edge>();
-	}
 }
 
-// Add a connection (edge) between two nodes with a specific distance and speed
-// limit
-void RailNetwork::addConnection(std::shared_ptr<Node> node1,
-								std::shared_ptr<Node> node2, size_t distance,
-								size_t speedLimit)
+RailNetwork::~RailNetwork()
 {
-	if (node1 == node2)
-	{
-		throw Node::SelfEdgeException(node1->getName());
-	}
+}
 
-	// Ensure both nodes exist in the network, otherwise add them
-	addNode(node1);
-	addNode(node2);
+void RailNetwork::addNode(const std::shared_ptr<Node> &node)
+{
+	_nodes[node->getName()] = node;
+}
 
-	// Check if the connection already exists
-	for (const auto &edge : _adjacencyList[node1])
+std::shared_ptr<Node> RailNetwork::getNode(const std::string &name) const
+{
+	auto it = _nodes.find(name);
+	if (it != _nodes.end())
+		return it->second;
+	return nullptr;
+}
+
+const std::unordered_map<std::string, std::shared_ptr<Node>>
+	&RailNetwork::getNodes() const
+{
+	return _nodes;
+}
+
+std::vector<Edge> RailNetwork::getAllEdges() const
+{
+	std::vector<Edge> allEdges;
+	for (const auto &pair : _nodes)
 	{
-		auto neighbor = edge.node.lock();
-		if (neighbor && neighbor == node2)
+		const auto &node = pair.second;
+		for (const auto &edge : node->getEdges())
 		{
-			throw ConnectionAlreadyExistsException(node1->getName(),
-												   node2->getName());
+			allEdges.push_back(edge);
 		}
 	}
-
-	// Add the connection in both directions (undirected graph)
-	_adjacencyList[node1].push_back({node2, distance, speedLimit});
-	_adjacencyList[node2].push_back({node1, distance, speedLimit});
-
-	// Keep Node's edge list in sync
-	node1->addEdge(node2, distance, speedLimit);
-	node2->addEdge(node1, distance, speedLimit);
+	return allEdges;
 }
 
-// Get the neighbors of a node
-const std::vector<Edge> &RailNetwork::getNeighbours(
-	std::shared_ptr<Node> node) const
-{
-	auto it = _adjacencyList.find(node);
-	if (it != _adjacencyList.end())
-	{
-		return it->second;
-	}
-	throw std::runtime_error("Node does not exist in the network");
-}
-
-// Get all nodes in the rail network
-const std::vector<std::shared_ptr<Node>> RailNetwork::getNodes() const
-{
-	std::vector<std::shared_ptr<Node>> nodes;
-	for (const auto &pair : _adjacencyList)
-	{
-		nodes.push_back(pair.first);
-	}
-	return nodes;
-}
-
-// Debug function to print the rail network
 void RailNetwork::printNetwork() const
 {
-	std::cout << CYAN << "=================================================="
-			  << std::endl;
-	std::cout << "               RAIL NETWORK OVERVIEW              "
-			  << std::endl;
-	std::cout << "==================================================" << RESET
-			  << std::endl;
+	std::cout << CYAN << "==================================================" << std::endl;
+	std::cout << "               RAIL NETWORK OVERVIEW              " << std::endl;
+	std::cout << "==================================================" << RESET << std::endl;
 
-	for (const auto &pair : _adjacencyList)
+	for (const auto &pair : _nodes)
 	{
-		std::cout << BLUE << "[Node] " << pair.first->getName() << RESET
-				  << std::endl;
-		std::cout << YELLOW << "  Neighbors:" << RESET << std::endl;
-		for (const auto &edge : pair.second)
+		const auto &node = pair.second;
+		std::cout << BLUE << "[Node] " << node->getName() << RESET << std::endl;
+		std::cout << YELLOW << "  Edges:" << RESET << std::endl;
+		for (const auto &edge : node->getEdges())
 		{
-			auto neighbor = edge.node.lock();
-			if (neighbor)
+			std::cout << "    " << GREEN << edge.getNode2() << RESET
+					  << " [distance: " << edge.getDistance()
+					  << ", speed limit: " << edge.getSpeedLimit() << "]"
+					  << std::endl;
+			// Print edge events
+			for (const auto &event : edge.getEvents())
 			{
-				std::cout << "    " << GREEN << neighbor->getName() << RESET
-						  << " [distance: " << edge.distance
-						  << ", speed limit: " << edge.speedLimit << "]"
-						  << std::endl;
+				std::cout << "      " << MAGENTA << "Event: " << event.getEventName()
+						  << " (prob: " << event.getEventProbability()
+						  << ", duration: " << event.getEventDuration().count()
+						  << "s, loc: " << event.getEventLocalization() << ")"
+						  << RESET << std::endl;
+			}
+		}
+		// Print node events
+		if (!node->getEvents().empty())
+		{
+			std::cout << YELLOW << "  Node Events:" << RESET << std::endl;
+			for (const auto &event : node->getEvents())
+			{
+				std::cout << "    " << MAGENTA << "Event: " << event.getEventName()
+						  << " (prob: " << event.getEventProbability()
+						  << ", duration: " << event.getEventDuration().count()
+						  << "s, loc: " << event.getEventLocalization() << ")"
+						  << RESET << std::endl;
 			}
 		}
 		std::cout << std::endl;
 	}
+	std::cout << CYAN << "==================================================" << RESET << std::endl;
 }
