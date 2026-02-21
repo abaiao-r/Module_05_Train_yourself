@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 15:23:38 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 16:33:53 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -175,7 +175,7 @@ void Simulation::run()
 			{
 				double distRem = totalRemainingDistance(s) / 1000.0;
 				auto &p = s.train->getPath();
-				if (s.segmentIndex < p.size() - 1)
+				if (p.size() >= 2 && s.segmentIndex + 1 < p.size())
 				{
 					const std::string &from =
 						p[s.segmentIndex]->getName();
@@ -200,7 +200,8 @@ void Simulation::run()
 							|| !states[j].departed)
 							continue;
 						auto &op = states[j].train->getPath();
-						if (states[j].segmentIndex < op.size() - 1
+						if (op.size() >= 2
+							&& states[j].segmentIndex + 1 < op.size()
 							&& op[states[j].segmentIndex]->getName()
 								   == from
 							&& op[states[j].segmentIndex + 1]->getName()
@@ -261,9 +262,19 @@ void Simulation::computePaths()
 	std::cout << "=== Paths ===" << std::endl;
 	for (auto &train : _trains)
 	{
-		auto path = _pathfinder->findPath(train->getDepartureStation(),
-										  train->getArrivalStation(),
-										  _network, _weightMode);
+		std::vector<std::shared_ptr<Node>> path;
+		try
+		{
+			path = _pathfinder->findPath(train->getDepartureStation(),
+										 train->getArrivalStation(),
+										 _network, _weightMode);
+		}
+		catch (const std::exception &e)
+		{
+			std::cerr << "No path for " << train->getName() << ": "
+					  << e.what() << std::endl;
+			continue;
+		}
 		if (path.empty())
 		{
 			std::cerr << "No path found for " << train->getName() << " ("
@@ -345,7 +356,7 @@ void Simulation::getSegmentInfo(const std::string &from,
 double Simulation::totalRemainingDistance(const TrainState &s) const
 {
 	const auto &path = s.train->getPath();
-	if (s.segmentIndex >= path.size() - 1)
+	if (path.size() < 2 || s.segmentIndex + 1 >= path.size())
 		return 0.0;
 
 	/* Remaining on current segment */
@@ -355,7 +366,7 @@ double Simulation::totalRemainingDistance(const TrainState &s) const
 	double remaining = segLen_m - s.posOnSegment_m;
 
 	/* Full lengths of subsequent segments */
-	for (size_t i = s.segmentIndex + 1; i < path.size() - 1; i++)
+	for (size_t i = s.segmentIndex + 1; i + 1 < path.size(); i++)
 	{
 		double sLen, sSp;
 		getSegmentInfo(path[i]->getName(), path[i + 1]->getName(), sLen,
@@ -369,7 +380,7 @@ double Simulation::totalRemainingDistance(const TrainState &s) const
 void Simulation::updatePhysics(TrainState &s)
 {
 	auto &path = s.train->getPath();
-	if (s.segmentIndex >= path.size() - 1)
+	if (path.size() < 2 || s.segmentIndex + 1 >= path.size())
 		return;
 
 	double segLen_m, speedLim_ms;
@@ -440,7 +451,9 @@ void Simulation::updatePhysics(TrainState &s)
 void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx)
 {
 	auto &path = s.train->getPath();
-	bool isLast = (s.segmentIndex >= path.size() - 2);
+	if (path.size() < 2)
+		return;
+	bool isLast = (s.segmentIndex + 2 >= path.size());
 
 	/* Notify arrival at next node */
 	std::string arrNode = path[s.segmentIndex + 1]->getName();
@@ -490,7 +503,7 @@ void Simulation::applyBlocking(std::vector<TrainState> &states)
 		if (states[i].arrived || !states[i].departed)
 			continue;
 		auto &pi = states[i].train->getPath();
-		if (states[i].segmentIndex >= pi.size() - 1)
+		if (pi.size() < 2 || states[i].segmentIndex + 1 >= pi.size())
 			continue;
 
 		const std::string &fromI =
@@ -503,7 +516,7 @@ void Simulation::applyBlocking(std::vector<TrainState> &states)
 			if (states[j].arrived || !states[j].departed)
 				continue;
 			auto &pj = states[j].train->getPath();
-			if (states[j].segmentIndex >= pj.size() - 1)
+			if (pj.size() < 2 || states[j].segmentIndex + 1 >= pj.size())
 				continue;
 
 			const std::string &fromJ =

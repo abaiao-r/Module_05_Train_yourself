@@ -1,0 +1,3 @@
+Node CityA
+Node CityB
+Banana CityA CityB 10.0 100.0
