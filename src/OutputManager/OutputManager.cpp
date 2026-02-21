@@ -21,7 +21,7 @@ std::string OutputManager::formatTime(double seconds)
 	int h = (totalSec / 3600) % 24;
 	int m = (totalSec % 3600) / 60;
 	int s = totalSec % 60;
-	char buf[9];
+	char buf[16];
 	std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", h, m, s);
 	return buf;
 }
