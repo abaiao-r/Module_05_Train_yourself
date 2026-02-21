@@ -1,0 +1,60 @@
+@startuml sequence_pathfinding
+
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+title Dijkstra Pathfinding — Shortest Route Discovery
+
+participant "Simulation" as Sim
+participant "DijkstraPathfinding" as Dijk
+participant "RailNetwork" as Net
+participant "Node" as N
+
+Sim -> Dijk : findPath("CityA", "CityB", network)
+
+== Validation ==
+Dijk -> Net : findNode("CityA")
+Net --> Dijk : shared_ptr<Node> ✓
+Dijk -> Net : findNode("CityB")
+Net --> Dijk : shared_ptr<Node> ✓
+
+note over Dijk
+    If start == end:
+    return { findNode(start) }
+end note
+
+== Dijkstra Algorithm ==
+Dijk -> Dijk : initialise dist["CityA"] = 0.0\nall others = ∞
+Dijk -> Dijk : push (0.0, "CityA") to priority queue
+
+loop while priority queue not empty
+    Dijk -> Dijk : pop (cost, current)
+    alt cost > dist[current]
+        Dijk -> Dijk : skip (stale entry)
+    else
+        Dijk -> Net : getNeighbours(current)
+        Net --> Dijk : vector<Edge>
+        loop for each edge
+            Dijk -> Dijk : newDist = dist[current] + edge.distance
+            alt newDist < dist[neighbour]
+                Dijk -> Dijk : dist[neighbour] = newDist
+                Dijk -> Dijk : prev[neighbour] = current
+                Dijk -> Dijk : push (newDist, neighbour)
+            end
+        end
+    end
+end
+
+== Path Reconstruction ==
+alt dist[end] was updated
+    Dijk -> Dijk : walk prev[] from "CityB" back to "CityA"
+    Dijk -> Net : findNode(name) for each step
+    Net --> Dijk : shared_ptr<Node>
+    Dijk -> Dijk : reverse path
+    Dijk --> Sim : [CityA, RailNodeA, ..., CityB]
+else no path found
+    Dijk --> Sim : empty vector
+end
+
+@enduml

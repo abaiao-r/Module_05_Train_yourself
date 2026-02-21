@@ -1,0 +1,63 @@
+@startuml sequence_input_parsing
+
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+title Input Parsing — File Loading Sequence
+
+participant "main" as Main
+participant "InputHandler" as IH
+participant "RailNetwork" as Net
+participant "TrainFactory" as TF
+participant "Train" as T
+participant "Event" as Ev
+
+Main -> IH : loadData("network.txt", "trains.txt")
+
+== Network File Parsing ==
+IH -> IH : parseNetworkFile(filepath, network, events)
+
+group Read lines from network.txt
+    IH -> IH : read line "Node CityA"
+    IH -> Net : addNode("CityA")
+
+    IH -> IH : read line "Node CityB"
+    IH -> Net : addNode("CityB")
+
+    IH -> IH : read line "Rail CityA CityB 15.0 250.0"
+    IH -> Net : addConnection("CityA", "CityB", 15.0, 250.0)
+    note right of Net
+        Bidirectional: adds edge
+        CityA→CityB and CityB→CityA
+    end note
+
+    IH -> IH : read line: Event "Passenger's Discomfort" 0.2 30m CityA
+    IH -> IH : parseQuotedOrWord() → "Passenger's Discomfort"
+    IH -> IH : parseDuration("30m") → 1800.0 seconds
+    IH -> Ev ** : Event("Passenger's Discomfort", 0.2, 1800.0, "CityA")
+end
+
+== Train File Parsing ==
+IH -> IH : parseTrainFile(filepath)
+
+group Read lines from trains.txt
+    IH -> IH : read line "TrainAB1 1.87 1.4 CityA CityB 14h10"
+    IH -> IH : parseTime("14h10") → 51000.0 seconds
+    IH -> TF : createTrain("TrainAB1", 1.87, 1.4, "CityA", "CityB", 51000.0)
+
+    group TrainFactory Validation
+        TF -> TF : name not empty? ✓
+        TF -> TF : acceleration > 0? ✓
+        TF -> TF : braking > 0? ✓
+        TF -> TF : departure ≠ arrival? ✓
+        TF -> TF : departureTime ≥ 0? ✓
+    end
+
+    TF -> T ** : make_unique<Train>(...)
+    TF --> IH : unique_ptr<Train>
+end
+
+IH --> Main : SimulationData { network, trains, events }
+
+@enduml
