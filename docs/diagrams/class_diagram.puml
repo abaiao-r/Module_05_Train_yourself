@@ -108,15 +108,22 @@ package "Domain" {
 }
 
 package "Strategy" {
+    enum PathWeightMode {
+        Distance
+        Time
+    }
+
     interface IPathfinding <<interface>> {
-        + {abstract} findPath(start, end, network) : vector<shared_ptr<Node>>
+        + {abstract} findPath(start, end, network, mode : PathWeightMode) : vector<shared_ptr<Node>>
     }
 
     class DijkstraPathfinding {
-        + findPath(start, end, network) : vector<shared_ptr<Node>>
+        + findPath(start, end, network, mode : PathWeightMode) : vector<shared_ptr<Node>>
+        # {static} edgeWeight(edge : Edge, mode : PathWeightMode) : double
     }
     DijkstraPathfinding ..|> IPathfinding : implements
     DijkstraPathfinding ..> RailNetwork : reads graph
+    IPathfinding ..> PathWeightMode : uses
 }
 
 package "Factory" {
@@ -195,12 +202,13 @@ package "Orchestration" {
         - _trains : vector<unique_ptr<Train>>
         - _events : vector<Event>
         - _pathfinder : unique_ptr<IPathfinding>
+        - _weightMode : PathWeightMode
         - _output : OutputManager
         - _observers : vector<unique_ptr<ISimulationObserver>>
         - _rng : mt19937
         - {static} DT : double = 1.0
         - {static} OUTPUT_INTERVAL : double = 60.0
-        + Simulation(network, trains, events, pathfinder)
+        + Simulation(network, trains, events, pathfinder, weightMode)
         + ~Simulation()
         + run() : void
         - computePaths() : void
