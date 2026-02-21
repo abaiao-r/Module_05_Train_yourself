@@ -58,6 +58,7 @@ jobs:
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/InputHandlerTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/TrainFactoryTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/OutputManagerTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/IntegrationTest
 
     - name: Valgrind - main program
       run: |
