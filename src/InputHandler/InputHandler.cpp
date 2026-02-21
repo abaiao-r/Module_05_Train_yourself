@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   InputHandler.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 01:31:16 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 01:31:16 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 01:43:54 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,6 +52,28 @@ InputHandler &InputHandler::operator=(InputHandler &&src) noexcept
 
 InputHandler::~InputHandler() {}
 
+/* ---- Helpers ---- */
+static std::string parseQuotedOrWord(std::istringstream &iss)
+{
+	char c;
+	// Skip leading whitespace
+	while (iss.get(c) && std::isspace(c))
+		;
+	if (!iss)
+		return "";
+	if (c == '"')
+	{
+		std::string result;
+		std::getline(iss, result, '"');
+		return result;
+	}
+	std::string word;
+	word += c;
+	while (iss.get(c) && !std::isspace(c))
+		word += c;
+	return word;
+}
+
 /* ---- Parsing ---- */
 void InputHandler::loadRailNetworkData()
 {
@@ -73,19 +95,18 @@ void InputHandler::loadRailNetworkData()
 
 		if (keyword == "Node")
 		{
-			std::string nodeName;
-			iss >> nodeName;
+			std::string nodeName = parseQuotedOrWord(iss);
 			if (nodeName.empty())
 				throw InputException("Missing node name in: " + line);
 			// TODO: create node via RailNetwork
 		}
 		else if (keyword == "Event")
 		{
-			std::string eventName;
+			std::string eventName = parseQuotedOrWord(iss);
 			double probability;
 			std::string duration;
 			std::string nodeName;
-			iss >> eventName >> probability >> duration >> nodeName;
+			iss >> probability >> duration >> nodeName;
 			if (eventName.empty() || nodeName.empty())
 				throw InputException("Invalid event line: " + line);
 			// TODO: create event via EventManager
