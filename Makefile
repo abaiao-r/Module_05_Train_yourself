@@ -79,7 +79,9 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/InputHandlerTest \
 		$(BINDIR)/TrainFactoryTest \
 		$(BINDIR)/OutputManagerTest \
-		$(BINDIR)/IntegrationTest
+		$(BINDIR)/IntegrationTest \
+		$(BINDIR)/EdgeCaseTest \
+		$(BINDIR)/CombinationTest
 
 test: $(TESTS)
 	@echo ""
@@ -92,6 +94,8 @@ test: $(TESTS)
 	@./$(BINDIR)/TrainFactoryTest || exit 1
 	@./$(BINDIR)/OutputManagerTest || exit 1
 	@./$(BINDIR)/IntegrationTest || exit 1
+	@./$(BINDIR)/EdgeCaseTest || exit 1
+	@./$(BINDIR)/CombinationTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -142,6 +146,14 @@ $(BINDIR)/OutputManagerTest: $(TESTDIR)/OutputManagerTest.cpp \
 LIB_OBJS = $(filter-out $(OBJDIR)/main.o, $(OBJS))
 
 $(BINDIR)/IntegrationTest: $(TESTDIR)/IntegrationTest.cpp $(LIB_OBJS)
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+$(BINDIR)/EdgeCaseTest: $(TESTDIR)/EdgeCaseTest.cpp $(LIB_OBJS)
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+$(BINDIR)/CombinationTest: $(TESTDIR)/CombinationTest.cpp $(LIB_OBJS)
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
 

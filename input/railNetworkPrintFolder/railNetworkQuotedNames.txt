@@ -1,0 +1,3 @@
+Node "City A"
+Node "City B"
+Rail "City A" "City B" 10.0 100.0
