@@ -40,7 +40,7 @@ package "Domain" {
         + operator=(src : RailNetwork&&) : RailNetwork&
         + ~RailNetwork()
         + addNode(name : string) : void
-        + addConnection(from : string, to : string, distance : double, speedLimit : double) : void
+        + addConnection(from, to, distance, speedLimit) : void
         + findNode(name : string) : shared_ptr<Node>
         + getNeighbours(nodeName : string) : vector<Edge>
         + getNodeNames() : vector<string>
@@ -58,20 +58,35 @@ package "Domain" {
 
     class Train {
         - _name : string
-        - _maxAcceleration : double
-        - _maxBrakingForce : double
+        - _weight : double              «metric tons»
+        - _frictionCoefficient : double
+        - _maxAccelForce : double       «kilonewtons»
+        - _maxBrakeForce : double       «kilonewtons»
         - _departureStation : string
         - _arrivalStation : string
-        - _departureTime : double
+        - _departureTime : double       «seconds from midnight»
+        - _stopDuration : double        «seconds at each station»
         - _status : TrainStatus
         - _path : vector<shared_ptr<Node>>
         - _pathIndex : size_t
         - _currentTime : double
         - _totalDelay : double
-        + Train(name, accel, braking, departure, arrival, departureTime)
-        + setPath(path : vector<shared_ptr<Node>>) : void
+        - _currentSpeed : double        «m/s»
+        - _posOnSegment : double        «metres»
+        + Train(name, weight, friction, accelForce, brakeForce, departure, arrival, departureTime, stopDuration)
+        + Train(src : Train)
+        + operator=(src : Train) : Train&
+        + ~Train()
+        + setPath(path) : void
         + advanceToNextNode(travelTime : double) : void
         + applyDelay(seconds : double) : void
+        + setStatus(status) : void
+        + setCurrentSpeed(speed : double) : void
+        + setPosOnSegment(pos : double) : void
+        + setPathIndex(idx : size_t) : void
+        + setCurrentTime(t : double) : void
+        + getAccelRate() : double
+        + getDecelRate() : double
         + hasArrived() : bool
         + {static} statusToString(status : TrainStatus) : string
     }
@@ -94,11 +109,11 @@ package "Domain" {
 
 package "Strategy" {
     interface IPathfinding <<interface>> {
-        + {abstract} findPath(start : string, end : string, network : RailNetwork) : vector<shared_ptr<Node>>
+        + {abstract} findPath(start, end, network) : vector<shared_ptr<Node>>
     }
 
     class DijkstraPathfinding {
-        + findPath(start : string, end : string, network : RailNetwork) : vector<shared_ptr<Node>>
+        + findPath(start, end, network) : vector<shared_ptr<Node>>
     }
     DijkstraPathfinding ..|> IPathfinding : implements
     DijkstraPathfinding ..> RailNetwork : reads graph
@@ -107,9 +122,33 @@ package "Strategy" {
 package "Factory" {
     class TrainFactory {
         - TrainFactory() = delete
-        + {static} createTrain(name, accel, braking, dep, arr, time) : unique_ptr<Train>
+        + {static} createTrain(name, weight, friction, accelForce, brakeForce, dep, arr, time, stop) : unique_ptr<Train>
     }
     TrainFactory ..> Train : creates
+}
+
+package "Observer" {
+    interface ISimulationObserver <<interface>> {
+        + {abstract} onTrainStart(trainName, estimatedTimeSec) : void
+        + {abstract} onTrainStep(timeSinceStart, from, to, distRemKm, action, posKm, segKm, blocking) : void
+        + {abstract} onTrainEvent(eventName, nodeName, delaySec) : void
+        + {abstract} onTrainFinish(trainName, totalTimeSec) : void
+    }
+
+    class FileOutputObserver {
+        - _file : ofstream
+        - _filename : string
+        - {static} buildFilename(trainName, departureTime) : string
+        - {static} fmtTimeShort(seconds) : string
+        - {static} padRight(s, width) : string
+        + FileOutputObserver(trainName, departureTime)
+        + ~FileOutputObserver()
+        + onTrainStart(...) : void
+        + onTrainStep(...) : void
+        + onTrainEvent(...) : void
+        + onTrainFinish(...) : void
+    }
+    FileOutputObserver ..|> ISimulationObserver : implements
 }
 
 package "I/O" {
@@ -121,7 +160,7 @@ package "I/O" {
 
     class InputHandler {
         - InputHandler() = delete
-        + {static} loadData(networkFile : string, trainFile : string) : SimulationData
+        + {static} loadData(networkFile, trainFile) : SimulationData
     }
     InputHandler ..> SimulationData : produces
     InputHandler ..> RailNetwork : builds
@@ -132,34 +171,54 @@ package "I/O" {
         + printNetwork(net : RailNetwork) : void
         + printTrainPath(train : Train) : void
         + printDeparture(train : Train) : void
-        + printArrival(train : Train, node : string, time : double) : void
+        + printArrival(train : Train, node, time) : void
         + printEvent(event : Event, train : Train) : void
-        + printResult(trains : vector<unique_ptr<Train>>) : void
+        + printResult(trains) : void
         + {static} formatTime(seconds : double) : string
     }
 }
 
 package "Orchestration" {
+    struct TrainState <<struct>> {
+        + train : Train*
+        + segmentIndex : size_t
+        + posOnSegment_m : double
+        + speed_ms : double
+        + timeSinceDepart : double
+        + stopTimer : double
+        + departed : bool
+        + arrived : bool
+    }
+
     class Simulation {
         - _network : RailNetwork
         - _trains : vector<unique_ptr<Train>>
         - _events : vector<Event>
         - _pathfinder : unique_ptr<IPathfinding>
         - _output : OutputManager
+        - _observers : vector<unique_ptr<ISimulationObserver>>
         - _rng : mt19937
+        - {static} DT : double = 1.0
+        - {static} OUTPUT_INTERVAL : double = 60.0
         + Simulation(network, trains, events, pathfinder)
         + ~Simulation()
         + run() : void
         - computePaths() : void
-        - simulateTrain(train : Train&) : void
-        - getEdgeTravelTime(from : string, to : string) : double
-        - getEventsAtNode(nodeName : string) : vector<Event*>
+        - estimateTravelTime(train) : double
+        - getSegmentInfo(from, to, length_m&, speedLimit_ms&) : void
+        - totalRemainingDistance(s : TrainState) : double
+        - updatePhysics(s : TrainState&) : void
+        - handleSegmentTransition(s : TrainState&, idx) : void
+        - applyBlocking(states : vector<TrainState>&) : void
+        - getEventsAtNode(nodeName) : vector<Event*>
     }
     Simulation *-- RailNetwork : owns
     Simulation *-- Train : owns
     Simulation *-- Event : owns
     Simulation *-- OutputManager : owns
+    Simulation *-- TrainState : runtime state
     Simulation --> IPathfinding : uses (injected)
+    Simulation *-- ISimulationObserver : notifies
 }
 
 @enduml

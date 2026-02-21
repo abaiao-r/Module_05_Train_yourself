@@ -4,7 +4,7 @@ skinparam defaultFontSize 11
 skinparam shadowing false
 skinparam sequenceMessageAlign center
 
-title Simulation Run — Full Lifecycle
+title Simulation Run — Full Lifecycle (Physics + Concurrent)
 
 actor User
 participant "main" as Main
@@ -13,6 +13,7 @@ participant "TrainFactory" as TF
 participant "Simulation" as Sim
 participant "DijkstraPathfinding" as Dijk
 participant "OutputManager" as OM
+participant "FileOutputObserver" as FObs
 participant "RailNetwork" as Net
 participant "Train" as T
 participant "Event" as Ev
@@ -22,14 +23,15 @@ User -> Main : ./Train network.txt trains.txt
 Main -> IH : loadData(networkFile, trainFile)
 
 group Parse Network File
-    IH -> Net : addNode("CityA")
-    IH -> Net : addNode("CityB")
+    IH -> Net : addNode("CityA"), addNode("CityB")
     IH -> Net : addConnection("CityA", "CityB", 15.0, 250.0)
     IH -> Ev ** : Event("Riot", 0.05, 172800, "CityA")
 end
 
-group Parse Train File
-    IH -> TF : createTrain("TrainAB1", 1.87, 1.4, "CityA", "CityB", 51000)
+group Parse Train File (9 fields)
+    IH -> TF : createTrain("TrainAB", 80, 0.05, 356.0, 30.0, "CityA", "CityB", 51000, 600)
+    TF -> TF : validate weight > 0, friction >= 0, forces > 0, stop >= 0
+    TF -> T ** : make_unique<Train>(...)
     TF --> IH : unique_ptr<Train>
 end
 
@@ -52,36 +54,86 @@ group Path Computation
     end
 end
 
-group Train Simulation (per train)
-    Sim -> T : setStatus(Running)
-    Sim -> OM : printDeparture(train)
-    loop for each edge in path
-        Sim -> Sim : getEdgeTravelTime(from, to)
-        Sim -> Net : getNeighbours(from)
-        Net --> Sim : travelTime = (distance / speedLimit) * 3600
-        Sim -> T : advanceToNextNode(travelTime)
-        Sim -> OM : printArrival(train, node, time)
-
-        group Event Check
-            Sim -> Sim : getEventsAtNode(nodeName)
-            loop for each event at node
-                Sim -> Ev : tryTrigger(rng)
-                alt event triggers
-                    Ev --> Sim : true
-                    Sim -> T : applyDelay(duration)
-                    Sim -> T : setStatus(Delayed)
-                    Sim -> OM : printEvent(event, train)
-                else event does not trigger
-                    Ev --> Sim : false
-                end
-            end
-        end
+group Create Observers & States
+    loop for each train
+        Sim -> FObs ** : FileOutputObserver(trainName, departureTime)
+        Sim -> Sim : TrainState { train*, segIdx=0, pos=0, speed=0, stopTimer=0 }
+        Sim -> Sim : estimateTravelTime(train) → analytical estimate
+        Sim -> FObs : onTrainStart(trainName, estimatedTime)
     end
 end
 
-group Results
+group Concurrent Physics Loop (DT = 1s)
+    loop simTime += 1s while any train active
+        loop for each train
+            alt not yet departed
+                alt simTime >= departureTime
+                    Sim -> T : setStatus(Running)
+                    Sim -> OM : printDeparture(train)
+                end
+            else station stop timer > 0
+                Sim -> Sim : stopTimer -= DT
+                note right
+                    Train stays at position 0,
+                    speed 0, action = "Stopped"
+                end note
+            else normal physics
+                Sim -> Sim : updatePhysics(state)
+                note right
+                    1. Compute braking distance = v² / (2·decelRate)
+                    2. If distToEnd <= brakingDist → brake
+                    3. Else if speed < speedLimit → accelerate
+                    4. Else → maintain speed
+                    5. Clamp to speedLimit
+                    6. pos += speed · DT
+                end note
+                alt segment complete (pos >= segmentLength)
+                    Sim -> Sim : handleSegmentTransition(state, idx)
+                    Sim -> T : advanceToNextNode(...)
+                    Sim -> OM : printArrival(train, node, time)
+                    group Event Check
+                        Sim -> Ev : tryTrigger(rng)
+                        alt event triggers
+                            Sim -> T : applyDelay(duration)
+                            Sim -> OM : printEvent(event, train)
+                            Sim -> FObs : onTrainEvent(eventName, nodeName, delay)
+                        end
+                    end
+                    alt not final destination
+                        Sim -> Sim : stopTimer = train.stopDuration
+                    else final destination
+                        Sim -> Sim : state.arrived = true
+                    end
+                end
+            end
+
+            alt every 60 seconds
+                Sim -> FObs : onTrainStep(time, from, to, distRem, action, posKm, segKm, blocking)
+                note right of FObs
+                    Writes line: [time] - [from][to] - [dist] - [action] - rail graph
+                    Rail graph: [x]=position, [O]=blocking, [ ]=empty
+                end note
+            end
+        end
+
+        Sim -> Sim : applyBlocking(states)
+        note right
+            Trains on same segment:
+            behind train speed ≤ ahead train speed
+        end note
+    end
+end
+
+group Finalize
+    loop for each train
+        Sim -> FObs : onTrainFinish(trainName, totalTimeSec)
+        note right of FObs
+            Writes: "Actual travel time : XXhYYm"
+            Closes .result file
+        end note
+    end
     Sim -> OM : printResult(trains)
-    OM --> User : Summary (status, arrival time, delays)
+    OM --> User : Console summary (status, arrival time, delays)
 end
 
 @enduml

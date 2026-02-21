@@ -1,0 +1,75 @@
+@startuml activity_physics_tick
+
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam ActivityFontSize 12
+
+title Physics Engine — Single Tick Decision (DT = 1 second)
+
+start
+
+:Read current state;
+note right
+  speed_ms, posOnSegment_m
+  segmentLength_m, speedLimit_ms
+  accelRate, decelRate
+end note
+
+:Compute braking distance;
+note right
+  brakeDist = v² / (2 × decelRate)
+end note
+
+:Compute distance to segment end;
+note right
+  distToEnd = segmentLength - posOnSegment
+end note
+
+if (distToEnd <= brakeDist?) then (yes — must brake)
+  :Apply deceleration;
+  note right
+    speed -= decelRate × DT
+    if speed < 0 → speed = 0
+  end note
+  :action = "Braking";
+elseif (speed < speedLimit?) then (yes — can accelerate)
+  :Apply acceleration;
+  note right
+    speed += accelRate × DT
+    if speed > speedLimit → speed = speedLimit
+  end note
+  :action = "Speed up";
+else (at speed limit)
+  :Maintain speed;
+  :action = "Maintain";
+endif
+
+:Update position;
+note right
+  posOnSegment += speed × DT
+end note
+
+if (posOnSegment >= segmentLength?) then (yes)
+  :Handle segment transition;
+  note right
+    • Advance to next node
+    • Check events at node
+    • If intermediate → start stopTimer
+    • If final → mark arrived
+  end note
+else (no)
+  :Continue on segment;
+endif
+
+if (every 60 seconds?) then (yes)
+  :Notify observer;
+  note right
+    onTrainStep(time, from, to,
+    distRemaining, action, railGraph)
+  end note
+else (no)
+endif
+
+stop
+
+@enduml

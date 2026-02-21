@@ -1,0 +1,111 @@
+@startuml activity_simulation_overview
+
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam ActivityFontSize 12
+
+title Simulation — High-Level Flow
+
+|#LightBlue|Loading|
+start
+:Read network file;
+note right
+  Nodes, Rails (bidirectional),
+  Events with probabilities
+end note
+
+:Read train file;
+note right
+  9 fields per train:
+  name weight friction accel brake
+  from to time stopDuration
+end note
+
+:Validate via TrainFactory;
+
+|#LightGreen|Initialisation|
+:Compute shortest paths (Dijkstra);
+note right
+  Cost metric = distance (km)
+  One path per train
+end note
+
+:Create FileOutputObserver per train;
+note right
+  Opens TrainName_HHhMM.result
+  Writes header + estimated time
+end note
+
+:Create TrainState per train;
+note right
+  segmentIndex = 0
+  posOnSegment = 0
+  speed = 0, stopTimer = 0
+end note
+
+|#LightYellow|Concurrent Physics Loop|
+repeat
+  :simTime += 1 second;
+
+  partition "For each active train" {
+    if (not yet departed?) then (yes)
+      if (simTime >= departureTime?) then (yes)
+        :Mark departed;
+        :Print departure to console;
+      else (no)
+        :Skip this train;
+      endif
+    elseif (station stop active?) then (yes)
+      :Decrement stop timer;
+      :action = "Stopped";
+    else (physics step)
+      :Compute forces & update speed/position;
+      note right
+        a_accel = (F×1000 − μ×m×1000×g) / (m×1000)
+        a_decel = (F×1000 + μ×m×1000×g) / (m×1000)
+      end note
+
+      if (segment complete?) then (yes)
+        :Advance to next node;
+        :Check events → apply delay if triggered;
+        if (final destination?) then (yes)
+          :Mark arrived;
+        else (no)
+          :Start stop timer;
+        endif
+      endif
+    endif
+
+    if (every 60s interval?) then (yes)
+      :Observer writes timestep line;
+      note right
+        [time] - [from][to] - [dist] - [action]
+        Rail graph: [x] [O] [ ]
+      end note
+    endif
+  }
+
+  :Apply overtaking constraints;
+  note right
+    Same segment → behind train
+    speed ≤ ahead train speed
+  end note
+
+repeat while (any train still active?) is (yes)
+->no;
+
+|#LightPink|Finalisation|
+:Close all .result files;
+note right
+  Observer writes:
+  "Actual travel time : XXhYYm"
+end note
+
+:Print console summary;
+note right
+  Per train: status, arrival time, delay
+end note
+
+stop
+
+@enduml
