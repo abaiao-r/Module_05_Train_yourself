@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 10:34:58 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 14:26:44 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,10 +25,11 @@
 Simulation::Simulation(RailNetwork network,
 					   std::vector<std::unique_ptr<Train>> trains,
 					   std::vector<Event> events,
-					   std::unique_ptr<IPathfinding> pathfinder)
+					   std::unique_ptr<IPathfinding> pathfinder,
+					   PathWeightMode weightMode)
 	: _network(std::move(network)), _trains(std::move(trains)),
 	  _events(std::move(events)), _pathfinder(std::move(pathfinder)),
-	  _rng(std::random_device{}())
+	  _weightMode(weightMode), _rng(std::random_device{}())
 {
 	if (!_pathfinder)
 		throw std::invalid_argument("Pathfinder cannot be null");
@@ -254,7 +255,7 @@ void Simulation::computePaths()
 	{
 		auto path = _pathfinder->findPath(train->getDepartureStation(),
 										  train->getArrivalStation(),
-										  _network);
+										  _network, _weightMode);
 		if (path.empty())
 		{
 			std::cerr << "No path found for " << train->getName() << " ("

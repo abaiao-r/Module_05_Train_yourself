@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 14:26:44 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,6 +17,7 @@
 #include <queue>
 #include <unordered_map>
 
+#include "Edge.hpp"
 #include "Node.hpp"
 #include "RailNetwork.hpp"
 
@@ -32,10 +33,19 @@ DijkstraPathfinding &DijkstraPathfinding::operator=(
 
 DijkstraPathfinding::~DijkstraPathfinding() {}
 
+/* ---- Edge weight helper ---- */
+double DijkstraPathfinding::edgeWeight(const Edge &edge,
+									   PathWeightMode mode)
+{
+	if (mode == PathWeightMode::Time)
+		return edge.distance / edge.speedLimit; // hours
+	return edge.distance;                       // km
+}
+
 /* ---- Algorithm ---- */
 std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 	const std::string &start, const std::string &end,
-	const RailNetwork &network) const
+	const RailNetwork &network, PathWeightMode mode) const
 {
 	// Validate that both nodes exist in the network
 	network.findNode(start);
@@ -70,7 +80,7 @@ std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 		for (const auto &edge : network.getNeighbours(u))
 		{
 			const std::string &v = edge.destination->getName();
-			double newDist = dist[u] + edge.distance;
+			double newDist = dist[u] + edgeWeight(edge, mode);
 			if (newDist < dist[v])
 			{
 				dist[v] = newDist;

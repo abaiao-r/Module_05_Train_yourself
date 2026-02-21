@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 09:57:55 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 14:26:44 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,13 +16,17 @@
 #include <memory>
 
 #include "DijkstraPathfinding.hpp"
+#include "IPathfinding.hpp"
 #include "InputHandler.hpp"
 #include "Simulation.hpp"
 
 static void printHelp()
 {
 	std::cout
-		<< "Usage: ./Train <network_file> <train_file>\n\n"
+		<< "Usage: ./Train <network_file> <train_file> [--time]\n\n"
+		<< "Options:\n"
+		<< "  --time    Optimise route by travel time instead of "
+		<< "distance\n\n"
 		<< "=== Network file format ===\n"
 		<< "  Node <name>\n"
 		<< "    Declares a station or junction in the network.\n\n"
@@ -54,18 +58,31 @@ static void printHelp()
 
 int main(int argc, char **argv)
 {
-	if (argc == 2 && std::strcmp(argv[1], "--help") == 0)
+	if (argc >= 2 && std::strcmp(argv[1], "--help") == 0)
 	{
 		printHelp();
 		return EXIT_SUCCESS;
 	}
-	if (argc != 3)
+	if (argc < 3 || argc > 4)
 	{
 		std::cerr << "Usage: " << argv[0]
-				  << " <network_file> <train_file>" << std::endl;
+				  << " <network_file> <train_file> [--time]" << std::endl;
 		std::cerr << "Use --help for detailed format information."
 				  << std::endl;
 		return EXIT_FAILURE;
+	}
+
+	/* Parse optional --time flag */
+	PathWeightMode weightMode = PathWeightMode::Distance;
+	if (argc == 4)
+	{
+		if (std::strcmp(argv[3], "--time") == 0)
+			weightMode = PathWeightMode::Time;
+		else
+		{
+			std::cerr << "Unknown option: " << argv[3] << std::endl;
+			return EXIT_FAILURE;
+		}
 	}
 
 	try
@@ -74,7 +91,8 @@ int main(int argc, char **argv)
 		auto pathfinder = std::make_unique<DijkstraPathfinding>();
 
 		Simulation sim(std::move(data.network), std::move(data.trains),
-					   std::move(data.events), std::move(pathfinder));
+					   std::move(data.events), std::move(pathfinder),
+					   weightMode);
 		sim.run();
 	}
 	catch (const std::exception &e)
