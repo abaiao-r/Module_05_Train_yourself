@@ -18,8 +18,8 @@ objs/
 *.dSYM/
 .nfs*
 
-# Simulation result files
-*.result
+# Program output directory
+output/
 
 # macOS
 .DS_Store
