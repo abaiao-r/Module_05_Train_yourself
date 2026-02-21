@@ -17,3 +17,6 @@ objs/
 *.out
 *.dSYM/
 .nfs*
+
+# macOS
+.DS_Store
