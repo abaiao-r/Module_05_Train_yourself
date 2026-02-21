@@ -38,23 +38,30 @@ group Read lines from network.txt
     IH -> Ev ** : Event("Passenger's Discomfort", 0.2, 1800.0, "CityA")
 end
 
-== Train File Parsing ==
+== Train File Parsing (9-field format) ==
 IH -> IH : parseTrainFile(filepath)
 
 group Read lines from trains.txt
-    IH -> IH : read line "TrainAB1 1.87 1.4 CityA CityB 14h10"
+    IH -> IH : read line "TrainAB 80 0.05 356.0 30.0 CityA CityB 14h10 00h10"
+    IH -> IH : parse: name=TrainAB, weight=80, friction=0.05
+    IH -> IH : parse: accelForce=356.0, brakeForce=30.0
+    IH -> IH : parse: departure=CityA, arrival=CityB
     IH -> IH : parseTime("14h10") → 51000.0 seconds
-    IH -> TF : createTrain("TrainAB1", 1.87, 1.4, "CityA", "CityB", 51000.0)
+    IH -> IH : parseTime("00h10") → 600.0 seconds (stop duration)
+    IH -> TF : createTrain("TrainAB", 80, 0.05, 356.0, 30.0, "CityA", "CityB", 51000.0, 600.0)
 
     group TrainFactory Validation
         TF -> TF : name not empty? ✓
-        TF -> TF : acceleration > 0? ✓
-        TF -> TF : braking > 0? ✓
+        TF -> TF : weight > 0? ✓
+        TF -> TF : friction >= 0? ✓
+        TF -> TF : accelForce > 0? ✓
+        TF -> TF : brakeForce > 0? ✓
         TF -> TF : departure ≠ arrival? ✓
         TF -> TF : departureTime ≥ 0? ✓
+        TF -> TF : stopDuration ≥ 0? ✓
     end
 
-    TF -> T ** : make_unique<Train>(...)
+    TF -> T ** : make_unique<Train>(name, weight, friction, accelForce, brakeForce, dep, arr, time, stop)
     TF --> IH : unique_ptr<Train>
 end
 

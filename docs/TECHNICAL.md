@@ -17,7 +17,7 @@
 
 ### What the Simulator Models
 
-The system models a **rail network** where trains travel between stations along tracks, finding the fastest routes and encountering random disruptions along the way. It answers: *"Given a network and a schedule, when does each train arrive, and how much delay do disruptions cause?"*
+The system models a **rail network** where trains travel between stations along tracks using realistic physics, finding the fastest routes and encountering random disruptions along the way. All trains are simulated **concurrently** with a shared clock. It answers: *"Given a network, train specifications, and a schedule, when does each train arrive, and how do physics, stops, and disruptions affect travel time?"*
 
 ### Core Business Rules
 
@@ -29,44 +29,75 @@ A rail network consists of **stations** (nodes) connected by **tracks** (edges).
 
 Connections are **bidirectional** — if CityA connects to CityB, CityB also connects to CityA. Self-loops (a station connected to itself) are forbidden. Duplicate connections between the same pair of stations are rejected.
 
-#### 2. Train Scheduling
+#### 2. Train Specification
 
 Each train has:
+- A **name** (unique identifier)
+- **Weight** in metric tons (must be positive)
+- **Friction coefficient** μ (must be non-negative)
+- **Maximum acceleration force** in kilonewtons (must be positive)
+- **Maximum braking force** in kilonewtons (must be positive)
 - A **departure station** and an **arrival station** (must be different)
 - A **departure time** (e.g., 14h10 = 2:10 PM)
-- Physical properties: **acceleration** and **braking force** (both must be positive)
+- A **stop duration** at each intermediate station (e.g., 00h10 = 10 minutes)
 
-Trains are simulated in **departure-time order** — the train scheduled earliest runs first.
+Input format: `name weight friction accelForce brakeForce from to time stopDuration`
 
 #### 3. Route Selection
 
 Before simulation begins, each train is assigned the **shortest route** through the network using Dijkstra's algorithm. The cost metric is **distance** (not time). If no route exists, the train is skipped with a warning.
 
-A train travelling from CityA to CityB might take: `CityA → RailNodeA → RailNodeD → CityB` if that path has the shortest total distance.
+#### 4. Physics-Based Travel Time
 
-#### 4. Travel Time Calculation
+Travel time is computed using a **discrete physics simulation** with 1-second timesteps. At each tick, the engine computes forces and updates position:
 
-For each segment of a train's route, travel time is:
+**Acceleration rate** (m/s²):
 
-$$t = \frac{d}{v} \times 3600$$
+$$a_{accel} = \frac{F_{accel} \times 1000 - \mu \cdot m \times 1000 \cdot g}{m \times 1000}$$
 
-Where $d$ is the edge distance (km), $v$ is the speed limit (km/h), and $t$ is the result in seconds. The train's clock advances by this amount at each hop.
+**Deceleration rate** (m/s²):
 
-#### 5. Random Events (Disruptions)
+$$a_{decel} = \frac{F_{brake} \times 1000 + \mu \cdot m \times 1000 \cdot g}{m \times 1000}$$
+
+Where $F$ is in kN, $m$ is in metric tons, $g = 9.81$ m/s², and $\mu$ is the friction coefficient.
+
+Each tick, the train decides:
+- **Speed up** — if current speed < segment speed limit, apply $a_{accel}$
+- **Brake** — if remaining distance ≤ braking distance ($d_{brake} = \frac{v^2}{2 \cdot a_{decel}}$), apply $-a_{decel}$
+- **Maintain** — otherwise hold current speed
+
+Speed is capped at the segment's speed limit. Position advances by $v \cdot \Delta t$ each second.
+
+#### 5. Station Stops
+
+When a train reaches an intermediate node (not the final destination), it stops for the configured **stop duration**. During stops, the train remains at position 0 on the next segment with speed 0. Output lines during stops show action `Stopped`.
+
+#### 6. Concurrent Multi-Train Simulation
+
+All trains are simulated **simultaneously** on a shared wall clock. Each train has its own `TrainState` tracking: segment index, position on segment (metres), speed (m/s), time since departure, stop timer, and departed/arrived flags.
+
+#### 7. Overtaking / Blocking
+
+When two trains occupy the **same segment** in the same direction, the train behind has its speed capped to the speed of the train ahead. In the output rail graph, blocking trains appear as `[O]` cells.
+
+#### 8. Random Events (Disruptions)
 
 Events are bound to specific stations and have:
-- A **probability** (0.0 to 1.0) of triggering each time a train arrives at that station
+- A **probability** (0.0 to 1.0) of triggering when a train arrives
 - A **duration** (the delay in seconds if triggered)
 
-When a train arrives at a station, every event associated with that station rolls against its probability. If triggered, the train's clock advances by the event's duration, and the delay is accumulated.
+When triggered, the train's clock advances by the event's duration, and the delay is accumulated.
 
-Examples:
-- `Event Riot 0.05 48h CityA` — 5% chance of a 48-hour delay at CityA
-- `Event "Passenger's Discomfort" 0.2 30m CityB` — 20% chance of 30-minute delay at CityB
+#### 9. Per-Train Output Files (Observer Pattern)
 
-#### 6. Train State Machine
+Each train produces a result file named `TrainName_DepartureTime.result` containing:
+- **Header**: train name + estimated travel time
+- **Timestep lines** (every 60 seconds): `[time] - [from][to] - [dist remaining] - [action] - [rail graph]`
+- **Rail graph**: 1 cell per km — `[x]` = this train's position, `[O]` = blocking train, `[ ]` = empty
+- **Event notifications** when triggered
+- **Footer**: actual travel time
 
-Each train progresses through states:
+#### 10. Train State Machine
 
 | State | Meaning |
 |---|---|
@@ -75,12 +106,12 @@ Each train progresses through states:
 | **Delayed** | An event added delay to this train |
 | **Arrived** | Reached the arrival station |
 
-#### 7. Output & Results
+#### 11. Console Output
 
-The simulator produces:
+The simulator also produces console output:
 1. **Network map** — all stations and their connections
 2. **Route assignments** — the shortest path computed for each train
-3. **Simulation log** — timestamped departures, arrivals at each intermediate station, and any events triggered
+3. **Simulation log** — timestamped departures, arrivals, and events
 4. **Final report** — per-train summary: status, arrival time, total delay
 
 ---
@@ -90,6 +121,34 @@ The simulator produces:
 ![Class Diagram](diagrams/class_diagram.png)
 
 Source: [diagrams/class_diagram.puml](diagrams/class_diagram.puml)
+
+---
+
+## Business Logic Diagrams
+
+### Train Lifecycle — State Machine
+
+Shows how a train transitions through states: Waiting → Running → Stopped/Delayed → Arrived.
+
+![Train Lifecycle](diagrams/state_train_lifecycle.png)
+
+Source: [diagrams/state_train_lifecycle.puml](diagrams/state_train_lifecycle.puml)
+
+### Physics Engine — Single Tick Decision
+
+The decision flowchart for each 1-second physics tick: brake, accelerate, or maintain.
+
+![Physics Tick](diagrams/activity_physics_tick.png)
+
+Source: [diagrams/activity_physics_tick.puml](diagrams/activity_physics_tick.puml)
+
+### Simulation — High-Level Flow
+
+End-to-end activity diagram: loading → initialisation → concurrent physics loop → finalisation.
+
+![Simulation Overview](diagrams/activity_simulation_overview.png)
+
+Source: [diagrams/activity_simulation_overview.puml](diagrams/activity_simulation_overview.puml)
 
 ---
 
@@ -127,13 +186,15 @@ The simulator follows a layered architecture with clear separation of concerns:
 
 ```
 main.cpp
-  └─ InputHandler        (parse files → SimulationData)
-  └─ Simulation          (orchestrator)
-       ├─ RailNetwork    (graph: nodes + edges)
-       ├─ Train[]        (state machines)
-       ├─ Event[]        (probabilistic disruptions)
-       ├─ IPathfinding   (strategy interface → DijkstraPathfinding)
-       └─ OutputManager  (formatted output)
+  └─ InputHandler          (parse files → SimulationData)
+  └─ Simulation            (orchestrator)
+       ├─ RailNetwork      (graph: nodes + edges)
+       ├─ Train[]          (state machines with physics properties)
+       ├─ Event[]          (probabilistic disruptions)
+       ├─ TrainState[]     (runtime state per train: position, speed, timers)
+       ├─ IPathfinding     (strategy interface → DijkstraPathfinding)
+       ├─ ISimulationObserver[] (observer interface → FileOutputObserver)
+       └─ OutputManager    (formatted console output)
 ```
 
 ## Folder Structure
@@ -142,29 +203,31 @@ Each class lives in its own folder with separated `.hpp` / `.cpp` files:
 
 ```
 src/
-├── main.cpp                              Entry point
+├── main.cpp                              Entry point (--help flag)
 ├── Node/                                 Station in the network
 ├── Edge/                                 Connection between nodes (header-only struct)
 ├── RailNetwork/                          Graph: nodes + adjacency list
-├── Train/                                Train state and path tracking
+├── Train/                                Train with physics properties and state
 ├── Event/                                Probabilistic disruption
-├── TrainFactory/                         Factory for validated Train creation
+├── TrainFactory/                         Factory for validated Train creation (9 params)
 ├── IPathfinding/                         Strategy interface (header-only)
 ├── DijkstraPathfinding/                  Shortest-path algorithm
 ├── InputHandler/                         File parser → SimulationData
 ├── OutputManager/                        Formatted console output
-└── Simulation/                           Orchestrator: paths, simulation loop, events
+├── ISimulationObserver/                  Observer interface (header-only)
+├── FileOutputObserver/                   Per-train .result file writer
+└── Simulation/                           Orchestrator: physics engine, concurrent sim
 tests/
 ├── TestFramework.hpp                     Custom assertion macros + test runner
 ├── NodeTest.cpp                          5 tests
 ├── RailNetworkTest.cpp                   14 tests
-├── TrainTest.cpp                         11 tests
+├── TrainTest.cpp                         14 tests (including physics)
 ├── EventTest.cpp                         10 tests
 ├── DijkstraTest.cpp                      7 tests
-├── InputHandlerTest.cpp                  8 tests
-├── TrainFactoryTest.cpp                  8 tests
+├── InputHandlerTest.cpp                  10 tests (including 9-field parsing)
+├── TrainFactoryTest.cpp                  10 tests (including weight/friction/stop validation)
 ├── OutputManagerTest.cpp                 5 tests
-└── IntegrationTest.cpp                   5 tests  (end-to-end)
+└── IntegrationTest.cpp                   7 tests  (end-to-end with .result file checks)
 ```
 
 ## Design Patterns
@@ -185,7 +248,26 @@ public:
 
 ### Factory — Train Creation
 
-`TrainFactory::createTrain()` validates all parameters before constructing a `Train`. Invalid input (empty name, zero acceleration, negative departure, etc.) throws `std::invalid_argument`.
+`TrainFactory::createTrain()` validates all 9 parameters before constructing a `Train`. Invalid input (empty name, zero weight, negative friction, zero forces, negative departure time, negative stop duration, same departure/arrival) throws `std::invalid_argument`.
+
+### Observer — Simulation Output
+
+`ISimulationObserver` defines callbacks for simulation events. `FileOutputObserver` is the concrete observer that writes per-train `.result` files with timestep logs and rail graphs:
+
+```cpp
+class ISimulationObserver {
+public:
+    virtual ~ISimulationObserver() = default;
+    virtual void onTrainStart(const std::string &trainName, double estimatedTimeSec) = 0;
+    virtual void onTrainStep(double timeSinceStart, const std::string &from,
+                             const std::string &to, double distRemainingKm,
+                             const std::string &action, int positionCellKm,
+                             int segmentCellsKm, const std::vector<int> &blockingCells) = 0;
+    virtual void onTrainEvent(const std::string &eventName, const std::string &nodeName,
+                              double delaySec) = 0;
+    virtual void onTrainFinish(const std::string &trainName, double totalTimeSec) = 0;
+};
+```
 
 ### Dependency Injection
 
@@ -217,7 +299,30 @@ Undirected graph stored as `unordered_map<string, shared_ptr<Node>>` + `unordere
 
 ### Train
 
-Tracks a train's journey: path (sequence of `Node`s), current index, status (`Waiting` → `Running` → `Arrived`/`Delayed`), accumulated delay. `advanceToNextNode(travelTime)` progresses the train; `applyDelay(seconds)` adds disruption time.
+Tracks a train's journey with physics properties. Key fields:
+- **weight** (metric tons), **frictionCoefficient** (μ), **maxAccelForce** / **maxBrakeForce** (kN)
+- **stopDuration** (seconds at each intermediate station)
+- **currentSpeed** (m/s), **posOnSegment** (metres on current edge)
+- **path** (sequence of `Node`s), **pathIndex**, **status**, accumulated **totalDelay**
+
+Physics helpers:
+- `getAccelRate()` → $(F_{accel} \times 1000 - \mu \cdot m \times 1000 \cdot 9.81) / (m \times 1000)$ m/s²
+- `getDecelRate()` → $(F_{brake} \times 1000 + \mu \cdot m \times 1000 \cdot 9.81) / (m \times 1000)$ m/s²
+
+### TrainState (struct)
+
+Runtime simulation state per train, used by the `Simulation` loop:
+
+| Field | Type | Description |
+|---|---|---|
+| `train` | `Train*` | Pointer to the train |
+| `segmentIndex` | `size_t` | Current edge in path |
+| `posOnSegment_m` | `double` | Metres from edge start |
+| `speed_ms` | `double` | Current speed (m/s) |
+| `timeSinceDepart` | `double` | Seconds since departure |
+| `stopTimer` | `double` | Seconds remaining at station |
+| `departed` | `bool` | Has the train left yet? |
+| `arrived` | `bool` | Has it reached destination? |
 
 ### Event
 
@@ -225,19 +330,29 @@ Probabilistic disruption bound to a node. `tryTrigger(rng)` rolls against `_prob
 
 ### InputHandler
 
-Static utility. Parses two text files into a `SimulationData` struct. Supports quoted event names (`"Passenger's Discomfort"`), duration units (`30m`, `48h`, `356d`), and time format (`14h10`).
+Static utility. Parses two text files into a `SimulationData` struct. Train format: `name weight friction accelForce brakeForce departure arrival time stopDuration`. Supports quoted event names (`"Passenger's Discomfort"`), duration units (`30m`, `48h`, `356d`), and time format (`14h10`).
 
 ### Simulation
 
-Orchestrator. Flow:
-1. Sort trains by departure time
-2. Compute shortest paths via injected `IPathfinding`
-3. For each train: simulate step-by-step, compute travel time = `(distance / speedLimit) × 3600`, trigger events probabilistically at each node
-4. Print results
+Orchestrator with physics engine. Flow:
+1. Compute shortest paths via injected `IPathfinding`
+2. Create `FileOutputObserver` per train and `TrainState` per train
+3. Run concurrent simulation loop (all trains, shared clock, DT=1s):
+   - Check departures
+   - Handle station stops (countdown timer)
+   - Update physics (accelerate / brake / maintain)
+   - Handle segment transitions (events, stops)
+   - Output snapshots every 60 seconds via observers
+   - Apply overtaking/blocking constraints
+4. Finalize observer files and print console results
+
+### FileOutputObserver
+
+Concrete `ISimulationObserver` that writes per-train `.result` files. Filename: `TrainName_HHhMM.result`. Contains: header, timestep lines with rail graph, event entries, footer with actual travel time.
 
 ### OutputManager
 
-Stateless formatter. `formatTime(double seconds)` converts to `HH:MM:SS`. All output goes to `std::cout`.
+Stateless formatter for console output. `formatTime(double seconds)` converts to `HH:MM:SS`. All output goes to `std::cout`.
 
 ## Data Flow
 
@@ -251,10 +366,22 @@ trains.txt  ─┘                                    │
                                                    │
                                               sim.run()
                                                    │
+                              ┌─────────────────────┼───────────────────────┐
+                              ▼                     ▼                       ▼
+                        computePaths      concurrent physics loop     printResult
+                        (Dijkstra)       ┌──────────────────────┐    (console summary)
+                                         │  for each second:    │
+                                         │  • check departures  │
+                                         │  • handle stops      │
+                                         │  • updatePhysics()   │
+                                         │  • transitions       │
+                                         │  • observer output   │
+                                         │  • applyBlocking()   │
+                                         └──────────────────────┘
+                                                   │
                                     ┌──────────────┼──────────────┐
                                     ▼              ▼              ▼
-                              computePaths   simulateTrain   printResult
-                              (Dijkstra)    (step + events)  (summary)
+                           TrainAB.result   TrainAC.result   TrainBA.result
 ```
 
 ## Build System

@@ -1,0 +1,38 @@
+@startuml state_train_lifecycle
+
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam StateFontSize 13
+skinparam StateAttributeFontSize 11
+
+title Train Lifecycle — State Machine
+
+[*] --> Waiting : Train created\n(from input file)
+
+Waiting --> Running : simTime >= departureTime
+Waiting : name, weight, friction
+Waiting : accelForce, brakeForce
+Waiting : departure → arrival
+Waiting : stopDuration
+
+Running --> StoppedAtStation : reached intermediate node
+Running --> Delayed : event triggers at node
+Running --> Arrived : reached final destination
+Running : physics loop (1s ticks)
+Running : accelerate / brake / maintain
+Running : speed capped by segment limit
+
+StoppedAtStation --> Running : stopTimer reaches 0
+StoppedAtStation : speed = 0, position = 0
+StoppedAtStation : timer counts down from stopDuration
+
+Delayed --> Running : delay timer expires
+Delayed --> StoppedAtStation : delay at intermediate node
+Delayed : totalDelay += event.duration
+Delayed : clock advances by delay
+
+Arrived --> [*] : .result file finalised
+Arrived : actual travel time recorded
+Arrived : observer notified
+
+@enduml
