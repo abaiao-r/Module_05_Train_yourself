@@ -21,7 +21,9 @@ INC			= -I$(SRCDIR)/Edge \
 			  -I$(SRCDIR)/DijkstraPathfinding \
 			  -I$(SRCDIR)/InputHandler \
 			  -I$(SRCDIR)/OutputManager \
-			  -I$(SRCDIR)/Simulation
+			  -I$(SRCDIR)/Simulation \
+			  -I$(SRCDIR)/ISimulationObserver \
+			  -I$(SRCDIR)/FileOutputObserver
 
 # Source files
 SRCS		= $(SRCDIR)/main.cpp \
@@ -33,7 +35,8 @@ SRCS		= $(SRCDIR)/main.cpp \
 			  $(SRCDIR)/DijkstraPathfinding/DijkstraPathfinding.cpp \
 			  $(SRCDIR)/InputHandler/InputHandler.cpp \
 			  $(SRCDIR)/OutputManager/OutputManager.cpp \
-			  $(SRCDIR)/Simulation/Simulation.cpp
+			  $(SRCDIR)/Simulation/Simulation.cpp \
+			  $(SRCDIR)/FileOutputObserver/FileOutputObserver.cpp
 
 # Object files
 OBJS		= $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRCS))

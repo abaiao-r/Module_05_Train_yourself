@@ -18,5 +18,8 @@ objs/
 *.dSYM/
 .nfs*
 
+# Simulation result files
+*.result
+
 # macOS
 .DS_Store
