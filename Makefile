@@ -72,7 +72,8 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/DijkstraTest \
 		$(BINDIR)/InputHandlerTest \
 		$(BINDIR)/TrainFactoryTest \
-		$(BINDIR)/OutputManagerTest
+		$(BINDIR)/OutputManagerTest \
+		$(BINDIR)/IntegrationTest
 
 test: $(TESTS)
 	@echo ""
@@ -84,6 +85,7 @@ test: $(TESTS)
 	@./$(BINDIR)/InputHandlerTest || exit 1
 	@./$(BINDIR)/TrainFactoryTest || exit 1
 	@./$(BINDIR)/OutputManagerTest || exit 1
+	@./$(BINDIR)/IntegrationTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -127,6 +129,13 @@ $(BINDIR)/OutputManagerTest: $(TESTDIR)/OutputManagerTest.cpp \
 	$(OBJDIR)/OutputManager/OutputManager.o \
 	$(OBJDIR)/Train/Train.o $(OBJDIR)/Node/Node.o \
 	$(OBJDIR)/Event/Event.o $(OBJDIR)/RailNetwork/RailNetwork.o
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+# Integration test needs all objects except main.o
+LIB_OBJS = $(filter-out $(OBJDIR)/main.o, $(OBJS))
+
+$(BINDIR)/IntegrationTest: $(TESTDIR)/IntegrationTest.cpp $(LIB_OBJS)
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
 
