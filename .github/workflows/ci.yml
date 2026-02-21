@@ -39,6 +39,8 @@ jobs:
     - name: Run main program
       run: |
         ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
+        ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --time
+        ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --graph output/graphs/ci_test.dot
 
     - name: Run tests
       run: |
@@ -59,7 +61,17 @@ jobs:
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/TrainFactoryTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/OutputManagerTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/IntegrationTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/EdgeCaseTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/CombinationTest
 
-    - name: Valgrind - main program
+    - name: Valgrind - main program (default mode)
       run: |
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
+
+    - name: Valgrind - main program (--time mode)
+      run: |
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --time
+
+    - name: Valgrind - main program (--graph mode)
+      run: |
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --graph output/graphs/ci_test.dot

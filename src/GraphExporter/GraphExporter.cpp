@@ -6,13 +6,14 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 15:35:20 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 15:56:34 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "GraphExporter.hpp"
 
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <set>
@@ -167,6 +168,25 @@ void GraphExporter::exportDot(
 	out.close();
 
 	std::cout << "Graph exported to " << filename << std::endl;
-	std::cout << "Render with: dot -Tpng " << filename
-			  << " -o output/graphs/network.png" << std::endl;
+
+	/* Derive base name (strip .dot extension if present) */
+	std::string base = filename;
+	if (base.size() > 4 && base.substr(base.size() - 4) == ".dot")
+		base = base.substr(0, base.size() - 4);
+
+	/* Auto-render PNG and SVG if Graphviz is available */
+	std::string cmdPng = "dot -Tpng " + filename + " -o " + base + ".png";
+	std::string cmdSvg = "dot -Tsvg " + filename + " -o " + base + ".svg";
+
+	if (std::system(cmdPng.c_str()) == 0)
+		std::cout << "Rendered " << base << ".png" << std::endl;
+	else
+		std::cerr << "Warning: could not render PNG (is graphviz installed?)"
+				  << std::endl;
+
+	if (std::system(cmdSvg.c_str()) == 0)
+		std::cout << "Rendered " << base << ".svg" << std::endl;
+	else
+		std::cerr << "Warning: could not render SVG (is graphviz installed?)"
+				  << std::endl;
 }
