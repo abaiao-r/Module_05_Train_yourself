@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 14:26:44 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 15:35:20 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,8 +14,10 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <sys/stat.h>
 
 #include "DijkstraPathfinding.hpp"
+#include "GraphExporter.hpp"
 #include "IPathfinding.hpp"
 #include "InputHandler.hpp"
 #include "Simulation.hpp"
@@ -23,10 +25,12 @@
 static void printHelp()
 {
 	std::cout
-		<< "Usage: ./Train <network_file> <train_file> [--time]\n\n"
+		<< "Usage: ./Train <network_file> <train_file> [options]\n\n"
 		<< "Options:\n"
-		<< "  --time    Optimise route by travel time instead of "
-		<< "distance\n\n"
+		<< "  --time              Optimise route by travel time "
+		<< "instead of distance\n"
+		<< "  --graph <file.dot>  Export network + paths as "
+		<< "Graphviz DOT file (default: output/graphs/)\n\n"
 		<< "=== Network file format ===\n"
 		<< "  Node <name>\n"
 		<< "    Declares a station or junction in the network.\n\n"
@@ -52,8 +56,8 @@ static void printHelp()
 		<< "    stop_duration   - Duration of stop at each station "
 		<< "(e.g. 00h10)\n\n"
 		<< "=== Output ===\n"
-		<< "  The program generates one .result file per train:\n"
-		<< "    TrainName_DepartureTime.result\n";
+		<< "  The program generates one .result file per train in\n"
+		<< "    output/results/TrainName_DepartureTime.result\n";
 }
 
 int main(int argc, char **argv)
@@ -63,24 +67,35 @@ int main(int argc, char **argv)
 		printHelp();
 		return EXIT_SUCCESS;
 	}
-	if (argc < 3 || argc > 4)
+	if (argc < 3 || argc > 6)
 	{
 		std::cerr << "Usage: " << argv[0]
-				  << " <network_file> <train_file> [--time]" << std::endl;
+				  << " <network_file> <train_file> [--time] "
+				     "[--graph file.dot]" << std::endl;
 		std::cerr << "Use --help for detailed format information."
 				  << std::endl;
 		return EXIT_FAILURE;
 	}
 
-	/* Parse optional --time flag */
+	/* Parse optional flags */
 	PathWeightMode weightMode = PathWeightMode::Distance;
-	if (argc == 4)
+	std::string graphFile;
+	for (int i = 3; i < argc; i++)
 	{
-		if (std::strcmp(argv[3], "--time") == 0)
+		if (std::strcmp(argv[i], "--time") == 0)
 			weightMode = PathWeightMode::Time;
+		else if (std::strcmp(argv[i], "--graph") == 0)
+		{
+			if (i + 1 >= argc)
+			{
+				std::cerr << "--graph requires a filename" << std::endl;
+				return EXIT_FAILURE;
+			}
+			graphFile = argv[++i];
+		}
 		else
 		{
-			std::cerr << "Unknown option: " << argv[3] << std::endl;
+			std::cerr << "Unknown option: " << argv[i] << std::endl;
 			return EXIT_FAILURE;
 		}
 	}
@@ -94,6 +109,18 @@ int main(int argc, char **argv)
 					   std::move(data.events), std::move(pathfinder),
 					   weightMode);
 		sim.run();
+
+		/* Export graph after simulation (standalone utility) */
+		if (!graphFile.empty())
+		{
+			mkdir("output", 0755);
+			mkdir("output/graphs", 0755);
+			/* Prepend output dir if user gave a bare filename */
+			if (graphFile.find('/') == std::string::npos)
+				graphFile = "output/graphs/" + graphFile;
+			GraphExporter::exportDot(graphFile, sim.getNetwork(),
+									 sim.getTrains());
+		}
 	}
 	catch (const std::exception &e)
 	{

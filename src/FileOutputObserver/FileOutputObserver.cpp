@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 09:57:55 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 15:35:20 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,7 @@
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
+#include <sys/stat.h>
 
 /* ---- Static helpers ---- */
 std::string FileOutputObserver::fmtTimeShort(double seconds)
@@ -28,10 +29,18 @@ std::string FileOutputObserver::fmtTimeShort(double seconds)
 	return buf;
 }
 
+static void ensureDir(const std::string &path)
+{
+	mkdir(path.c_str(), 0755);
+}
+
 std::string FileOutputObserver::buildFilename(const std::string &trainName,
 											  double departureTimeSec)
 {
-	return trainName + "_" + fmtTimeShort(departureTimeSec) + ".result";
+	ensureDir("output");
+	ensureDir("output/results");
+	return "output/results/" + trainName + "_" + fmtTimeShort(departureTimeSec)
+		   + ".result";
 }
 
 std::string FileOutputObserver::padRight(const std::string &s,

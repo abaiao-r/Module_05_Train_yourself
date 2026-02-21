@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 14:26:44 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 15:23:38 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,6 +36,14 @@ Simulation::Simulation(RailNetwork network,
 }
 
 Simulation::~Simulation() {}
+
+/* ---- Const accessors (for auxiliary tools) ---- */
+const RailNetwork &Simulation::getNetwork() const { return _network; }
+
+const std::vector<std::unique_ptr<Train>> &Simulation::getTrains() const
+{
+	return _trains;
+}
 
 /* ---- Public ---- */
 void Simulation::run()
