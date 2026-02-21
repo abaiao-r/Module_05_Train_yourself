@@ -1,105 +1,117 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   RailNetworkTest.cpp                                :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/21 01:31:16 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 01:31:16 by abaiao-r         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
 #include "RailNetwork.hpp"
-
-#include <memory>
-
 #include "TestFramework.hpp"
 
 int main()
 {
 	Test::TestSuite suite("RailNetwork");
 
-	suite.run("getInstance returns singleton", [](std::string &msg) {
-		auto &net1 = RailNetwork::getInstance();
-		auto &net2 = RailNetwork::getInstance();
-		ASSERT_TRUE(&net1 == &net2, msg);
+	suite.run("addNode increases count", [](std::string &msg) {
+		RailNetwork net;
+		net.addNode("A");
+		net.addNode("B");
+		ASSERT_EQ(2u, net.nodeCount(), msg);
 		return true;
 	});
 
-	suite.run("addNode adds node to network", [](std::string &msg) {
-		auto &net = RailNetwork::getInstance();
-		auto node = std::make_shared<Node>("TestStation1");
-		net.addNode(node);
-		auto nodes = net.getNodes();
-		bool found = false;
-		for (const auto &n : nodes)
-		{
-			if (n->getName() == "TestStation1")
-			{
-				found = true;
-				break;
-			}
-		}
-		ASSERT_TRUE(found, msg);
+	suite.run("addNode throws on duplicate", [](std::string &msg) {
+		RailNetwork net;
+		net.addNode("A");
+		ASSERT_THROWS(net.addNode("A"),
+					  RailNetwork::DuplicateNodeException, msg);
 		return true;
 	});
 
-	suite.run("addConnection creates bidirectional edge", [](std::string &msg) {
-		auto &net = RailNetwork::getInstance();
-		auto a = std::make_shared<Node>("BiDirA");
-		auto b = std::make_shared<Node>("BiDirB");
-		net.addConnection(a, b, 150.0, 80.0);
-
-		auto neighborsA = net.getNeighbours(a);
-		auto neighborsB = net.getNeighbours(b);
-		ASSERT_EQ(1u, neighborsA.size(), msg);
-		ASSERT_EQ(1u, neighborsB.size(), msg);
-
-		auto nOfA = neighborsA[0].node.lock();
-		auto nOfB = neighborsB[0].node.lock();
-		ASSERT_TRUE(nOfA != nullptr, msg);
-		ASSERT_TRUE(nOfB != nullptr, msg);
-		ASSERT_STR_EQ(std::string("BiDirB"), nOfA->getName(), msg);
-		ASSERT_STR_EQ(std::string("BiDirA"), nOfB->getName(), msg);
+	suite.run("findNode returns correct node", [](std::string &msg) {
+		RailNetwork net;
+		net.addNode("Station1");
+		auto node = net.findNode("Station1");
+		ASSERT_STR_EQ(std::string("Station1"), node->getName(), msg);
 		return true;
 	});
 
-	suite.run("addConnection throws on self-connection", [](std::string &msg) {
-		auto &net = RailNetwork::getInstance();
-		auto node = std::make_shared<Node>("SelfStation");
-		ASSERT_THROWS(net.addConnection(node, node, 100.0, 50.0),
-					  Node::SelfEdgeException, msg);
+	suite.run("findNode throws for unknown", [](std::string &msg) {
+		RailNetwork net;
+		ASSERT_THROWS(net.findNode("Ghost"),
+					  RailNetwork::NodeNotFoundException, msg);
 		return true;
 	});
 
-	suite.run("addConnection throws on duplicate", [](std::string &msg) {
-		auto &net = RailNetwork::getInstance();
-		auto c = std::make_shared<Node>("DupC");
-		auto d = std::make_shared<Node>("DupD");
-		net.addConnection(c, d, 200.0, 100.0);
-		ASSERT_THROWS(net.addConnection(c, d, 200.0, 100.0),
-					  RailNetwork::ConnectionAlreadyExistsException, msg);
+	suite.run("addConnection creates bidirectional edges",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("X");
+				  net.addNode("Y");
+				  net.addConnection("X", "Y", 10.0, 100.0);
+				  ASSERT_EQ(1u, net.getNeighbours("X").size(), msg);
+				  ASSERT_EQ(1u, net.getNeighbours("Y").size(), msg);
+				  return true;
+			  });
+
+	suite.run("addConnection throws on self-loop", [](std::string &msg) {
+		RailNetwork net;
+		net.addNode("S");
+		ASSERT_THROWS(net.addConnection("S", "S", 5.0, 50.0),
+					  std::invalid_argument, msg);
 		return true;
 	});
 
-	suite.run("getNeighbours throws for unknown node", [](std::string &msg) {
-		auto &net = RailNetwork::getInstance();
-		auto orphan = std::make_shared<Node>("Orphan");
-		ASSERT_THROWS(net.getNeighbours(orphan), std::runtime_error, msg);
-		return true;
-	});
+	suite.run("addConnection throws on duplicate",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("A");
+				  net.addNode("B");
+				  net.addConnection("A", "B", 10.0, 100.0);
+				  ASSERT_THROWS(
+					  net.addConnection("A", "B", 10.0, 100.0),
+					  RailNetwork::DuplicateConnectionException, msg);
+				  return true;
+			  });
 
-	suite.run("connection stores distance and speed", [](std::string &msg) {
-		auto &net = RailNetwork::getInstance();
-		auto e = std::make_shared<Node>("ValE");
-		auto f = std::make_shared<Node>("ValF");
-		net.addConnection(e, f, 300.0, 120.0);
-		auto neighbors = net.getNeighbours(e);
-		ASSERT_TRUE(neighbors[0].distance == 300.0, msg);
-		ASSERT_TRUE(neighbors[0].speedLimit == 120.0, msg);
-		return true;
-	});
+	suite.run("addConnection throws on unknown node",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("A");
+				  ASSERT_THROWS(
+					  net.addConnection("A", "Z", 10.0, 100.0),
+					  RailNetwork::NodeNotFoundException, msg);
+				  return true;
+			  });
+
+	suite.run("addConnection throws on bad distance",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("A");
+				  net.addNode("B");
+				  ASSERT_THROWS(
+					  net.addConnection("A", "B", -1.0, 100.0),
+					  std::invalid_argument, msg);
+				  return true;
+			  });
+
+	suite.run("connection stores values correctly",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("P");
+				  net.addNode("Q");
+				  net.addConnection("P", "Q", 42.5, 200.0);
+				  const auto &edges = net.getNeighbours("P");
+				  ASSERT_TRUE(edges[0].distance == 42.5, msg);
+				  ASSERT_TRUE(edges[0].speedLimit == 200.0, msg);
+				  return true;
+			  });
+
+	suite.run("getNodeNames returns sorted names",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("Charlie");
+				  net.addNode("Alpha");
+				  net.addNode("Bravo");
+				  auto names = net.getNodeNames();
+				  ASSERT_STR_EQ(std::string("Alpha"), names[0], msg);
+				  ASSERT_STR_EQ(std::string("Bravo"), names[1], msg);
+				  ASSERT_STR_EQ(std::string("Charlie"), names[2], msg);
+				  return true;
+			  });
 
 	return suite.summarize();
 }

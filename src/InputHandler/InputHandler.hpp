@@ -1,44 +1,42 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   InputHandler.hpp                                   :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/21 01:31:16 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 01:31:16 by abaiao-r         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
 #ifndef INPUTHANDLER_HPP
 #define INPUTHANDLER_HPP
 
+#include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
+
+#include "Event.hpp"
+#include "RailNetwork.hpp"
+#include "Train.hpp"
+
+struct SimulationData
+{
+	RailNetwork network;
+	std::vector<std::unique_ptr<Train>> trains;
+	std::vector<Event> events;
+};
 
 class InputHandler
 {
-  private:
-	std::string _railNetworkFilePath;
-	std::string _trainFilePath;
-
   public:
-	InputHandler(const std::string &railNetworkFile,
-				 const std::string &trainFile);
-	InputHandler(const InputHandler &src);
-	InputHandler &operator=(const InputHandler &src);
-	InputHandler(InputHandler &&src) noexcept;
-	InputHandler &operator=(InputHandler &&src) noexcept;
-	~InputHandler();
+	InputHandler() = delete;
 
-	void loadRailNetworkData();
-	void loadTrainData();
+	static SimulationData loadData(const std::string &networkFile,
+								   const std::string &trainFile);
 
-	class InputException : public std::runtime_error
+	class ParseException : public std::runtime_error
 	{
 	  public:
-		explicit InputException(const std::string &msg);
+		explicit ParseException(const std::string &msg);
 	};
+
+  private:
+	static void parseNetworkFile(const std::string &filepath,
+								 RailNetwork &network,
+								 std::vector<Event> &events);
+	static std::vector<std::unique_ptr<Train>> parseTrainFile(
+		const std::string &filepath);
 };
 
 #endif

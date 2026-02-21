@@ -1,15 +1,3 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   RailNetwork.hpp                                    :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/21 01:31:16 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 01:31:16 by abaiao-r         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
 #ifndef RAILNETWORK_HPP
 #define RAILNETWORK_HPP
 
@@ -21,30 +9,47 @@
 
 #include "Edge.hpp"
 #include "Node.hpp"
-#include "Singleton.hpp"
 
-class RailNetwork : public Singleton<RailNetwork>
+class RailNetwork
 {
   private:
-	using AdjacencyList =
-		std::unordered_map<std::shared_ptr<Node>, std::vector<Edge>>;
-	AdjacencyList _adjacencyList;
+	std::unordered_map<std::string, std::shared_ptr<Node>> _nodes;
+	std::unordered_map<std::string, std::vector<Edge>> _adjacencyList;
 
   public:
-	void addNode(std::shared_ptr<Node> node);
-	void addConnection(std::shared_ptr<Node> node1,
-					   std::shared_ptr<Node> node2, double distance,
-					   double speedLimit);
-	const std::vector<Edge> &getNeighbours(
-		std::shared_ptr<Node> node) const;
-	std::vector<std::shared_ptr<Node>> getNodes() const;
-	void printNetwork() const;
+	RailNetwork();
+	RailNetwork(const RailNetwork &src);
+	RailNetwork &operator=(const RailNetwork &src);
+	RailNetwork(RailNetwork &&src) noexcept;
+	RailNetwork &operator=(RailNetwork &&src) noexcept;
+	~RailNetwork();
 
-	class ConnectionAlreadyExistsException : public std::runtime_error
+	void addNode(const std::string &name);
+	void addConnection(const std::string &from, const std::string &to,
+					   double distance, double speedLimit);
+	std::shared_ptr<Node> findNode(const std::string &name) const;
+	const std::vector<Edge> &getNeighbours(
+		const std::string &nodeName) const;
+	std::vector<std::string> getNodeNames() const;
+	size_t nodeCount() const;
+
+	class NodeNotFoundException : public std::runtime_error
 	{
 	  public:
-		ConnectionAlreadyExistsException(const std::string &n1,
-										 const std::string &n2);
+		explicit NodeNotFoundException(const std::string &name);
+	};
+
+	class DuplicateNodeException : public std::runtime_error
+	{
+	  public:
+		explicit DuplicateNodeException(const std::string &name);
+	};
+
+	class DuplicateConnectionException : public std::runtime_error
+	{
+	  public:
+		DuplicateConnectionException(const std::string &from,
+									 const std::string &to);
 	};
 };
 
