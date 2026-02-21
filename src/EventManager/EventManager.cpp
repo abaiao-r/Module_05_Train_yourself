@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.cpp                                           :+:      :+:    :+:   */
+/*   EventManager.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,38 +10,35 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <cstdlib>
-#include <iostream>
+#include "EventManager.hpp"
 
-#include "InputHandler.hpp"
-#include "colours.hpp"
+#include <utility>
 
-int main(int argc, char **argv)
+EventManager::EventManager() {}
+
+EventManager::EventManager(const EventManager &src) { *this = src; }
+
+EventManager &EventManager::operator=(const EventManager &src)
 {
-	if (argc != 3)
-	{
-		std::cerr << RED << "Error: Invalid number of arguments" << RESET
-				  << "\n";
-		std::cerr << "Usage: ./Train <railNetworkFile> <trainFile>\n";
-		return EXIT_FAILURE;
-	}
-
-	try
-	{
-		InputHandler inputHandler(argv[1], argv[2]);
-		inputHandler.loadRailNetworkData();
-		inputHandler.loadTrainData();
-	}
-	catch (const InputHandler::InputException &e)
-	{
-		std::cerr << RED << "Input Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
-	catch (const std::exception &e)
-	{
-		std::cerr << RED << "Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
-
-	return EXIT_SUCCESS;
+	if (this != &src)
+		_events = src._events;
+	return *this;
 }
+
+EventManager::EventManager(EventManager &&src) noexcept
+{
+	*this = std::move(src);
+}
+
+EventManager &EventManager::operator=(EventManager &&src) noexcept
+{
+	if (this != &src)
+		_events = std::move(src._events);
+	return *this;
+}
+
+EventManager::~EventManager() {}
+
+void EventManager::addEvent(const Event &event) { _events.push_back(event); }
+
+const std::vector<Event> &EventManager::getEvents() const { return _events; }

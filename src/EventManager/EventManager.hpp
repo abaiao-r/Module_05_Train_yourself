@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.cpp                                           :+:      :+:    :+:   */
+/*   EventManager.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,38 +10,28 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <cstdlib>
-#include <iostream>
+#ifndef EVENTMANAGER_HPP
+#define EVENTMANAGER_HPP
 
-#include "InputHandler.hpp"
-#include "colours.hpp"
+#include <vector>
 
-int main(int argc, char **argv)
+#include "Event.hpp"
+
+class EventManager
 {
-	if (argc != 3)
-	{
-		std::cerr << RED << "Error: Invalid number of arguments" << RESET
-				  << "\n";
-		std::cerr << "Usage: ./Train <railNetworkFile> <trainFile>\n";
-		return EXIT_FAILURE;
-	}
+  private:
+	std::vector<Event> _events;
 
-	try
-	{
-		InputHandler inputHandler(argv[1], argv[2]);
-		inputHandler.loadRailNetworkData();
-		inputHandler.loadTrainData();
-	}
-	catch (const InputHandler::InputException &e)
-	{
-		std::cerr << RED << "Input Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
-	catch (const std::exception &e)
-	{
-		std::cerr << RED << "Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
+  public:
+	EventManager();
+	EventManager(const EventManager &src);
+	EventManager &operator=(const EventManager &src);
+	EventManager(EventManager &&src) noexcept;
+	EventManager &operator=(EventManager &&src) noexcept;
+	~EventManager();
 
-	return EXIT_SUCCESS;
-}
+	void addEvent(const Event &event);
+	const std::vector<Event> &getEvents() const;
+};
+
+#endif

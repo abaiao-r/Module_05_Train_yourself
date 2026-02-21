@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.cpp                                           :+:      :+:    :+:   */
+/*   Event.hpp                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,38 +10,30 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <cstdlib>
-#include <iostream>
+#ifndef EVENT_HPP
+#define EVENT_HPP
 
-#include "InputHandler.hpp"
-#include "colours.hpp"
+#include <string>
 
-int main(int argc, char **argv)
+class Event
 {
-	if (argc != 3)
-	{
-		std::cerr << RED << "Error: Invalid number of arguments" << RESET
-				  << "\n";
-		std::cerr << "Usage: ./Train <railNetworkFile> <trainFile>\n";
-		return EXIT_FAILURE;
-	}
+  private:
+	std::string _name;
+	double _probability;
+	std::string _duration;
+	std::string _node;
 
-	try
-	{
-		InputHandler inputHandler(argv[1], argv[2]);
-		inputHandler.loadRailNetworkData();
-		inputHandler.loadTrainData();
-	}
-	catch (const InputHandler::InputException &e)
-	{
-		std::cerr << RED << "Input Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
-	catch (const std::exception &e)
-	{
-		std::cerr << RED << "Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
+  public:
+	Event(const std::string &name, double probability,
+		  const std::string &duration, const std::string &node);
+	Event(const Event &src);
+	Event &operator=(const Event &src);
+	~Event();
 
-	return EXIT_SUCCESS;
-}
+	const std::string &getName() const;
+	double getProbability() const;
+	const std::string &getDuration() const;
+	const std::string &getNode() const;
+};
+
+#endif

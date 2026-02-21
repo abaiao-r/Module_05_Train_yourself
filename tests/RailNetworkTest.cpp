@@ -3,109 +3,103 @@
 /*                                                        :::      ::::::::   */
 /*   RailNetworkTest.cpp                                :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+        */
+/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/10/15 14:22:37 by andrefranci       #+#    #+#             */
-/*   Updated: 2025/05/18 16:18:10 by andrefranci      ###   ########.fr       */
+/*   Created: 2026/02/21 01:31:16 by abaiao-r          #+#    #+#             */
+/*   Updated: 2026/02/21 01:31:16 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../includes/RailNetwork.hpp"
-#include "Edge.hpp"
+#include "RailNetwork.hpp"
 
-// Add a node to the rail network
-void RailNetwork::addNode(std::shared_ptr<Node> node)
+#include <memory>
+
+#include "TestFramework.hpp"
+
+int main()
 {
-	if (_adjacencyList.find(node) == _adjacencyList.end())
-	{
-		_adjacencyList[node] = std::vector<Edge>();
-	}
-}
+	Test::TestSuite suite("RailNetwork");
 
-// Add a connection (edge) between two nodes with a specific distance and speed
-// limit
-void RailNetwork::addConnection(std::shared_ptr<Node> node1,
-								std::shared_ptr<Node> node2, size_t distance,
-								size_t speedLimit)
-{
-	if (node1 == node2)
-	{
-		throw Node::SelfEdgeException(node1->getName());
-	}
+	suite.run("getInstance returns singleton", [](std::string &msg) {
+		auto &net1 = RailNetwork::getInstance();
+		auto &net2 = RailNetwork::getInstance();
+		ASSERT_TRUE(&net1 == &net2, msg);
+		return true;
+	});
 
-	// Ensure both nodes exist in the network, otherwise add them
-	addNode(node1);
-	addNode(node2);
-
-	// Check if the connection already exists
-	for (const auto &edge : _adjacencyList[node1])
-	{
-		auto neighbor = edge.node.lock();
-		if (neighbor && neighbor == node2)
+	suite.run("addNode adds node to network", [](std::string &msg) {
+		auto &net = RailNetwork::getInstance();
+		auto node = std::make_shared<Node>("TestStation1");
+		net.addNode(node);
+		auto nodes = net.getNodes();
+		bool found = false;
+		for (const auto &n : nodes)
 		{
-			throw ConnectionAlreadyExistsException(node1->getName(),
-												   node2->getName());
-		}
-	}
-
-	// Add the connection in both directions (undirected graph)
-	_adjacencyList[node1].push_back({node2, distance, speedLimit});
-	_adjacencyList[node2].push_back({node1, distance, speedLimit});
-
-	// Keep Node's edge list in sync
-	node1->addEdge(node2, distance, speedLimit);
-	node2->addEdge(node1, distance, speedLimit);
-}
-
-// Get the neighbors of a node
-const std::vector<Edge> &RailNetwork::getNeighbours(
-	std::shared_ptr<Node> node) const
-{
-	auto it = _adjacencyList.find(node);
-	if (it != _adjacencyList.end())
-	{
-		return it->second;
-	}
-	throw std::runtime_error("Node does not exist in the network");
-}
-
-// Get all nodes in the rail network
-const std::vector<std::shared_ptr<Node>> RailNetwork::getNodes() const
-{
-	std::vector<std::shared_ptr<Node>> nodes;
-	for (const auto &pair : _adjacencyList)
-	{
-		nodes.push_back(pair.first);
-	}
-	return nodes;
-}
-
-// Debug function to print the rail network
-void RailNetwork::printNetwork() const
-{
-	std::cout << CYAN << "=================================================="
-			  << std::endl;
-	std::cout << "               RAIL NETWORK OVERVIEW              "
-			  << std::endl;
-	std::cout << "==================================================" << RESET
-			  << std::endl;
-
-	for (const auto &pair : _adjacencyList)
-	{
-		std::cout << BLUE << "[Node] " << pair.first->getName() << RESET
-				  << std::endl;
-		std::cout << YELLOW << "  Neighbors:" << RESET << std::endl;
-		for (const auto &edge : pair.second)
-		{
-			auto neighbor = edge.node.lock();
-			if (neighbor)
+			if (n->getName() == "TestStation1")
 			{
-				std::cout << "    " << GREEN << neighbor->getName() << RESET
-						  << " [distance: " << edge.distance
-						  << ", speed limit: " << edge.speedLimit << "]"
-						  << std::endl;
+				found = true;
+				break;
 			}
 		}
-		std::cout << std::endl;
-	}
+		ASSERT_TRUE(found, msg);
+		return true;
+	});
+
+	suite.run("addConnection creates bidirectional edge", [](std::string &msg) {
+		auto &net = RailNetwork::getInstance();
+		auto a = std::make_shared<Node>("BiDirA");
+		auto b = std::make_shared<Node>("BiDirB");
+		net.addConnection(a, b, 150.0, 80.0);
+
+		auto neighborsA = net.getNeighbours(a);
+		auto neighborsB = net.getNeighbours(b);
+		ASSERT_EQ(1u, neighborsA.size(), msg);
+		ASSERT_EQ(1u, neighborsB.size(), msg);
+
+		auto nOfA = neighborsA[0].node.lock();
+		auto nOfB = neighborsB[0].node.lock();
+		ASSERT_TRUE(nOfA != nullptr, msg);
+		ASSERT_TRUE(nOfB != nullptr, msg);
+		ASSERT_STR_EQ(std::string("BiDirB"), nOfA->getName(), msg);
+		ASSERT_STR_EQ(std::string("BiDirA"), nOfB->getName(), msg);
+		return true;
+	});
+
+	suite.run("addConnection throws on self-connection", [](std::string &msg) {
+		auto &net = RailNetwork::getInstance();
+		auto node = std::make_shared<Node>("SelfStation");
+		ASSERT_THROWS(net.addConnection(node, node, 100.0, 50.0),
+					  Node::SelfEdgeException, msg);
+		return true;
+	});
+
+	suite.run("addConnection throws on duplicate", [](std::string &msg) {
+		auto &net = RailNetwork::getInstance();
+		auto c = std::make_shared<Node>("DupC");
+		auto d = std::make_shared<Node>("DupD");
+		net.addConnection(c, d, 200.0, 100.0);
+		ASSERT_THROWS(net.addConnection(c, d, 200.0, 100.0),
+					  RailNetwork::ConnectionAlreadyExistsException, msg);
+		return true;
+	});
+
+	suite.run("getNeighbours throws for unknown node", [](std::string &msg) {
+		auto &net = RailNetwork::getInstance();
+		auto orphan = std::make_shared<Node>("Orphan");
+		ASSERT_THROWS(net.getNeighbours(orphan), std::runtime_error, msg);
+		return true;
+	});
+
+	suite.run("connection stores distance and speed", [](std::string &msg) {
+		auto &net = RailNetwork::getInstance();
+		auto e = std::make_shared<Node>("ValE");
+		auto f = std::make_shared<Node>("ValF");
+		net.addConnection(e, f, 300.0, 120.0);
+		auto neighbors = net.getNeighbours(e);
+		ASSERT_TRUE(neighbors[0].distance == 300.0, msg);
+		ASSERT_TRUE(neighbors[0].speedLimit == 120.0, msg);
+		return true;
+	});
+
+	return suite.summarize();
 }
