@@ -56,6 +56,8 @@ jobs:
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/EventTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/DijkstraTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/InputHandlerTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/TrainFactoryTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/OutputManagerTest
 
     - name: Valgrind - main program
       run: |

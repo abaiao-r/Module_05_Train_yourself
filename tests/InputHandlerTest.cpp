@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   InputHandlerTest.cpp                               :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,6 +70,27 @@ int main()
 			InputHandler::ParseException, msg);
 		return true;
 	});
+
+	suite.run("throws on missing rail file only",
+			  [](std::string &msg) {
+				  ASSERT_THROWS(
+					  InputHandler::loadData(
+						  "nonexistent.txt",
+						  "input/trainPrintFolder/trainPrintGood.txt"),
+					  InputHandler::ParseException, msg);
+				  return true;
+			  });
+
+	suite.run("throws on missing train file only",
+			  [](std::string &msg) {
+				  ASSERT_THROWS(
+					  InputHandler::loadData(
+						  "input/railNetworkPrintFolder/"
+						  "railNetworkPrintGood.txt",
+						  "missing_trains.txt"),
+					  InputHandler::ParseException, msg);
+				  return true;
+			  });
 
 	return suite.summarize();
 }

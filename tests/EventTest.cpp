@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   EventTest.cpp                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -69,6 +69,36 @@ int main()
 				  ASSERT_TRUE(ratio > 0.45 && ratio < 0.55, msg);
 				  return true;
 			  });
+
+	suite.run("throws on empty name", [](std::string &msg) {
+		ASSERT_THROWS(Event("", 0.5, 100.0, "N"),
+					  std::invalid_argument, msg);
+		return true;
+	});
+
+	suite.run("throws on negative probability", [](std::string &msg) {
+		ASSERT_THROWS(Event("Bad", -0.1, 100.0, "N"),
+					  std::invalid_argument, msg);
+		return true;
+	});
+
+	suite.run("throws on probability > 1", [](std::string &msg) {
+		ASSERT_THROWS(Event("Bad", 1.1, 100.0, "N"),
+					  std::invalid_argument, msg);
+		return true;
+	});
+
+	suite.run("throws on negative duration", [](std::string &msg) {
+		ASSERT_THROWS(Event("Bad", 0.5, -1.0, "N"),
+					  std::invalid_argument, msg);
+		return true;
+	});
+
+	suite.run("throws on empty node name", [](std::string &msg) {
+		ASSERT_THROWS(Event("Bad", 0.5, 100.0, ""),
+					  std::invalid_argument, msg);
+		return true;
+	});
 
 	return suite.summarize();
 }

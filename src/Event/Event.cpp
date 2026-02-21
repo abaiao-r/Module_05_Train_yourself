@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Event.cpp                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,6 +17,14 @@ Event::Event(const std::string &name, double probability, double duration,
 	: _name(name), _probability(probability), _duration(duration),
 	  _nodeName(nodeName)
 {
+	if (name.empty())
+		throw std::invalid_argument("Event name cannot be empty");
+	if (probability < 0.0 || probability > 1.0)
+		throw std::invalid_argument("Probability must be in [0, 1]");
+	if (duration < 0.0)
+		throw std::invalid_argument("Duration cannot be negative");
+	if (nodeName.empty())
+		throw std::invalid_argument("Node name cannot be empty");
 }
 
 Event::Event(const Event &src)

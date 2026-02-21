@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Train.cpp                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -67,6 +67,8 @@ void Train::setPath(const std::vector<std::shared_ptr<Node>> &path)
 
 void Train::advanceToNextNode(double travelTime)
 {
+	if (_path.size() < 2)
+		return;
 	_currentTime += travelTime;
 	_pathIndex++;
 	if (_pathIndex >= _path.size() - 1)

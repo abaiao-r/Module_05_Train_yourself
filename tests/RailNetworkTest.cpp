@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   RailNetworkTest.cpp                                :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -122,6 +122,37 @@ int main()
 				  ASSERT_STR_EQ(std::string("Alpha"), names[0], msg);
 				  ASSERT_STR_EQ(std::string("Bravo"), names[1], msg);
 				  ASSERT_STR_EQ(std::string("Charlie"), names[2], msg);
+				  return true;
+			  });
+
+	suite.run("getNeighbours throws on unknown node",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  ASSERT_THROWS(net.getNeighbours("Ghost"),
+								RailNetwork::NodeNotFoundException, msg);
+				  return true;
+			  });
+
+	suite.run("addConnection throws on zero speed limit",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("A");
+				  net.addNode("B");
+				  ASSERT_THROWS(
+					  net.addConnection("A", "B", 10.0, 0.0),
+					  std::invalid_argument, msg);
+				  return true;
+			  });
+
+	suite.run("copy constructor copies data",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("X");
+				  net.addNode("Y");
+				  net.addConnection("X", "Y", 5.0, 50.0);
+				  RailNetwork copy(net);
+				  ASSERT_EQ(2u, copy.nodeCount(), msg);
+				  ASSERT_EQ(1u, copy.getNeighbours("X").size(), msg);
 				  return true;
 			  });
 

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   DijkstraPathfinding.cpp                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,6 +37,13 @@ std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 	const std::string &start, const std::string &end,
 	const RailNetwork &network) const
 {
+	// Validate that both nodes exist in the network
+	network.findNode(start);
+	network.findNode(end);
+
+	if (start == end)
+		return {network.findNode(start)};
+
 	using Pair = std::pair<double, std::string>;
 	std::priority_queue<Pair, std::vector<Pair>, std::greater<Pair>> pq;
 
