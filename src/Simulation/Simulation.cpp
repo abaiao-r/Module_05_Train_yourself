@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Simulation.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,8 @@ Simulation::Simulation(RailNetwork network,
 	  _events(std::move(events)), _pathfinder(std::move(pathfinder)),
 	  _rng(std::random_device{}())
 {
+	if (!_pathfinder)
+		throw std::invalid_argument("Pathfinder cannot be null");
 }
 
 Simulation::~Simulation() {}
@@ -109,7 +111,7 @@ double Simulation::getEdgeTravelTime(const std::string &from,
 		if (edge.destination->getName() == to)
 			return (edge.distance / edge.speedLimit) * 3600.0;
 	}
-	return 0.0;
+	throw std::runtime_error("No edge from " + from + " to " + to);
 }
 
 std::vector<const Event *> Simulation::getEventsAtNode(

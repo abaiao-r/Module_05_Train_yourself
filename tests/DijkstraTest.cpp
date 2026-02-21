@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   DijkstraTest.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -92,6 +92,26 @@ int main()
 		ASSERT_STR_EQ(std::string("A"), path[0]->getName(), msg);
 		return true;
 	});
+
+	suite.run("throws when start node not in network",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("B");
+				  DijkstraPathfinding dijk;
+				  ASSERT_THROWS(dijk.findPath("Ghost", "B", net),
+								RailNetwork::NodeNotFoundException, msg);
+				  return true;
+			  });
+
+	suite.run("throws when end node not in network",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("A");
+				  DijkstraPathfinding dijk;
+				  ASSERT_THROWS(dijk.findPath("A", "Ghost", net),
+								RailNetwork::NodeNotFoundException, msg);
+				  return true;
+			  });
 
 	return suite.summarize();
 }

@@ -70,7 +70,9 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/TrainTest \
 		$(BINDIR)/EventTest \
 		$(BINDIR)/DijkstraTest \
-		$(BINDIR)/InputHandlerTest
+		$(BINDIR)/InputHandlerTest \
+		$(BINDIR)/TrainFactoryTest \
+		$(BINDIR)/OutputManagerTest
 
 test: $(TESTS)
 	@echo ""
@@ -80,6 +82,8 @@ test: $(TESTS)
 	@./$(BINDIR)/EventTest || exit 1
 	@./$(BINDIR)/DijkstraTest || exit 1
 	@./$(BINDIR)/InputHandlerTest || exit 1
+	@./$(BINDIR)/TrainFactoryTest || exit 1
+	@./$(BINDIR)/OutputManagerTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -110,6 +114,19 @@ $(BINDIR)/InputHandlerTest: $(TESTDIR)/InputHandlerTest.cpp \
 	$(OBJDIR)/RailNetwork/RailNetwork.o $(OBJDIR)/Node/Node.o \
 	$(OBJDIR)/Event/Event.o $(OBJDIR)/Train/Train.o \
 	$(OBJDIR)/TrainFactory/TrainFactory.o
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+$(BINDIR)/TrainFactoryTest: $(TESTDIR)/TrainFactoryTest.cpp \
+	$(OBJDIR)/TrainFactory/TrainFactory.o $(OBJDIR)/Train/Train.o \
+	$(OBJDIR)/Node/Node.o
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+$(BINDIR)/OutputManagerTest: $(TESTDIR)/OutputManagerTest.cpp \
+	$(OBJDIR)/OutputManager/OutputManager.o \
+	$(OBJDIR)/Train/Train.o $(OBJDIR)/Node/Node.o \
+	$(OBJDIR)/Event/Event.o $(OBJDIR)/RailNetwork/RailNetwork.o
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
 

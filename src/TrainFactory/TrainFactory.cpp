@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   TrainFactory.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,6 +29,8 @@ std::unique_ptr<Train> TrainFactory::createTrain(
 		throw std::invalid_argument("Station names cannot be empty");
 	if (departure == arrival)
 		throw std::invalid_argument("Departure and arrival must differ");
+	if (departureTime < 0.0)
+		throw std::invalid_argument("Departure time cannot be negative");
 	return std::make_unique<Train>(name, acceleration, braking, departure,
 								   arrival, departureTime);
 }

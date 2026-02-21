@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   NodeTest.cpp                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:23:11 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,14 @@ int main()
 		Node b("AssignB");
 		b = a;
 		ASSERT_STR_EQ(std::string("AssignA"), b.getName(), msg);
+		return true;
+	});
+
+	suite.run("self-assignment is safe", [](std::string &msg) {
+		Node a("SelfTest");
+		Node &ref = a;
+		a = ref;
+		ASSERT_STR_EQ(std::string("SelfTest"), a.getName(), msg);
 		return true;
 	});
 
