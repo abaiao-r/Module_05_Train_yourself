@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 10:02:58 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,9 +49,34 @@ int main()
 					  "input/railNetworkPrintFolder/"
 					  "railNetworkPrintGood.txt",
 					  "input/trainPrintFolder/trainPrintGood.txt");
-				  // TrainAB1 departs at 14h10 = 14*3600 + 10*60 = 51000
+				  // TrainAB departs at 14h10 = 14*3600 + 10*60 = 51000
 				  ASSERT_TRUE(data.trains[0]->getDepartureTime() == 51000.0,
 							  msg);
+				  return true;
+			  });
+
+	suite.run("train has correct weight and friction",
+			  [](std::string &msg) {
+				  auto data = InputHandler::loadData(
+					  "input/railNetworkPrintFolder/"
+					  "railNetworkPrintGood.txt",
+					  "input/trainPrintFolder/trainPrintGood.txt");
+				  ASSERT_TRUE(data.trains[0]->getWeight() == 80.0, msg);
+				  ASSERT_TRUE(
+					  data.trains[0]->getFrictionCoefficient() == 0.05,
+					  msg);
+				  return true;
+			  });
+
+	suite.run("train has correct stop duration",
+			  [](std::string &msg) {
+				  auto data = InputHandler::loadData(
+					  "input/railNetworkPrintFolder/"
+					  "railNetworkPrintGood.txt",
+					  "input/trainPrintFolder/trainPrintGood.txt");
+				  // 00h10 = 600 seconds
+				  ASSERT_TRUE(
+					  data.trains[0]->getStopDuration() == 600.0, msg);
 				  return true;
 			  });
 
