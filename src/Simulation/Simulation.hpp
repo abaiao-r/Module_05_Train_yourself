@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 09:57:55 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 14:26:44 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,6 +48,7 @@ class Simulation
 	std::vector<std::unique_ptr<Train>> _trains;
 	std::vector<Event> _events;
 	std::unique_ptr<IPathfinding> _pathfinder;
+	PathWeightMode _weightMode;
 	OutputManager _output;
 	std::mt19937 _rng;
 	std::vector<std::unique_ptr<ISimulationObserver>> _observers;
@@ -59,7 +60,8 @@ class Simulation
 	Simulation(RailNetwork network,
 			   std::vector<std::unique_ptr<Train>> trains,
 			   std::vector<Event> events,
-			   std::unique_ptr<IPathfinding> pathfinder);
+			   std::unique_ptr<IPathfinding> pathfinder,
+			   PathWeightMode weightMode = PathWeightMode::Distance);
 	Simulation(const Simulation &) = delete;
 	Simulation &operator=(const Simulation &) = delete;
 	~Simulation();
