@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 10:00:00 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -173,14 +173,16 @@ std::vector<std::unique_ptr<Train>> InputHandler::parseTrainFile(
 
 		std::istringstream iss(line);
 		std::string name;
-		double accel, brake;
-		std::string departure, arrival, timeStr;
-		iss >> name >> accel >> brake >> departure >> arrival >> timeStr;
+		double weight, friction, accel, brake;
+		std::string departure, arrival, timeStr, stopStr;
+		iss >> name >> weight >> friction >> accel >> brake >> departure
+			>> arrival >> timeStr >> stopStr;
 		if (iss.fail() || name.empty() || departure.empty()
-			|| arrival.empty() || timeStr.empty())
+			|| arrival.empty() || timeStr.empty() || stopStr.empty())
 			throw ParseException("Invalid train line: " + line);
 		trains.push_back(TrainFactory::createTrain(
-			name, accel, brake, departure, arrival, parseTime(timeStr)));
+			name, weight, friction, accel, brake, departure, arrival,
+			parseTime(timeStr), parseTime(stopStr)));
 	}
 	return trains;
 }
