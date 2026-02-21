@@ -1,63 +1,16 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   InputHandler.cpp                                   :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/21 01:31:16 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 01:43:54 by ctw03933         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
 #include "InputHandler.hpp"
 
+#include <cctype>
 #include <fstream>
 #include <sstream>
-#include <utility>
 
-/* ---- Canonical form ---- */
-InputHandler::InputHandler(const std::string &railNetworkFile,
-						   const std::string &trainFile)
-	: _railNetworkFilePath(railNetworkFile), _trainFilePath(trainFile)
-{
-}
+#include "TrainFactory.hpp"
 
-InputHandler::InputHandler(const InputHandler &src) { *this = src; }
-
-InputHandler &InputHandler::operator=(const InputHandler &src)
-{
-	if (this != &src)
-	{
-		_railNetworkFilePath = src._railNetworkFilePath;
-		_trainFilePath = src._trainFilePath;
-	}
-	return *this;
-}
-
-InputHandler::InputHandler(InputHandler &&src) noexcept
-{
-	*this = std::move(src);
-}
-
-InputHandler &InputHandler::operator=(InputHandler &&src) noexcept
-{
-	if (this != &src)
-	{
-		_railNetworkFilePath = std::move(src._railNetworkFilePath);
-		_trainFilePath = std::move(src._trainFilePath);
-	}
-	return *this;
-}
-
-InputHandler::~InputHandler() {}
-
-/* ---- Helpers ---- */
+/* ---- File-scope helpers ---- */
 static std::string parseQuotedOrWord(std::istringstream &iss)
 {
 	char c;
-	// Skip leading whitespace
-	while (iss.get(c) && std::isspace(c))
+	while (iss.get(c) && std::isspace(static_cast<unsigned char>(c)))
 		;
 	if (!iss)
 		return "";
@@ -69,19 +22,61 @@ static std::string parseQuotedOrWord(std::istringstream &iss)
 	}
 	std::string word;
 	word += c;
-	while (iss.get(c) && !std::isspace(c))
+	while (iss.get(c) && !std::isspace(static_cast<unsigned char>(c)))
 		word += c;
 	return word;
 }
 
-/* ---- Parsing ---- */
-void InputHandler::loadRailNetworkData()
+static double parseDuration(const std::string &str)
 {
-	std::ifstream file(_railNetworkFilePath);
+	if (str.empty())
+		throw InputHandler::ParseException("Empty duration string");
+	char unit = str.back();
+	double value = std::stod(str.substr(0, str.size() - 1));
+	switch (unit)
+	{
+		case 'm':
+			return value * 60.0;
+		case 'h':
+			return value * 3600.0;
+		case 'd':
+			return value * 86400.0;
+		default:
+			throw InputHandler::ParseException(
+				"Unknown duration unit: " + std::string(1, unit));
+	}
+}
+
+static double parseTime(const std::string &str)
+{
+	size_t hPos = str.find('h');
+	if (hPos == std::string::npos)
+		throw InputHandler::ParseException("Invalid time format: " + str);
+	int hours = std::stoi(str.substr(0, hPos));
+	int minutes = 0;
+	if (hPos + 1 < str.size())
+		minutes = std::stoi(str.substr(hPos + 1));
+	return hours * 3600.0 + minutes * 60.0;
+}
+
+/* ---- Public interface ---- */
+SimulationData InputHandler::loadData(const std::string &networkFile,
+									  const std::string &trainFile)
+{
+	SimulationData data;
+	parseNetworkFile(networkFile, data.network, data.events);
+	data.trains = parseTrainFile(trainFile);
+	return data;
+}
+
+/* ---- Private helpers ---- */
+void InputHandler::parseNetworkFile(const std::string &filepath,
+									RailNetwork &network,
+									std::vector<Event> &events)
+{
+	std::ifstream file(filepath);
 	if (!file.is_open())
-		throw InputException("Failed to open file: " + _railNetworkFilePath);
-	if (file.peek() == std::ifstream::traits_type::eof())
-		throw InputException("File is empty: " + _railNetworkFilePath);
+		throw ParseException("Cannot open file: " + filepath);
 
 	std::string line;
 	while (std::getline(file, line))
@@ -95,47 +90,46 @@ void InputHandler::loadRailNetworkData()
 
 		if (keyword == "Node")
 		{
-			std::string nodeName = parseQuotedOrWord(iss);
-			if (nodeName.empty())
-				throw InputException("Missing node name in: " + line);
-			// TODO: create node via RailNetwork
+			std::string name = parseQuotedOrWord(iss);
+			if (name.empty())
+				throw ParseException("Missing node name: " + line);
+			network.addNode(name);
 		}
 		else if (keyword == "Event")
 		{
-			std::string eventName = parseQuotedOrWord(iss);
+			std::string name = parseQuotedOrWord(iss);
 			double probability;
-			std::string duration;
-			std::string nodeName;
-			iss >> probability >> duration >> nodeName;
-			if (eventName.empty() || nodeName.empty())
-				throw InputException("Invalid event line: " + line);
-			// TODO: create event via EventManager
+			std::string durationStr, nodeName;
+			iss >> probability >> durationStr >> nodeName;
+			if (name.empty() || durationStr.empty() || nodeName.empty())
+				throw ParseException("Invalid event line: " + line);
+			events.emplace_back(name, probability,
+								parseDuration(durationStr), nodeName);
 		}
 		else if (keyword == "Rail")
 		{
-			std::string startNode, endNode;
+			std::string from, to;
 			double distance, speedLimit;
-			iss >> startNode >> endNode >> distance >> speedLimit;
-			if (startNode.empty() || endNode.empty())
-				throw InputException("Invalid rail line: " + line);
-			// TODO: create connection via RailNetwork
+			iss >> from >> to >> distance >> speedLimit;
+			if (from.empty() || to.empty())
+				throw ParseException("Invalid rail line: " + line);
+			network.addConnection(from, to, distance, speedLimit);
 		}
 		else
 		{
-			throw InputException("Unknown keyword '" + keyword + "' in: "
-								 + line);
+			throw ParseException("Unknown keyword: " + keyword);
 		}
 	}
 }
 
-void InputHandler::loadTrainData()
+std::vector<std::unique_ptr<Train>> InputHandler::parseTrainFile(
+	const std::string &filepath)
 {
-	std::ifstream file(_trainFilePath);
+	std::ifstream file(filepath);
 	if (!file.is_open())
-		throw InputException("Failed to open file: " + _trainFilePath);
-	if (file.peek() == std::ifstream::traits_type::eof())
-		throw InputException("File is empty: " + _trainFilePath);
+		throw ParseException("Cannot open file: " + filepath);
 
+	std::vector<std::unique_ptr<Train>> trains;
 	std::string line;
 	while (std::getline(file, line))
 	{
@@ -144,17 +138,19 @@ void InputHandler::loadTrainData()
 
 		std::istringstream iss(line);
 		std::string name;
-		double acceleration, braking;
-		std::string departure, arrival, time;
-		iss >> name >> acceleration >> braking >> departure >> arrival >> time;
-		if (name.empty() || departure.empty() || arrival.empty())
-			throw InputException("Invalid train line: " + line);
-		// TODO: create train via TrainFactory
+		double accel, brake;
+		std::string departure, arrival, timeStr;
+		iss >> name >> accel >> brake >> departure >> arrival >> timeStr;
+		if (name.empty() || departure.empty() || arrival.empty()
+			|| timeStr.empty())
+			throw ParseException("Invalid train line: " + line);
+		trains.push_back(TrainFactory::createTrain(
+			name, accel, brake, departure, arrival, parseTime(timeStr)));
 	}
+	return trains;
 }
 
-/* ---- Exception implementation ---- */
-InputHandler::InputException::InputException(const std::string &msg)
+InputHandler::ParseException::ParseException(const std::string &msg)
 	: std::runtime_error(msg)
 {
 }

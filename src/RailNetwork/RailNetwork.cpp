@@ -1,104 +1,121 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   RailNetwork.cpp                                    :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/21 01:31:16 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 01:31:16 by abaiao-r         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
 #include "RailNetwork.hpp"
 
-#include <iostream>
+#include <algorithm>
 
-#include "colours.hpp"
+/* ---- Canonical form ---- */
+RailNetwork::RailNetwork() {}
 
-/* ---- Node management ---- */
-void RailNetwork::addNode(std::shared_ptr<Node> node)
+RailNetwork::RailNetwork(const RailNetwork &src)
+	: _nodes(src._nodes), _adjacencyList(src._adjacencyList)
 {
-	if (_adjacencyList.find(node) == _adjacencyList.end())
-		_adjacencyList[node] = std::vector<Edge>();
 }
 
-/* ---- Connection management ---- */
-void RailNetwork::addConnection(std::shared_ptr<Node> node1,
-								std::shared_ptr<Node> node2, double distance,
+RailNetwork &RailNetwork::operator=(const RailNetwork &src)
+{
+	if (this != &src)
+	{
+		_nodes = src._nodes;
+		_adjacencyList = src._adjacencyList;
+	}
+	return *this;
+}
+
+RailNetwork::RailNetwork(RailNetwork &&src) noexcept
+	: _nodes(std::move(src._nodes)),
+	  _adjacencyList(std::move(src._adjacencyList))
+{
+}
+
+RailNetwork &RailNetwork::operator=(RailNetwork &&src) noexcept
+{
+	if (this != &src)
+	{
+		_nodes = std::move(src._nodes);
+		_adjacencyList = std::move(src._adjacencyList);
+	}
+	return *this;
+}
+
+RailNetwork::~RailNetwork() {}
+
+/* ---- Graph operations ---- */
+void RailNetwork::addNode(const std::string &name)
+{
+	if (_nodes.count(name))
+		throw DuplicateNodeException(name);
+	_nodes[name] = std::make_shared<Node>(name);
+	_adjacencyList[name] = {};
+}
+
+void RailNetwork::addConnection(const std::string &from,
+								const std::string &to, double distance,
 								double speedLimit)
 {
-	if (node1 == node2)
-		throw Node::SelfEdgeException(node1->getName());
+	if (!_nodes.count(from))
+		throw NodeNotFoundException(from);
+	if (!_nodes.count(to))
+		throw NodeNotFoundException(to);
+	if (from == to)
+		throw std::invalid_argument("Cannot connect node to itself: " + from);
+	if (distance <= 0.0)
+		throw std::invalid_argument("Distance must be positive");
+	if (speedLimit <= 0.0)
+		throw std::invalid_argument("Speed limit must be positive");
 
-	addNode(node1);
-	addNode(node2);
-
-	for (const auto &edge : _adjacencyList[node1])
+	for (const auto &edge : _adjacencyList[from])
 	{
-		auto neighbor = edge.node.lock();
-		if (neighbor && neighbor == node2)
-			throw ConnectionAlreadyExistsException(node1->getName(),
-												   node2->getName());
+		if (edge.destination->getName() == to)
+			throw DuplicateConnectionException(from, to);
 	}
 
-	_adjacencyList[node1].push_back({node2, distance, speedLimit});
-	_adjacencyList[node2].push_back({node1, distance, speedLimit});
-	node1->addEdge(node2, distance, speedLimit);
-	node2->addEdge(node1, distance, speedLimit);
+	_adjacencyList[from].push_back({_nodes[to], distance, speedLimit});
+	_adjacencyList[to].push_back({_nodes[from], distance, speedLimit});
 }
 
-/* ---- Queries ---- */
+std::shared_ptr<Node> RailNetwork::findNode(const std::string &name) const
+{
+	auto it = _nodes.find(name);
+	if (it == _nodes.end())
+		throw NodeNotFoundException(name);
+	return it->second;
+}
+
 const std::vector<Edge> &RailNetwork::getNeighbours(
-	std::shared_ptr<Node> node) const
+	const std::string &nodeName) const
 {
-	auto it = _adjacencyList.find(node);
-	if (it != _adjacencyList.end())
-		return it->second;
-	throw std::runtime_error("Node does not exist in the network.");
+	auto it = _adjacencyList.find(nodeName);
+	if (it == _adjacencyList.end())
+		throw NodeNotFoundException(nodeName);
+	return it->second;
 }
 
-std::vector<std::shared_ptr<Node>> RailNetwork::getNodes() const
+std::vector<std::string> RailNetwork::getNodeNames() const
 {
-	std::vector<std::shared_ptr<Node>> nodes;
-	nodes.reserve(_adjacencyList.size());
-	for (const auto &pair : _adjacencyList)
-		nodes.push_back(pair.first);
-	return nodes;
+	std::vector<std::string> names;
+	names.reserve(_nodes.size());
+	for (const auto &pair : _nodes)
+		names.push_back(pair.first);
+	std::sort(names.begin(), names.end());
+	return names;
 }
 
-/* ---- Debug ---- */
-void RailNetwork::printNetwork() const
-{
-	std::cout << CYAN
-			  << "==================================================\n"
-			  << "               RAIL NETWORK OVERVIEW\n"
-			  << "==================================================" << RESET
-			  << "\n";
+size_t RailNetwork::nodeCount() const { return _nodes.size(); }
 
-	for (const auto &pair : _adjacencyList)
-	{
-		std::cout << BLUE << "[Node] " << pair.first->getName() << RESET
-				  << "\n";
-		std::cout << YELLOW << "  Neighbors:" << RESET << "\n";
-		for (const auto &edge : pair.second)
-		{
-			auto neighbor = edge.node.lock();
-			if (neighbor)
-			{
-				std::cout << "    " << GREEN << neighbor->getName() << RESET
-						  << " [distance: " << edge.distance
-						  << ", speed limit: " << edge.speedLimit << "]\n";
-			}
-		}
-		std::cout << "\n";
-	}
+/* ---- Exception implementations ---- */
+RailNetwork::NodeNotFoundException::NodeNotFoundException(
+	const std::string &name)
+	: std::runtime_error("Node not found: " + name)
+{
 }
 
-/* ---- Exception implementation ---- */
-RailNetwork::ConnectionAlreadyExistsException::
-	ConnectionAlreadyExistsException(const std::string &n1,
-									 const std::string &n2)
-	: std::runtime_error("Connection already exists: " + n1 + " <-> " + n2)
+RailNetwork::DuplicateNodeException::DuplicateNodeException(
+	const std::string &name)
+	: std::runtime_error("Node already exists: " + name)
+{
+}
+
+RailNetwork::DuplicateConnectionException::DuplicateConnectionException(
+	const std::string &from, const std::string &to)
+	: std::runtime_error("Connection already exists: " + from + " <-> " + to)
 {
 }

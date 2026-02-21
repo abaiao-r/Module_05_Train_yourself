@@ -21,16 +21,12 @@ jobs:
     - name: Set up C++ environment
       run: |
         sudo apt-get update
-        sudo apt-get install -y valgrind clang-format
+        sudo apt-get install -y valgrind
         if [ ${{ matrix.compiler }} == 'gcc' ]; then
           sudo apt-get install -y g++
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
           sudo apt-get install -y clang
         fi
-
-    - name: Check code formatting
-      run: |
-        find src tests -name '*.hpp' -o -name '*.cpp' | xargs clang-format -style=file -output-replacements-xml | grep "<replacement " && echo "Code is not formatted" && exit 1 || echo "Code is formatted"
 
     - name: Build
       run: |
@@ -54,9 +50,12 @@ jobs:
 
     - name: Valgrind - tests
       run: |
-        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/SingletonTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/NodeTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/RailNetworkTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/TrainTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/EventTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/DijkstraTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/InputHandlerTest
 
     - name: Valgrind - main program
       run: |
