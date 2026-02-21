@@ -1,5 +1,8 @@
 # Build directories
 ./obj/
+build/
+bin/
+objs/
 
 # Visual Studio Code files
 .vscode/

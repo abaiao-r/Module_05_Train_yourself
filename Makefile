@@ -3,72 +3,119 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: andrefrancisco <andrefrancisco@student.    +#+  +:+       +#+         #
+#    By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2024/08/31 15:48:30 by andrefranci       #+#    #+#              #
-#    Updated: 2024/10/24 19:42:43 by andrefranci      ###   ########.fr        #
+#    Created: 2026/02/21 01:31:16 by abaiao-r          #+#    #+#              #
+#    Updated: 2026/02/21 01:31:16 by abaiao-r         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-# Compiler settings
-CXX = c++
-CXXFLAGS = -Wall -Wextra -Werror -Wshadow -std=c++14 -g #-fstandalone-debug #-fsanitize=address
+
+NAME		= Train
+
+# Compiler
+CXX			= c++
+CXXFLAGS	= -Wall -Wextra -Werror -std=c++17 -g
 
 # Directories
-SRCDIR = src
-OBJDIR = objs
-BINDIR = bin
-TESTDIR = tests
+SRCDIR		= src
+OBJDIR		= objs
+BINDIR		= bin
+TESTDIR		= tests
 
-# Source Files
-SRCS =	$(SRCDIR)/main.cpp \
-        $(SRCDIR)/InputHandler.cpp \
+# Include paths (one per class folder + src root for colours.hpp)
+INC			= -I$(SRCDIR) \
+			  -I$(SRCDIR)/Edge \
+			  -I$(SRCDIR)/Node \
+			  -I$(SRCDIR)/Singleton \
+			  -I$(SRCDIR)/RailNetwork \
+			  -I$(SRCDIR)/Train \
+			  -I$(SRCDIR)/TrainFactory \
+			  -I$(SRCDIR)/InputHandler \
+			  -I$(SRCDIR)/OutputManager \
+			  -I$(SRCDIR)/Simulation \
+			  -I$(SRCDIR)/Event \
+			  -I$(SRCDIR)/EventManager \
+			  -I$(SRCDIR)/IObserver \
+			  -I$(SRCDIR)/IMediator \
+			  -I$(SRCDIR)/IPathfindingAlgorithm \
+			  -I$(SRCDIR)/AStarPathfinding \
+			  -I$(SRCDIR)/DijkstraPathfinding
 
-# Object Files
-OBJS = $(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+# Source files (add new .cpp files here as the project grows)
+SRCS		= $(SRCDIR)/main.cpp \
+			  $(SRCDIR)/Node/Node.cpp \
+			  $(SRCDIR)/RailNetwork/RailNetwork.cpp \
+			  $(SRCDIR)/InputHandler/InputHandler.cpp \
+			  $(SRCDIR)/Train/Train.cpp \
+			  $(SRCDIR)/TrainFactory/TrainFactory.cpp \
+			  $(SRCDIR)/OutputManager/OutputManager.cpp \
+			  $(SRCDIR)/Simulation/Simulation.cpp \
+			  $(SRCDIR)/Event/Event.cpp \
+			  $(SRCDIR)/EventManager/EventManager.cpp \
+			  $(SRCDIR)/AStarPathfinding/AStarPathfinding.cpp \
+			  $(SRCDIR)/DijkstraPathfinding/DijkstraPathfinding.cpp
 
-# Targets
-NAME = Train
+# Object files (mirror source tree under objs/)
+OBJS		= $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRCS))
+
+# ============================================================================ #
+#                                    RULES                                     #
+# ============================================================================ #
 
 all: $(BINDIR)/$(NAME)
 
-# Clean up object files
-clean:
-	rm -f $(OBJS)
+# Link — only re-runs when .o files change (no relink)
+$(BINDIR)/$(NAME): $(OBJS)
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $@
+	@echo "\n$(NAME) built successfully ✓\n"
 
-# Clean up executable
+# Compile — only recompiles changed sources (no relink)
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
+
+clean:
+	rm -rf $(OBJDIR)
+
 fclean: clean
-	rm -f $(BINDIR)/$(NAME)
 	rm -rf $(BINDIR)
 
-# Run the main program
-run: fclean all
-	$(BINDIR)/$(NAME)
-
-# Rebuild everything
 re: fclean all
 
-# Valgrind for memory checking
-valgrind: fclean all
-	valgrind --leak-check=full --show-leak-kinds=all $(BINDIR)/$(NAME)
+# ============================================================================ #
+#                                    TESTS                                     #
+# ============================================================================ #
 
-# Format the code (src and headers) according to the .clang-format file
+test: $(BINDIR)/SingletonTest $(BINDIR)/NodeTest $(BINDIR)/RailNetworkTest
+	@echo ""
+	@./$(BINDIR)/SingletonTest || exit 1
+	@./$(BINDIR)/NodeTest || exit 1
+	@./$(BINDIR)/RailNetworkTest || exit 1
+
+$(BINDIR)/SingletonTest: $(TESTDIR)/SingletonTest.cpp
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $< -o $@
+
+$(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+$(BINDIR)/RailNetworkTest: $(TESTDIR)/RailNetworkTest.cpp $(OBJDIR)/Node/Node.o $(OBJDIR)/RailNetwork/RailNetwork.o
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+# ============================================================================ #
+#                                   UTILITY                                    #
+# ============================================================================ #
+
+run: all
+	./$(BINDIR)/$(NAME) input/railNetworkPrintFolder/railNetworkPrintGood.txt \
+		input/trainPrintFolder/trainPrintGood.txt
+
 format:
-	find includes src -type f \( -name '*.hpp' -o -name '*.cpp' \) -exec clang-format -i -style=file {} +
+	@find $(SRCDIR) $(TESTDIR) -type f \( -name '*.hpp' -o -name '*.cpp' \) \
+		-exec clang-format -i -style=file {} +
 
-# Build the main program
-$(BINDIR)/$(NAME): $(OBJS)
-	mkdir -p $(BINDIR)
-	$(CXX) $(OBJS) $(CXXFLAGS) -o $(BINDIR)/$(NAME)
-
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-$(OBJDIR):
-	mkdir -p $(OBJDIR)
-
-# Compile source files into object files
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(OBJDIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-.PHONY: all clean fclean re run valgrind format
+.PHONY: all clean fclean re test run format

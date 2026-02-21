@@ -1,15 +1,10 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - master
   pull_request:
     branches:
+      - main
       - master
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE20: true  # Enforce Node.js 20
 
 jobs:
   build:
@@ -17,136 +12,52 @@ jobs:
 
     strategy:
       matrix:
-        compiler: [gcc, clang]  # Test against different compilers
+        compiler: [gcc, clang]
 
     steps:
-    - name: Set up Node.js  # Step to set up Node.js
-      uses: actions/setup-node@v4  # Use the latest version of the setup-node action
-      with:
-        node-version: 20
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-    - name: Set up C++ environment  # Step to set up the C++ environment
+    - name: Set up C++ environment
       run: |
-        sudo apt-get update  # Update package lists
-        sudo apt-get install -f  # Attempt to fix broken dependencies
+        sudo apt-get update
+        sudo apt-get install -y valgrind clang-format
         if [ ${{ matrix.compiler }} == 'gcc' ]; then
-          sudo apt-get install -y g++ valgrind  # Install g++ and valgrind
+          sudo apt-get install -y g++
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
-          sudo apt-get install -y clang valgrind  # Install clang and valgrind
+          sudo apt-get install -y clang
         fi
 
-    - name: Checkout repository  # Step to check out the repository
-      uses: actions/checkout@v4  # Use the latest version of the checkout action
-
-    - name: Check code formatting  # Step to check code formatting
+    - name: Check code formatting
       run: |
-        find includes src -name '*.hpp' -o -name '*.cpp' | xargs clang-format -style=file -output-replacements-xml | grep "<replacement " && echo "Code is not formatted" && exit 1 || echo "Code is formatted"
+        find src tests -name '*.hpp' -o -name '*.cpp' | xargs clang-format -style=file -output-replacements-xml | grep "<replacement " && echo "Code is not formatted" && exit 1 || echo "Code is formatted"
 
-    - name: Create bin directory  # Step to create the bin directory
-      run: mkdir -p bin  # Create the bin directory if it doesn't exist
-
-    - name: Compile main program  # Step to compile the main program
+    - name: Build
       run: |
         if [ ${{ matrix.compiler }} == 'gcc' ]; then
-          make clean
-          make CC=g++  # Compile the main program with g++
+          make CXX=g++
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
-          make clean
-          make CC=clang++  # Compile the main program with clang++
+          make CXX=clang++
         fi
 
-    - name: Run main program  # Step to run the main program
+    - name: Run main program
       run: |
-        if [ -f ./bin/Train ]; then
-          ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
-        else
-          echo "main binary not found"
-          exit 1
-        fi
+        ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
 
-    - name: Compile Singleton tests with debug flags
+    - name: Run tests
       run: |
         if [ ${{ matrix.compiler }} == 'gcc' ]; then
-          g++ -Wall -Wextra -Werror -g -gdwarf-4 -o bin/testSingleton tests/SingletonTest.cpp
+          make CXX=g++ test
         elif [ ${{ matrix.compiler }} == 'clang' ]; then
-          clang++ -Wall -Wextra -Werror -g -gdwarf-4 -o bin/testSingleton tests/SingletonTest.cpp
+          make CXX=clang++ test
         fi
 
-    - name: Run Singleton tests
+    - name: Valgrind - tests
       run: |
-        if [ -f ./bin/testSingleton ]; then
-          ./bin/testSingleton
-        else
-          echo "testSingleton binary not found"
-          exit 1
-        fi
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/SingletonTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/NodeTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/RailNetworkTest
 
-    - name: Compile Node tests with debug flags
+    - name: Valgrind - main program
       run: |
-        if [ ${{ matrix.compiler }} == 'gcc' ]; then
-          g++ -Wall -Wextra -Werror -g -gdwarf-4 -o bin/testNode tests/NodeTest.cpp src/Node.cpp
-        elif [ ${{ matrix.compiler }} == 'clang' ]; then
-          clang++ -Wall -Wextra -Werror -g -gdwarf-4 -o bin/testNode tests/NodeTest.cpp src/Node.cpp
-        fi
-
-    - name: Run Node tests
-      run: |
-        if [ -f ./bin/testNode ]; then
-          ./bin/testNode
-        else
-          echo "testNode binary not found"
-          exit 1
-        fi
-
-    - name: Compile test_RailNetwork
-      run: |
-        if [ ${{ matrix.compiler }} == 'gcc' ]; then
-          g++ -Wall -Wextra -Werror -g -gdwarf-4 -o bin/testRailNetwork tests/test_RailNetwork.cpp src/RailNetwork.cpp src/Node.cpp
-        elif [ ${{ matrix.compiler }} == 'clang' ]; then
-          clang++ -Wall -Wextra -Werror -g -gdwarf-4 -o bin/testRailNetwork tests/test_RailNetwork.cpp src/RailNetwork.cpp src/Node.cpp
-        fi
-
-    - name: Run test_RailNetwork
-      run: |
-        if [ -f ./bin/testRailNetwork ]; then
-          ./bin/testRailNetwork
-        else
-          echo "testRailNetwork binary not found"
-          exit 1
-        fi
-
-    - name: Run Node tests with Valgrind
-      run: |
-        if [ -f ./bin/testNode ]; then
-          valgrind --leak-check=full --show-leak-kinds=all ./bin/testNode
-        else
-          echo "testNode binary not found"
-          exit 1
-        fi
-
-    - name: Run main program with Valgrind
-      run: |
-        if [ -f ./bin/Train ]; then
-          valgrind --leak-check=full --show-leak-kinds=all ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
-        else
-          echo "main binary not found"
-          exit 1
-        fi
-
-    - name: Run Singleton tests with Valgrind
-      run: |
-        if [ -f ./bin/testSingleton ]; then
-          valgrind --leak-check=full --show-leak-kinds=all ./bin/testSingleton
-        else
-          echo "testSingleton binary not found"
-          exit 1
-        fi
-
-    - name: Run test_RailNetwork with Valgrind
-      run: |
-        if [ -f ./bin/testRailNetwork ]; then
-          valgrind --leak-check=full --show-leak-kinds=all ./bin/testRailNetwork
-        else
-          echo "testRailNetwork binary not found"
-          exit 1
-        fi
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt

@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.cpp                                           :+:      :+:    :+:   */
+/*   TrainFactory.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,38 +10,18 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <cstdlib>
-#include <iostream>
+#include "TrainFactory.hpp"
 
-#include "InputHandler.hpp"
-#include "colours.hpp"
+TrainFactory::TrainFactory() {}
+TrainFactory::TrainFactory(const TrainFactory &) {}
+TrainFactory &TrainFactory::operator=(const TrainFactory &) { return *this; }
+TrainFactory::~TrainFactory() {}
 
-int main(int argc, char **argv)
+std::unique_ptr<Train> TrainFactory::createTrain(
+	const std::string &name, double maxAcceleration, double maxBrakingForce,
+	const std::string &departure, const std::string &arrival,
+	const std::string &departureTime)
 {
-	if (argc != 3)
-	{
-		std::cerr << RED << "Error: Invalid number of arguments" << RESET
-				  << "\n";
-		std::cerr << "Usage: ./Train <railNetworkFile> <trainFile>\n";
-		return EXIT_FAILURE;
-	}
-
-	try
-	{
-		InputHandler inputHandler(argv[1], argv[2]);
-		inputHandler.loadRailNetworkData();
-		inputHandler.loadTrainData();
-	}
-	catch (const InputHandler::InputException &e)
-	{
-		std::cerr << RED << "Input Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
-	catch (const std::exception &e)
-	{
-		std::cerr << RED << "Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
-
-	return EXIT_SUCCESS;
+	return std::make_unique<Train>(name, maxAcceleration, maxBrakingForce,
+								   departure, arrival, departureTime);
 }
