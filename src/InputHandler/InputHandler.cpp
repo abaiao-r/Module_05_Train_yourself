@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   InputHandler.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,7 +44,19 @@ static double parseDuration(const std::string &str)
 	if (str.empty())
 		throw InputHandler::ParseException("Empty duration string");
 	char unit = str.back();
-	double value = std::stod(str.substr(0, str.size() - 1));
+	double value;
+	try
+	{
+		value = std::stod(str.substr(0, str.size() - 1));
+	}
+	catch (const std::exception &)
+	{
+		throw InputHandler::ParseException(
+			"Invalid duration value: " + str);
+	}
+	if (value < 0.0)
+		throw InputHandler::ParseException(
+			"Duration cannot be negative: " + str);
 	switch (unit)
 	{
 		case 'm':
@@ -64,10 +76,21 @@ static double parseTime(const std::string &str)
 	size_t hPos = str.find('h');
 	if (hPos == std::string::npos)
 		throw InputHandler::ParseException("Invalid time format: " + str);
-	int hours = std::stoi(str.substr(0, hPos));
-	int minutes = 0;
-	if (hPos + 1 < str.size())
-		minutes = std::stoi(str.substr(hPos + 1));
+	int hours, minutes = 0;
+	try
+	{
+		hours = std::stoi(str.substr(0, hPos));
+		if (hPos + 1 < str.size())
+			minutes = std::stoi(str.substr(hPos + 1));
+	}
+	catch (const std::exception &)
+	{
+		throw InputHandler::ParseException(
+			"Invalid time value: " + str);
+	}
+	if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59)
+		throw InputHandler::ParseException(
+			"Time out of range: " + str);
 	return hours * 3600.0 + minutes * 60.0;
 }
 
@@ -123,7 +146,7 @@ void InputHandler::parseNetworkFile(const std::string &filepath,
 			std::string from, to;
 			double distance, speedLimit;
 			iss >> from >> to >> distance >> speedLimit;
-			if (from.empty() || to.empty())
+			if (iss.fail() || from.empty() || to.empty())
 				throw ParseException("Invalid rail line: " + line);
 			network.addConnection(from, to, distance, speedLimit);
 		}
@@ -153,8 +176,8 @@ std::vector<std::unique_ptr<Train>> InputHandler::parseTrainFile(
 		double accel, brake;
 		std::string departure, arrival, timeStr;
 		iss >> name >> accel >> brake >> departure >> arrival >> timeStr;
-		if (name.empty() || departure.empty() || arrival.empty()
-			|| timeStr.empty())
+		if (iss.fail() || name.empty() || departure.empty()
+			|| arrival.empty() || timeStr.empty())
 			throw ParseException("Invalid train line: " + line);
 		trains.push_back(TrainFactory::createTrain(
 			name, accel, brake, departure, arrival, parseTime(timeStr)));

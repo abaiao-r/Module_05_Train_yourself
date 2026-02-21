@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   TrainTest.cpp                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -92,6 +92,39 @@ int main()
 				  ASSERT_STR_EQ(std::string("Arrived"),
 								Train::statusToString(TrainStatus::Arrived),
 								msg);
+				  return true;
+			  });
+
+	suite.run("statusToString for Running and Delayed",
+			  [](std::string &msg) {
+				  ASSERT_STR_EQ(std::string("Running"),
+								Train::statusToString(TrainStatus::Running),
+								msg);
+				  ASSERT_STR_EQ(std::string("Delayed"),
+								Train::statusToString(TrainStatus::Delayed),
+								msg);
+				  return true;
+			  });
+
+	suite.run("getCurrentNodeName empty path returns empty",
+			  [](std::string &msg) {
+				  Train t("T", 1.0, 1.0, "A", "B", 0.0);
+				  ASSERT_STR_EQ(std::string(""), t.getCurrentNodeName(), msg);
+				  return true;
+			  });
+
+	suite.run("advanceToNextNode on empty path is safe",
+			  [](std::string &msg) {
+				  Train t("T", 1.0, 1.0, "A", "B", 0.0);
+				  t.advanceToNextNode(100.0);
+				  ASSERT_EQ(0u, t.getPathIndex(), msg);
+				  return true;
+			  });
+
+	suite.run("hasArrived is false after construction",
+			  [](std::string &msg) {
+				  Train t("T", 1.0, 1.0, "A", "B", 0.0);
+				  ASSERT_FALSE(t.hasArrived(), msg);
 				  return true;
 			  });
 
