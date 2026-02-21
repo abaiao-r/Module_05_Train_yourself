@@ -10,10 +10,10 @@ A physics-based train simulation engine that models rail traffic across a config
 |---------|--------|
 | **Physics engine** | 1-second discrete timestep · acceleration = `(F_accel − μmg) / m` · braking distance = `v² / (2·decel)` |
 | **Concurrent simulation** | All trains run on a shared wall clock; overtaking caps a trailing train's speed |
-| **Pathfinding** | Dijkstra shortest-path (Strategy pattern — swappable algorithm) |
+| **Pathfinding** | Dijkstra shortest-path (Strategy pattern) · distance or time weight mode (`--time` flag) |
 | **Per-train output** | `TrainName_HHhMM.result` file with header, estimated time, every-minute rail graph, events, actual time |
 | **Random events** | Probability-based disruptions at stations (riots, discomfort, …) inject delays |
-| **82 unit / integration tests** | Custom TestFramework, 9 suites, CI with gcc + clang matrix |
+| **86 unit / integration tests** | Custom TestFramework, 9 suites, CI with gcc + clang matrix |
 | **3 design patterns** | Strategy (pathfinding), Factory (train creation), Observer (file output) |
 | **7 UML diagrams** | Class, 3 sequence, state machine, 2 activity — PlantUML sources + PNGs |
 
@@ -33,12 +33,15 @@ make run            # run with sample data
 
 # Or supply your own files
 ./bin/Train path/to/network.txt path/to/trains.txt
+
+# Optimise route by travel time instead of distance
+./bin/Train path/to/network.txt path/to/trains.txt --time
 ```
 
 ### Run Tests
 
 ```bash
-make test     # 82 tests across 9 suites
+make test     # 86 tests across 9 suites
 ```
 
 ### Clean

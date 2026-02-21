@@ -45,7 +45,12 @@ Input format: `name weight friction accelForce brakeForce from to time stopDurat
 
 #### 3. Route Selection
 
-Before simulation begins, each train is assigned the **shortest route** through the network using Dijkstra's algorithm. The cost metric is **distance** (not time). If no route exists, the train is skipped with a warning.
+Before simulation begins, each train is assigned an **optimal route** through the network using Dijkstra's algorithm. The cost metric is configurable via `PathWeightMode`:
+
+- **Distance** (default) — minimises total kilometres: edge weight = `distance`
+- **Time** — minimises travel time: edge weight = `distance / speedLimit`
+
+Pass `--time` on the command line to use time-based routing. If no route exists, the train is skipped with a warning.
 
 #### 4. Physics-Based Travel Time
 
@@ -223,7 +228,7 @@ tests/
 ├── RailNetworkTest.cpp                   14 tests
 ├── TrainTest.cpp                         14 tests (including physics)
 ├── EventTest.cpp                         10 tests
-├── DijkstraTest.cpp                      7 tests
+├── DijkstraTest.cpp                      11 tests
 ├── InputHandlerTest.cpp                  10 tests (including 9-field parsing)
 ├── TrainFactoryTest.cpp                  10 tests (including weight/friction/stop validation)
 ├── OutputManagerTest.cpp                 5 tests
@@ -234,15 +239,18 @@ tests/
 
 ### Strategy — Pathfinding
 
-`IPathfinding` defines the interface; `DijkstraPathfinding` is the concrete strategy. The algorithm is injected into `Simulation` at construction, making it trivial to swap (e.g., A\*, BFS):
+`IPathfinding` defines the interface; `DijkstraPathfinding` is the concrete strategy. The algorithm is injected into `Simulation` at construction, making it trivial to swap (e.g., A\*, BFS). A `PathWeightMode` parameter controls whether edges are weighted by distance (km) or time (km ÷ km/h):
 
 ```cpp
+enum class PathWeightMode { Distance, Time };
+
 class IPathfinding {
 public:
     virtual ~IPathfinding() = default;
     virtual std::vector<std::shared_ptr<Node>> findPath(
         const std::string &start, const std::string &end,
-        const RailNetwork &network) const = 0;
+        const RailNetwork &network,
+        PathWeightMode mode = PathWeightMode::Distance) const = 0;
 };
 ```
 
