@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.cpp                                           :+:      :+:    :+:   */
+/*   Event.cpp                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,38 +10,31 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <cstdlib>
-#include <iostream>
+#include "Event.hpp"
 
-#include "InputHandler.hpp"
-#include "colours.hpp"
-
-int main(int argc, char **argv)
+Event::Event(const std::string &name, double probability,
+			 const std::string &duration, const std::string &node)
+	: _name(name), _probability(probability), _duration(duration), _node(node)
 {
-	if (argc != 3)
-	{
-		std::cerr << RED << "Error: Invalid number of arguments" << RESET
-				  << "\n";
-		std::cerr << "Usage: ./Train <railNetworkFile> <trainFile>\n";
-		return EXIT_FAILURE;
-	}
-
-	try
-	{
-		InputHandler inputHandler(argv[1], argv[2]);
-		inputHandler.loadRailNetworkData();
-		inputHandler.loadTrainData();
-	}
-	catch (const InputHandler::InputException &e)
-	{
-		std::cerr << RED << "Input Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
-	catch (const std::exception &e)
-	{
-		std::cerr << RED << "Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
-
-	return EXIT_SUCCESS;
 }
+
+Event::Event(const Event &src) { *this = src; }
+
+Event &Event::operator=(const Event &src)
+{
+	if (this != &src)
+	{
+		_name = src._name;
+		_probability = src._probability;
+		_duration = src._duration;
+		_node = src._node;
+	}
+	return *this;
+}
+
+Event::~Event() {}
+
+const std::string &Event::getName() const { return _name; }
+double Event::getProbability() const { return _probability; }
+const std::string &Event::getDuration() const { return _duration; }
+const std::string &Event::getNode() const { return _node; }

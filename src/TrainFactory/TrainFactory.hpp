@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.cpp                                           :+:      :+:    :+:   */
+/*   TrainFactory.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,38 +10,26 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <cstdlib>
-#include <iostream>
+#ifndef TRAINFACTORY_HPP
+#define TRAINFACTORY_HPP
 
-#include "InputHandler.hpp"
-#include "colours.hpp"
+#include <memory>
+#include <string>
 
-int main(int argc, char **argv)
+#include "Train.hpp"
+
+class TrainFactory
 {
-	if (argc != 3)
-	{
-		std::cerr << RED << "Error: Invalid number of arguments" << RESET
-				  << "\n";
-		std::cerr << "Usage: ./Train <railNetworkFile> <trainFile>\n";
-		return EXIT_FAILURE;
-	}
+  public:
+	TrainFactory();
+	TrainFactory(const TrainFactory &src);
+	TrainFactory &operator=(const TrainFactory &src);
+	~TrainFactory();
 
-	try
-	{
-		InputHandler inputHandler(argv[1], argv[2]);
-		inputHandler.loadRailNetworkData();
-		inputHandler.loadTrainData();
-	}
-	catch (const InputHandler::InputException &e)
-	{
-		std::cerr << RED << "Input Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
-	catch (const std::exception &e)
-	{
-		std::cerr << RED << "Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
+	static std::unique_ptr<Train> createTrain(
+		const std::string &name, double maxAcceleration,
+		double maxBrakingForce, const std::string &departure,
+		const std::string &arrival, const std::string &departureTime);
+};
 
-	return EXIT_SUCCESS;
-}
+#endif

@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.cpp                                           :+:      :+:    :+:   */
+/*   InputHandler.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -10,38 +10,35 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <cstdlib>
-#include <iostream>
+#ifndef INPUTHANDLER_HPP
+#define INPUTHANDLER_HPP
 
-#include "InputHandler.hpp"
-#include "colours.hpp"
+#include <stdexcept>
+#include <string>
 
-int main(int argc, char **argv)
+class InputHandler
 {
-	if (argc != 3)
-	{
-		std::cerr << RED << "Error: Invalid number of arguments" << RESET
-				  << "\n";
-		std::cerr << "Usage: ./Train <railNetworkFile> <trainFile>\n";
-		return EXIT_FAILURE;
-	}
+  private:
+	std::string _railNetworkFilePath;
+	std::string _trainFilePath;
 
-	try
-	{
-		InputHandler inputHandler(argv[1], argv[2]);
-		inputHandler.loadRailNetworkData();
-		inputHandler.loadTrainData();
-	}
-	catch (const InputHandler::InputException &e)
-	{
-		std::cerr << RED << "Input Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
-	catch (const std::exception &e)
-	{
-		std::cerr << RED << "Error: " << e.what() << RESET << "\n";
-		return EXIT_FAILURE;
-	}
+  public:
+	InputHandler(const std::string &railNetworkFile,
+				 const std::string &trainFile);
+	InputHandler(const InputHandler &src);
+	InputHandler &operator=(const InputHandler &src);
+	InputHandler(InputHandler &&src) noexcept;
+	InputHandler &operator=(InputHandler &&src) noexcept;
+	~InputHandler();
 
-	return EXIT_SUCCESS;
-}
+	void loadRailNetworkData();
+	void loadTrainData();
+
+	class InputException : public std::runtime_error
+	{
+	  public:
+		explicit InputException(const std::string &msg);
+	};
+};
+
+#endif
