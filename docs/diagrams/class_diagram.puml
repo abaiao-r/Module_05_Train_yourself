@@ -1,0 +1,165 @@
+@startuml class_diagram
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+title Train Simulator — Class Diagram
+
+package "Domain" {
+    class Node {
+        - _name : string
+        + Node(name : string)
+        + Node(src : Node)
+        + operator=(src : Node) : Node&
+        + ~Node()
+        + getName() : string
+    }
+
+    class "Node::InvalidNameException" as NodeEx {
+    }
+    NodeEx --|> std::invalid_argument
+
+    struct Edge <<struct>> {
+        + destination : shared_ptr<Node>
+        + distance : double
+        + speedLimit : double
+    }
+    Edge --> Node : destination
+
+    class RailNetwork {
+        - _nodes : unordered_map<string, shared_ptr<Node>>
+        - _adjacencyList : unordered_map<string, vector<Edge>>
+        + RailNetwork()
+        + RailNetwork(src : RailNetwork)
+        + RailNetwork(src : RailNetwork&&)
+        + operator=(src : RailNetwork) : RailNetwork&
+        + operator=(src : RailNetwork&&) : RailNetwork&
+        + ~RailNetwork()
+        + addNode(name : string) : void
+        + addConnection(from : string, to : string, distance : double, speedLimit : double) : void
+        + findNode(name : string) : shared_ptr<Node>
+        + getNeighbours(nodeName : string) : vector<Edge>
+        + getNodeNames() : vector<string>
+        + nodeCount() : size_t
+    }
+    RailNetwork *-- Node : contains
+    RailNetwork *-- Edge : adjacency list
+
+    enum TrainStatus {
+        Waiting
+        Running
+        Arrived
+        Delayed
+    }
+
+    class Train {
+        - _name : string
+        - _maxAcceleration : double
+        - _maxBrakingForce : double
+        - _departureStation : string
+        - _arrivalStation : string
+        - _departureTime : double
+        - _status : TrainStatus
+        - _path : vector<shared_ptr<Node>>
+        - _pathIndex : size_t
+        - _currentTime : double
+        - _totalDelay : double
+        + Train(name, accel, braking, departure, arrival, departureTime)
+        + setPath(path : vector<shared_ptr<Node>>) : void
+        + advanceToNextNode(travelTime : double) : void
+        + applyDelay(seconds : double) : void
+        + hasArrived() : bool
+        + {static} statusToString(status : TrainStatus) : string
+    }
+    Train --> Node : path
+    Train --> TrainStatus
+
+    class Event {
+        - _name : string
+        - _probability : double
+        - _duration : double
+        - _nodeName : string
+        + Event(name, probability, duration, nodeName)
+        + tryTrigger(rng : mt19937&) : bool
+        + getName() : string
+        + getProbability() : double
+        + getDuration() : double
+        + getNodeName() : string
+    }
+}
+
+package "Strategy" {
+    interface IPathfinding <<interface>> {
+        + {abstract} findPath(start : string, end : string, network : RailNetwork) : vector<shared_ptr<Node>>
+    }
+
+    class DijkstraPathfinding {
+        + findPath(start : string, end : string, network : RailNetwork) : vector<shared_ptr<Node>>
+    }
+    DijkstraPathfinding ..|> IPathfinding : implements
+    DijkstraPathfinding ..> RailNetwork : reads graph
+}
+
+package "Factory" {
+    class TrainFactory {
+        - TrainFactory() = delete
+        + {static} createTrain(name, accel, braking, dep, arr, time) : unique_ptr<Train>
+    }
+    TrainFactory ..> Train : creates
+}
+
+package "I/O" {
+    struct SimulationData <<struct>> {
+        + network : RailNetwork
+        + trains : vector<unique_ptr<Train>>
+        + events : vector<Event>
+    }
+
+    class InputHandler {
+        - InputHandler() = delete
+        + {static} loadData(networkFile : string, trainFile : string) : SimulationData
+    }
+    InputHandler ..> SimulationData : produces
+    InputHandler ..> RailNetwork : builds
+    InputHandler ..> TrainFactory : uses
+    InputHandler ..> Event : creates
+
+    class OutputManager {
+        + printNetwork(net : RailNetwork) : void
+        + printTrainPath(train : Train) : void
+        + printDeparture(train : Train) : void
+        + printArrival(train : Train, node : string, time : double) : void
+        + printEvent(event : Event, train : Train) : void
+        + printResult(trains : vector<unique_ptr<Train>>) : void
+        + {static} formatTime(seconds : double) : string
+    }
+}
+
+package "Orchestration" {
+    class Simulation {
+        - _network : RailNetwork
+        - _trains : vector<unique_ptr<Train>>
+        - _events : vector<Event>
+        - _pathfinder : unique_ptr<IPathfinding>
+        - _output : OutputManager
+        - _rng : mt19937
+        + Simulation(network, trains, events, pathfinder)
+        + ~Simulation()
+        + run() : void
+        - computePaths() : void
+        - simulateTrain(train : Train&) : void
+        - getEdgeTravelTime(from : string, to : string) : double
+        - getEventsAtNode(nodeName : string) : vector<Event*>
+    }
+    Simulation *-- RailNetwork : owns
+    Simulation *-- Train : owns
+    Simulation *-- Event : owns
+    Simulation *-- OutputManager : owns
+    Simulation --> IPathfinding : uses (injected)
+}
+
+@enduml
