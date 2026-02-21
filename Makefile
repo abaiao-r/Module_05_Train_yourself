@@ -23,7 +23,8 @@ INC			= -I$(SRCDIR)/Edge \
 			  -I$(SRCDIR)/OutputManager \
 			  -I$(SRCDIR)/Simulation \
 			  -I$(SRCDIR)/ISimulationObserver \
-			  -I$(SRCDIR)/FileOutputObserver
+			  -I$(SRCDIR)/FileOutputObserver \
+			  -I$(SRCDIR)/GraphExporter
 
 # Source files
 SRCS		= $(SRCDIR)/main.cpp \
@@ -36,7 +37,8 @@ SRCS		= $(SRCDIR)/main.cpp \
 			  $(SRCDIR)/InputHandler/InputHandler.cpp \
 			  $(SRCDIR)/OutputManager/OutputManager.cpp \
 			  $(SRCDIR)/Simulation/Simulation.cpp \
-			  $(SRCDIR)/FileOutputObserver/FileOutputObserver.cpp
+			  $(SRCDIR)/FileOutputObserver/FileOutputObserver.cpp \
+			  $(SRCDIR)/GraphExporter/GraphExporter.cpp
 
 # Object files
 OBJS		= $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRCS))
@@ -58,6 +60,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 
 clean:
 	rm -rf $(OBJDIR)
+	rm -rf output
 
 fclean: clean
 	rm -rf $(BINDIR)
@@ -146,8 +149,16 @@ $(BINDIR)/IntegrationTest: $(TESTDIR)/IntegrationTest.cpp $(LIB_OBJS)
 #                                   UTILITY                                    #
 # ============================================================================ #
 
-run: all
-	./$(BINDIR)/$(NAME) input/railNetworkPrintFolder/railNetworkPrintGood.txt \
-		input/trainPrintFolder/trainPrintGood.txt
+NETWORK	= input/railNetworkPrintFolder/railNetworkPrintGood.txt
+TRAINS	= input/trainPrintFolder/trainPrintGood.txt
 
-.PHONY: all clean fclean re test run
+run: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS)
+
+run-time: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --time
+
+run-graph: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --graph network.dot
+
+.PHONY: all clean fclean re test run run-time run-graph
