@@ -13,6 +13,7 @@ Event "Passenger's Discomfort" 0.2 30m CityA
 Event "Passenger's Discomfort" 0.2 30m CityB
 Event "Passenger's Discomfort" 0.2 30m CityC
 Event "Can't happen" 0 356d CityA
+Event "Track Maintenance" 0.1 45m CityA RailNodeA
 Rail CityA RailNodeA 15.0 250.0
 Rail RailNodeA RailNodeB 20.0 250.0
 Rail RailNodeB RailNodeC 13.0 175.0

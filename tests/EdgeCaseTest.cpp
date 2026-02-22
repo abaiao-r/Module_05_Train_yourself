@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 16:00:00 by ctw03933          #+#    #+#             */
-/*   Updated: 2026/02/21 16:10:08 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 17:27:50 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -173,19 +173,14 @@ int main()
 
 	/* ── Train to unknown station ── */
 
-	suite.run("train with unknown destination handles gracefully",
+	suite.run("train with unknown destination throws at load time",
 			  [](std::string &msg) {
-				  cleanupResultFiles();
-				  auto data = InputHandler::loadData(
-					  NET + "railNetworkMinimal.txt",
-					  TRN + "trainPrintBadStation.txt");
-				  Simulation sim(
-					  std::move(data.network), std::move(data.trains),
-					  std::move(data.events),
-					  std::make_unique<DijkstraPathfinding>());
-				  /* Should not crash — station not found logged */
-				  sim.run();
-				  ASSERT_TRUE(true, msg);
+				  ASSERT_THROWS(
+					  InputHandler::loadData(
+						  NET + "railNetworkMinimal.txt",
+						  TRN + "trainPrintBadStation.txt"),
+					  InputHandler::ParseException, msg);
+				  return true;
 				  return true;
 			  });
 

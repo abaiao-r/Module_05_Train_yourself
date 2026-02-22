@@ -1,0 +1,12 @@
+Eurostar01 800 0.03 700.0 90.0 London Paris 06h00 00h03
+Thalys01 400 0.03 600.0 80.0 Paris Amsterdam 07h00 00h03
+TGV9201 400 0.03 600.0 80.0 Paris Lyon 08h00 00h02
+ICE575 450 0.03 650.0 85.0 Frankfurt Berlin 07h30 00h03
+LusitaniaExp 300 0.04 500.0 70.0 Lisboa Madrid 21h30 00h10
+AVE3401 400 0.03 600.0 80.0 Madrid Barcelona 06h30 00h03
+Frecciarossa 500 0.03 700.0 90.0 Milan Rome 09h00 00h03
+RailJet01 350 0.04 550.0 75.0 Munich Vienna 08h00 00h05
+ICE1023 450 0.03 650.0 85.0 Berlin Munich 10h00 00h03
+TGVLyria 400 0.03 600.0 80.0 Paris Zurich 07h15 00h03
+Nightjet01 400 0.04 500.0 70.0 Vienna Rome 20h00 00h08
+ICEFra01 450 0.03 650.0 85.0 Paris Frankfurt 09h30 00h03

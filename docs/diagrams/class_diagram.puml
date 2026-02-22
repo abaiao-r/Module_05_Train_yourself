@@ -57,6 +57,7 @@ package "Domain" {
     }
 
     class Train {
+        - _id : int
         - _name : string
         - _weight : double              «metric tons»
         - _frictionCoefficient : double
@@ -73,10 +74,11 @@ package "Domain" {
         - _totalDelay : double
         - _currentSpeed : double        «m/s»
         - _posOnSegment : double        «metres»
-        + Train(name, weight, friction, accelForce, brakeForce, departure, arrival, departureTime, stopDuration)
+        + Train(id, name, weight, friction, accelForce, brakeForce, departure, arrival, departureTime, stopDuration)
         + Train(src : Train)
         + operator=(src : Train) : Train&
         + ~Train()
+        + getId() : int
         + setPath(path) : void
         + advanceToNextNode(travelTime : double) : void
         + applyDelay(seconds : double) : void
@@ -98,12 +100,15 @@ package "Domain" {
         - _probability : double
         - _duration : double
         - _nodeName : string
-        + Event(name, probability, duration, nodeName)
+        - _nodeName2 : string
+        + Event(name, probability, duration, nodeName, nodeName2 = "")
         + tryTrigger(rng : mt19937&) : bool
         + getName() : string
         + getProbability() : double
         + getDuration() : double
         + getNodeName() : string
+        + getNodeName2() : string
+        + isRailEvent() : bool
     }
 }
 
@@ -129,14 +134,16 @@ package "Strategy" {
 package "Factory" {
     class TrainFactory {
         - TrainFactory() = delete
+        - {static} _nextId : int
         + {static} createTrain(name, weight, friction, accelForce, brakeForce, dep, arr, time, stop) : unique_ptr<Train>
+        + {static} resetIdCounter() : void
     }
     TrainFactory ..> Train : creates
 }
 
 package "Observer" {
     interface ISimulationObserver <<interface>> {
-        + {abstract} onTrainStart(trainName, estimatedTimeSec) : void
+        + {abstract} onTrainStart(trainName, trainId, estimatedTimeSec) : void
         + {abstract} onTrainStep(timeSinceStart, from, to, distRemKm, action, posKm, segKm, blocking) : void
         + {abstract} onTrainEvent(eventName, nodeName, delaySec) : void
         + {abstract} onTrainFinish(trainName, totalTimeSec) : void
@@ -219,6 +226,7 @@ package "Orchestration" {
         - handleSegmentTransition(s : TrainState&, idx) : void
         - applyBlocking(states : vector<TrainState>&) : void
         - getEventsAtNode(nodeName) : vector<Event*>
+        - getEventsOnSegment(from, to) : vector<Event*>
     }
     Simulation *-- RailNetwork : owns
     Simulation *-- Train : owns

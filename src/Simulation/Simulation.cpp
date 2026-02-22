@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 16:33:53 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -86,7 +86,8 @@ void Simulation::run()
 	for (size_t i = 0; i < states.size(); i++)
 	{
 		double est = estimateTravelTime(*states[i].train);
-		_observers[i]->onTrainStart(states[i].train->getName(), est);
+		_observers[i]->onTrainStart(states[i].train->getName(),
+									states[i].train->getId(), est);
 	}
 
 	/* Find earliest departure to start the clock */
@@ -488,6 +489,28 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx)
 		s.posOnSegment_m = 0.0;
 		s.train->setPathIndex(s.segmentIndex);
 
+		/* Trigger rail-segment events on the new segment */
+		if (s.segmentIndex + 1 < path.size())
+		{
+			std::string segFrom = path[s.segmentIndex]->getName();
+			std::string segTo = path[s.segmentIndex + 1]->getName();
+			auto railEvents = getEventsOnSegment(segFrom, segTo);
+			for (const auto *event : railEvents)
+			{
+				if (event->tryTrigger(_rng))
+				{
+					double delay = event->getDuration();
+					s.train->applyDelay(delay);
+					s.timeSinceDepart += delay;
+					_output.printEvent(*event, *s.train);
+					std::string loc = event->getNodeName() + "-"
+									  + event->getNodeName2();
+					_observers[trainIdx]->onTrainEvent(
+						event->getName(), loc, delay);
+				}
+			}
+		}
+
 		/* Apply stop duration at intermediate stations */
 		s.stopTimer = s.train->getStopDuration();
 	}
@@ -554,7 +577,25 @@ std::vector<const Event *> Simulation::getEventsAtNode(
 	std::vector<const Event *> result;
 	for (const auto &event : _events)
 	{
-		if (event.getNodeName() == nodeName)
+		if (!event.isRailEvent() && event.getNodeName() == nodeName)
+			result.push_back(&event);
+	}
+	return result;
+}
+
+/* ---- Events on a rail segment ---- */
+std::vector<const Event *> Simulation::getEventsOnSegment(
+	const std::string &from, const std::string &to) const
+{
+	std::vector<const Event *> result;
+	for (const auto &event : _events)
+	{
+		if (!event.isRailEvent())
+			continue;
+		/* Bidirectional match */
+		if ((event.getNodeName() == from && event.getNodeName2() == to)
+			|| (event.getNodeName() == to
+				&& event.getNodeName2() == from))
 			result.push_back(&event);
 	}
 	return result;

@@ -1,0 +1,59 @@
+Node Lisboa
+Node Porto
+Node Madrid
+Node Barcelona
+Node Paris
+Node Lyon
+Node Marseille
+Node Bordeaux
+Node Amsterdam
+Node Brussels
+Node Berlin
+Node Munich
+Node Zurich
+Node Milan
+Node Rome
+Node Vienna
+Node Prague
+Node London
+Node Lille
+Node Frankfurt
+Rail Lisboa Madrid 625.0 160.0
+Rail Madrid Barcelona 620.0 300.0
+Rail Madrid Bordeaux 800.0 160.0
+Rail Barcelona Lyon 645.0 250.0
+Rail Barcelona Marseille 505.0 250.0
+Rail Paris Lyon 465.0 320.0
+Rail Paris Bordeaux 568.0 300.0
+Rail Paris Lille 225.0 300.0
+Rail Paris London 460.0 300.0
+Rail Paris Brussels 310.0 300.0
+Rail Paris Marseille 775.0 320.0
+Rail Paris Frankfurt 570.0 250.0
+Rail Lille Brussels 110.0 300.0
+Rail Lille London 350.0 300.0
+Rail Brussels Amsterdam 210.0 200.0
+Rail Amsterdam Berlin 650.0 200.0
+Rail Berlin Munich 585.0 250.0
+Rail Berlin Prague 350.0 200.0
+Rail Berlin Frankfurt 545.0 250.0
+Rail Frankfurt Munich 390.0 250.0
+Rail Frankfurt Zurich 380.0 200.0
+Rail Munich Zurich 310.0 200.0
+Rail Munich Vienna 440.0 250.0
+Rail Munich Milan 490.0 200.0
+Rail Zurich Milan 290.0 200.0
+Rail Milan Rome 570.0 300.0
+Rail Milan Lyon 480.0 200.0
+Rail Lyon Marseille 315.0 320.0
+Rail Marseille Milan 530.0 200.0
+Rail Vienna Prague 330.0 200.0
+Rail Rome Vienna 1100.0 180.0
+Rail Bordeaux Lyon 550.0 250.0
+Event "Signal Failure" 0.08 2h Paris
+Event "Track Maintenance" 0.05 4h Berlin
+Event "Weather Delay" 0.1 1h London
+Event Sciopero 0.1 6h Rome
+Event "Greve Geral" 0.05 8h Lisboa
+Event Huelga 0.05 4h Madrid
+Event Sturm 0.1 2h Munich

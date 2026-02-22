@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 15:23:38 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -82,6 +82,8 @@ class Simulation
 	void applyBlocking(std::vector<TrainState> &states);
 	std::vector<const Event *> getEventsAtNode(
 		const std::string &nodeName) const;
+	std::vector<const Event *> getEventsOnSegment(
+		const std::string &from, const std::string &to) const;
 };
 
 #endif

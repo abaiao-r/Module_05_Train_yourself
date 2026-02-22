@@ -1,0 +1,50 @@
+Node LaDefense
+Node CharlesDeGaulle
+Node Nation
+Node Chatelet
+Node GareduNord
+Node GareDeLyon
+Node Montparnasse
+Node Opera
+Node Republique
+Node Bastille
+Node Concorde
+Node Belleville
+Node GareDeLEst
+Node SaintLazare
+Node Pigalle
+Node Oberkampf
+Node Bercy
+Node Denfert
+Node Invalides
+Node Trocadero
+Rail LaDefense Concorde 8.5 70.0
+Rail Concorde Chatelet 1.5 70.0
+Rail Chatelet GareDeLyon 1.8 70.0
+Rail GareDeLyon Nation 3.5 70.0
+Rail Chatelet GareduNord 2.0 70.0
+Rail GareduNord GareDeLEst 0.5 70.0
+Rail GareDeLEst Republique 0.8 70.0
+Rail Republique Nation 2.0 70.0
+Rail Republique Oberkampf 0.5 70.0
+Rail Oberkampf Bastille 0.8 70.0
+Rail Bastille GareDeLyon 0.6 70.0
+Rail Chatelet Republique 1.5 70.0
+Rail Opera SaintLazare 0.7 70.0
+Rail SaintLazare Pigalle 1.5 70.0
+Rail Pigalle GareduNord 0.8 70.0
+Rail Opera Concorde 0.9 70.0
+Rail Concorde Invalides 0.7 70.0
+Rail Invalides Montparnasse 2.0 70.0
+Rail Montparnasse Denfert 1.5 70.0
+Rail Denfert GareDeLyon 2.5 70.0
+Rail Belleville Republique 1.0 70.0
+Rail Belleville Oberkampf 0.6 70.0
+Rail GareDeLyon Bercy 1.2 70.0
+Rail Trocadero Concorde 2.0 70.0
+Rail CharlesDeGaulle GareduNord 25.0 120.0
+Event "Colis Suspect" 0.1 30m Chatelet
+Event "Voyageur Malade" 0.15 10m GareduNord
+Event "Panne de Signal" 0.08 20m GareDeLyon
+Event "Greve RATP" 0.05 12h Opera
+Event "Porte Bloquee" 0.2 3m Republique
