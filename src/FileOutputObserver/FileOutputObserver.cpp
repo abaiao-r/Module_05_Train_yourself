@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 15:35:20 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -69,9 +69,10 @@ FileOutputObserver::~FileOutputObserver()
 
 /* ---- Observer callbacks ---- */
 void FileOutputObserver::onTrainStart(const std::string &trainName,
+									  int trainId,
 									  double estimatedTimeSec)
 {
-	_file << "Train : " << trainName << "\n";
+	_file << "Train : " << trainName << trainId << "\n";
 	_file << "Final travel time : " << fmtTimeShort(estimatedTimeSec)
 		  << "m\n\n";
 }

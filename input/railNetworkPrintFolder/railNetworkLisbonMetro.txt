@@ -1,0 +1,73 @@
+Node Aeroporto
+Node Encarnacao
+Node Moscavide
+Node Oriente
+Node Olivais
+Node CaboRuivo
+Node Chelas
+Node BelaVista
+Node Olaias
+Node Alameda
+Node Saldanha
+Node SaoSebastiao
+Node Parque
+Node MarquesDePombal
+Node Rato
+Node Picoas
+Node CampoPequeno
+Node EntreCampos
+Node CidadeUniversitaria
+Node CampoGrande
+Node Alvalade
+Node Roma
+Node Areeiro
+Node Arroios
+Node Anjos
+Node Intendente
+Node MartimMoniz
+Node Rossio
+Node BaixaChiado
+Node CaisSodre
+Node Restauradores
+Node Terreiro
+Node SantaApolonia
+Node Telheiras
+Rail Aeroporto Encarnacao 1.5 60.0
+Rail Encarnacao Moscavide 1.2 60.0
+Rail Moscavide Oriente 1.0 60.0
+Rail Oriente Olivais 1.0 60.0
+Rail Olivais CaboRuivo 0.8 60.0
+Rail CaboRuivo Chelas 1.0 60.0
+Rail Chelas BelaVista 0.7 60.0
+Rail BelaVista Olaias 0.8 60.0
+Rail Olaias Alameda 1.2 60.0
+Rail Alameda Saldanha 0.7 60.0
+Rail Saldanha SaoSebastiao 0.5 60.0
+Rail SaoSebastiao Parque 0.6 60.0
+Rail Parque MarquesDePombal 0.6 60.0
+Rail MarquesDePombal Rato 0.7 60.0
+Rail MarquesDePombal Picoas 0.5 60.0
+Rail Picoas Saldanha 0.4 60.0
+Rail Saldanha CampoPequeno 0.6 60.0
+Rail CampoPequeno EntreCampos 0.6 60.0
+Rail EntreCampos CidadeUniversitaria 0.7 60.0
+Rail CidadeUniversitaria CampoGrande 0.8 60.0
+Rail CampoGrande Telheiras 1.2 60.0
+Rail CampoGrande Alvalade 0.8 60.0
+Rail Alvalade Roma 0.6 60.0
+Rail Roma Areeiro 0.6 60.0
+Rail Areeiro Alameda 0.5 60.0
+Rail Alameda Arroios 0.5 60.0
+Rail Arroios Anjos 0.4 60.0
+Rail Anjos Intendente 0.4 60.0
+Rail Intendente MartimMoniz 0.5 60.0
+Rail MartimMoniz Rossio 0.4 60.0
+Rail Rossio BaixaChiado 0.3 60.0
+Rail BaixaChiado CaisSodre 0.6 60.0
+Rail MarquesDePombal Restauradores 0.8 60.0
+Rail Restauradores BaixaChiado 0.4 60.0
+Rail BaixaChiado Terreiro 0.5 60.0
+Rail Terreiro SantaApolonia 0.8 60.0
+Event "Avaria na Porta" 0.15 5m Oriente
+Event "Passageiro Indisposto" 0.1 10m Alameda
+Event "Sinal Avariado" 0.08 15m BaixaChiado

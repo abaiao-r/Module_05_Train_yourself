@@ -1,0 +1,8 @@
+MetroVerm01 40 0.06 200.0 40.0 Aeroporto SaoSebastiao 06h30 00h01
+MetroVerm02 40 0.06 200.0 40.0 SaoSebastiao Aeroporto 06h35 00h01
+MetroVerde01 40 0.06 200.0 40.0 Telheiras CaisSodre 07h00 00h01
+MetroVerde02 40 0.06 200.0 40.0 CaisSodre Telheiras 07h05 00h01
+MetroAzul01 40 0.06 200.0 40.0 SantaApolonia Restauradores 08h00 00h01
+MetroAzul02 40 0.06 200.0 40.0 Restauradores SantaApolonia 08h10 00h01
+MetroAmar01 40 0.06 200.0 40.0 Rato CampoGrande 08h30 00h01
+MetroAmar02 40 0.06 200.0 40.0 CampoGrande Rato 08h40 00h01

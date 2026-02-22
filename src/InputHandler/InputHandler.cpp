@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 10:00:00 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -101,6 +101,7 @@ SimulationData InputHandler::loadData(const std::string &networkFile,
 	SimulationData data;
 	parseNetworkFile(networkFile, data.network, data.events);
 	data.trains = parseTrainFile(trainFile);
+	validateData(networkFile, trainFile, data);
 	return data;
 }
 
@@ -114,8 +115,10 @@ void InputHandler::parseNetworkFile(const std::string &filepath,
 		throw ParseException("Cannot open file: " + filepath);
 
 	std::string line;
+	int lineNum = 0;
 	while (std::getline(file, line))
 	{
+		++lineNum;
 		if (line.empty())
 			continue;
 
@@ -123,36 +126,49 @@ void InputHandler::parseNetworkFile(const std::string &filepath,
 		std::string keyword;
 		iss >> keyword;
 
-		if (keyword == "Node")
+		try
 		{
-			std::string name = parseQuotedOrWord(iss);
-			if (name.empty())
-				throw ParseException("Missing node name: " + line);
-			network.addNode(name);
+			if (keyword == "Node")
+			{
+				std::string name = parseQuotedOrWord(iss);
+				if (name.empty())
+					throw ParseException("Missing node name");
+				network.addNode(name);
+			}
+			else if (keyword == "Event")
+			{
+				std::string name = parseQuotedOrWord(iss);
+				double probability;
+				std::string durationStr, nodeName, nodeName2;
+				iss >> probability >> durationStr >> nodeName;
+				if (name.empty() || durationStr.empty()
+					|| nodeName.empty())
+					throw ParseException("Invalid event line");
+				/* Optional second node → rail segment event */
+				iss >> nodeName2;
+				events.emplace_back(name, probability,
+									parseDuration(durationStr), nodeName,
+									nodeName2);
+			}
+			else if (keyword == "Rail")
+			{
+				std::string from, to;
+				double distance, speedLimit;
+				iss >> from >> to >> distance >> speedLimit;
+				if (iss.fail() || from.empty() || to.empty())
+					throw ParseException("Invalid rail line");
+				network.addConnection(from, to, distance, speedLimit);
+			}
+			else
+			{
+				throw ParseException("Unknown keyword '" + keyword
+									 + "'");
+			}
 		}
-		else if (keyword == "Event")
+		catch (const std::exception &e)
 		{
-			std::string name = parseQuotedOrWord(iss);
-			double probability;
-			std::string durationStr, nodeName;
-			iss >> probability >> durationStr >> nodeName;
-			if (name.empty() || durationStr.empty() || nodeName.empty())
-				throw ParseException("Invalid event line: " + line);
-			events.emplace_back(name, probability,
-								parseDuration(durationStr), nodeName);
-		}
-		else if (keyword == "Rail")
-		{
-			std::string from, to;
-			double distance, speedLimit;
-			iss >> from >> to >> distance >> speedLimit;
-			if (iss.fail() || from.empty() || to.empty())
-				throw ParseException("Invalid rail line: " + line);
-			network.addConnection(from, to, distance, speedLimit);
-		}
-		else
-		{
-			throw ParseException("Unknown keyword: " + keyword);
+			throw ParseException(filepath + ":" + std::to_string(lineNum)
+								 + ": " + e.what());
 		}
 	}
 }
@@ -166,23 +182,35 @@ std::vector<std::unique_ptr<Train>> InputHandler::parseTrainFile(
 
 	std::vector<std::unique_ptr<Train>> trains;
 	std::string line;
+	int lineNum = 0;
 	while (std::getline(file, line))
 	{
+		++lineNum;
 		if (line.empty())
 			continue;
 
-		std::istringstream iss(line);
-		std::string name;
-		double weight, friction, accel, brake;
-		std::string departure, arrival, timeStr, stopStr;
-		iss >> name >> weight >> friction >> accel >> brake >> departure
-			>> arrival >> timeStr >> stopStr;
-		if (iss.fail() || name.empty() || departure.empty()
-			|| arrival.empty() || timeStr.empty() || stopStr.empty())
-			throw ParseException("Invalid train line: " + line);
-		trains.push_back(TrainFactory::createTrain(
-			name, weight, friction, accel, brake, departure, arrival,
-			parseTime(timeStr), parseTime(stopStr)));
+		try
+		{
+			std::istringstream iss(line);
+			std::string name;
+			double weight, friction, accel, brake;
+			std::string departure, arrival, timeStr, stopStr;
+			iss >> name >> weight >> friction >> accel >> brake
+				>> departure >> arrival >> timeStr >> stopStr;
+			if (iss.fail() || name.empty() || departure.empty()
+				|| arrival.empty() || timeStr.empty()
+				|| stopStr.empty())
+				throw ParseException("Invalid train line");
+			trains.push_back(TrainFactory::createTrain(
+				name, weight, friction, accel, brake, departure,
+				arrival, parseTime(timeStr), parseTime(stopStr)));
+		}
+		catch (const std::exception &e)
+		{
+			throw ParseException(filepath + ":"
+								 + std::to_string(lineNum) + ": "
+								 + e.what());
+		}
 	}
 	return trains;
 }
@@ -190,4 +218,88 @@ std::vector<std::unique_ptr<Train>> InputHandler::parseTrainFile(
 InputHandler::ParseException::ParseException(const std::string &msg)
 	: std::runtime_error(msg)
 {
+}
+
+/* ---- Cross-file validation ---- */
+void InputHandler::validateData(const std::string &networkFile,
+								const std::string &trainFile,
+								const SimulationData &data)
+{
+	/* Network must contain at least one node and one rail */
+	if (data.network.nodeCount() == 0)
+		throw ParseException(networkFile
+							 + ": Network file contains no nodes");
+	auto names = data.network.getNodeNames();
+	bool hasRails = false;
+	for (const auto &n : names)
+	{
+		if (!data.network.getNeighbours(n).empty())
+		{
+			hasRails = true;
+			break;
+		}
+	}
+	if (!hasRails)
+		throw ParseException(networkFile
+							 + ": Network file contains no rails");
+
+	/* Every event must reference existing node(s) */
+	for (const auto &ev : data.events)
+	{
+		bool found = false;
+		for (const auto &n : names)
+		{
+			if (n == ev.getNodeName())
+			{
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+			throw ParseException(
+				networkFile + ": Event '" + ev.getName()
+				+ "' references unknown node '" + ev.getNodeName()
+				+ "'");
+		/* Rail segment event: validate second node too */
+		if (ev.isRailEvent())
+		{
+			bool found2 = false;
+			for (const auto &n : names)
+			{
+				if (n == ev.getNodeName2())
+				{
+					found2 = true;
+					break;
+				}
+			}
+			if (!found2)
+				throw ParseException(
+					networkFile + ": Event '" + ev.getName()
+					+ "' references unknown node '"
+					+ ev.getNodeName2() + "'");
+		}
+	}
+
+	/* Every train must depart from and arrive at an existing node */
+	for (const auto &train : data.trains)
+	{
+		bool depFound = false, arrFound = false;
+		for (const auto &n : names)
+		{
+			if (n == train->getDepartureStation())
+				depFound = true;
+			if (n == train->getArrivalStation())
+				arrFound = true;
+		}
+		if (!depFound)
+			throw ParseException(
+				trainFile + ": Train '" + train->getName()
+				+ "' departs from unknown station '"
+				+ train->getDepartureStation() + "'");
+		if (!arrFound)
+			throw ParseException(
+				trainFile + ": Train '" + train->getName()
+				+ "' arrives at unknown station '"
+				+ train->getArrivalStation() + "'");
+	}
 }

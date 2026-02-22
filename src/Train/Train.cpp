@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 09:57:55 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,11 +15,11 @@
 #include "Node.hpp"
 
 /* ---- Canonical form ---- */
-Train::Train(const std::string &name, double weight, double friction,
+Train::Train(int id, const std::string &name, double weight, double friction,
 			 double accelForce, double brakeForce,
 			 const std::string &departure, const std::string &arrival,
 			 double departureTime, double stopDuration)
-	: _name(name), _weight(weight), _frictionCoefficient(friction),
+	: _id(id), _name(name), _weight(weight), _frictionCoefficient(friction),
 	  _maxAccelForce(accelForce), _maxBrakeForce(brakeForce),
 	  _departureStation(departure), _arrivalStation(arrival),
 	  _departureTime(departureTime), _stopDuration(stopDuration),
@@ -30,7 +30,7 @@ Train::Train(const std::string &name, double weight, double friction,
 }
 
 Train::Train(const Train &src)
-	: _name(src._name), _weight(src._weight),
+	: _id(src._id), _name(src._name), _weight(src._weight),
 	  _frictionCoefficient(src._frictionCoefficient),
 	  _maxAccelForce(src._maxAccelForce),
 	  _maxBrakeForce(src._maxBrakeForce),
@@ -49,6 +49,7 @@ Train &Train::operator=(const Train &src)
 {
 	if (this != &src)
 	{
+		_id = src._id;
 		_name = src._name;
 		_weight = src._weight;
 		_frictionCoefficient = src._frictionCoefficient;
@@ -103,6 +104,7 @@ void Train::setPathIndex(size_t idx) { _pathIndex = idx; }
 void Train::setCurrentTime(double t) { _currentTime = t; }
 
 /* ---- Getters ---- */
+int Train::getId() const { return _id; }
 const std::string &Train::getName() const { return _name; }
 double Train::getWeight() const { return _weight; }
 

@@ -6,16 +6,16 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Event.hpp"
 
 Event::Event(const std::string &name, double probability, double duration,
-			 const std::string &nodeName)
+			 const std::string &nodeName, const std::string &nodeName2)
 	: _name(name), _probability(probability), _duration(duration),
-	  _nodeName(nodeName)
+	  _nodeName(nodeName), _nodeName2(nodeName2)
 {
 	if (name.empty())
 		throw std::invalid_argument("Event name cannot be empty");
@@ -29,7 +29,8 @@ Event::Event(const std::string &name, double probability, double duration,
 
 Event::Event(const Event &src)
 	: _name(src._name), _probability(src._probability),
-	  _duration(src._duration), _nodeName(src._nodeName)
+	  _duration(src._duration), _nodeName(src._nodeName),
+	  _nodeName2(src._nodeName2)
 {
 }
 
@@ -41,6 +42,7 @@ Event &Event::operator=(const Event &src)
 		_probability = src._probability;
 		_duration = src._duration;
 		_nodeName = src._nodeName;
+		_nodeName2 = src._nodeName2;
 	}
 	return *this;
 }
@@ -59,3 +61,5 @@ const std::string &Event::getName() const { return _name; }
 double Event::getProbability() const { return _probability; }
 double Event::getDuration() const { return _duration; }
 const std::string &Event::getNodeName() const { return _nodeName; }
+const std::string &Event::getNodeName2() const { return _nodeName2; }
+bool Event::isRailEvent() const { return !_nodeName2.empty(); }

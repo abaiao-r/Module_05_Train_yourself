@@ -1,0 +1,42 @@
+Node Paris
+Node Lyon
+Node Marseille
+Node Bordeaux
+Node Lille
+Node Strasbourg
+Node Nantes
+Node Toulouse
+Node Montpellier
+Node Nice
+Node Rennes
+Node Dijon
+Node Avignon
+Node Metz
+Node Tours
+Rail Paris Lyon 465.0 320.0
+Rail Paris Lille 225.0 300.0
+Rail Paris Strasbourg 490.0 320.0
+Rail Paris Bordeaux 568.0 300.0
+Rail Paris Nantes 385.0 300.0
+Rail Paris Rennes 370.0 320.0
+Rail Paris Tours 235.0 300.0
+Rail Lyon Marseille 315.0 320.0
+Rail Lyon Dijon 190.0 160.0
+Rail Lyon Montpellier 305.0 300.0
+Rail Marseille Nice 200.0 160.0
+Rail Marseille Montpellier 170.0 300.0
+Rail Marseille Avignon 100.0 300.0
+Rail Bordeaux Toulouse 245.0 160.0
+Rail Toulouse Montpellier 240.0 160.0
+Rail Nantes Tours 215.0 200.0
+Rail Nantes Rennes 110.0 160.0
+Rail Strasbourg Dijon 310.0 200.0
+Rail Metz Strasbourg 165.0 200.0
+Rail Metz Lille 330.0 200.0
+Rail Avignon Montpellier 100.0 300.0
+Rail Tours Bordeaux 350.0 250.0
+Event "Greve SNCF" 0.1 8h Paris
+Event Mistral 0.15 1h Marseille
+Event "Tempete de Neige" 0.08 3h Lille
+Event "Travaux TGV" 0.05 2h Lyon
+Event Orage 0.1 30m Bordeaux

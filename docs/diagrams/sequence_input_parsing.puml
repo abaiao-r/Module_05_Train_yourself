@@ -36,6 +36,12 @@ group Read lines from network.txt
     IH -> IH : parseQuotedOrWord() → "Passenger's Discomfort"
     IH -> IH : parseDuration("30m") → 1800.0 seconds
     IH -> Ev ** : Event("Passenger's Discomfort", 0.2, 1800.0, "CityA")
+
+    IH -> IH : read line: Event "Track Maintenance" 0.1 45m CityA CityB
+    IH -> IH : parseQuotedOrWord() → "Track Maintenance"
+    IH -> IH : parseDuration("45m") → 2700.0 seconds
+    IH -> IH : read optional nodeName2 → "CityB" (rail segment event)
+    IH -> Ev ** : Event("Track Maintenance", 0.1, 2700.0, "CityA", "CityB")
 end
 
 == Train File Parsing (9-field format) ==
@@ -61,7 +67,7 @@ group Read lines from trains.txt
         TF -> TF : stopDuration ≥ 0? ✓
     end
 
-    TF -> T ** : make_unique<Train>(name, weight, friction, accelForce, brakeForce, dep, arr, time, stop)
+    TF -> T ** : make_unique<Train>(nextId++, name, weight, friction, accelForce, brakeForce, dep, arr, time, stop)
     TF --> IH : unique_ptr<Train>
 end
 

@@ -33,6 +33,7 @@ Connections are **bidirectional** — if CityA connects to CityB, CityB also con
 
 Each train has:
 - A **name** (unique identifier)
+- A **unique numeric ID** (auto-assigned by the factory, starting at 1)
 - **Weight** in metric tons (must be positive)
 - **Friction coefficient** μ (must be non-negative)
 - **Maximum acceleration force** in kilonewtons (must be positive)
@@ -87,16 +88,21 @@ When two trains occupy the **same segment** in the same direction, the train beh
 
 #### 8. Random Events (Disruptions)
 
-Events are bound to specific stations and have:
-- A **probability** (0.0 to 1.0) of triggering when a train arrives
+Events can occur at **specific stations** (node events) or on **rail segments** between two stations (rail events). Each event has:
+- A **probability** (0.0 to 1.0) of triggering
 - A **duration** (the delay in seconds if triggered)
+
+**Node events** trigger when a train arrives at the bound station. **Rail events** trigger when a train enters the bound segment (bidirectional match). Input format:
+
+- Node event: `Event <name> <probability> <duration> <node_name>`
+- Rail event: `Event <name> <probability> <duration> <node_name1> <node_name2>`
 
 When triggered, the train's clock advances by the event's duration, and the delay is accumulated.
 
 #### 9. Per-Train Output Files (Observer Pattern)
 
 Each train produces a result file named `TrainName_DepartureTime.result` containing:
-- **Header**: train name + estimated travel time
+- **Header**: train name + ID + ID + estimated travel time
 - **Timestep lines** (every 60 seconds): `[time] - [from][to] - [dist remaining] - [action] - [rail graph]`
 - **Rail graph**: 1 cell per km — `[x]` = this train's position, `[O]` = blocking train, `[ ]` = empty
 - **Event notifications** when triggered
@@ -227,12 +233,14 @@ tests/
 ├── NodeTest.cpp                          5 tests
 ├── RailNetworkTest.cpp                   14 tests
 ├── TrainTest.cpp                         14 tests (including physics)
-├── EventTest.cpp                         10 tests
+├── EventTest.cpp                         13 tests
 ├── DijkstraTest.cpp                      11 tests
-├── InputHandlerTest.cpp                  10 tests (including 9-field parsing)
-├── TrainFactoryTest.cpp                  10 tests (including weight/friction/stop validation)
+├── InputHandlerTest.cpp                  28 tests (including validation & rail events)
+├── TrainFactoryTest.cpp                  11 tests (including weight/friction/stop/ID validation)
 ├── OutputManagerTest.cpp                 5 tests
-└── IntegrationTest.cpp                   7 tests  (end-to-end with .result file checks)
+├── IntegrationTest.cpp                   7 tests  (end-to-end with .result file checks)
+├── EdgeCaseTest.cpp                      9 tests  (boundary values & error handling)
+└── CombinationTest.cpp                   315 tests (exhaustive parameter combinations)
 ```
 
 ## Design Patterns
@@ -256,7 +264,7 @@ public:
 
 ### Factory — Train Creation
 
-`TrainFactory::createTrain()` validates all 9 parameters before constructing a `Train`. Invalid input (empty name, zero weight, negative friction, zero forces, negative departure time, negative stop duration, same departure/arrival) throws `std::invalid_argument`.
+`TrainFactory::createTrain()` validates all 9 parameters before constructing a `Train`. It auto-assigns an incrementing unique **numeric ID** (starting at 1) to each train. Invalid input (empty name, zero weight, negative friction, zero forces, negative departure time, negative stop duration, same departure/arrival) throws `std::invalid_argument`.
 
 ### Observer — Simulation Output
 
@@ -266,7 +274,7 @@ public:
 class ISimulationObserver {
 public:
     virtual ~ISimulationObserver() = default;
-    virtual void onTrainStart(const std::string &trainName, double estimatedTimeSec) = 0;
+    virtual void onTrainStart(const std::string &trainName, int trainId, double estimatedTimeSec) = 0;
     virtual void onTrainStep(double timeSinceStart, const std::string &from,
                              const std::string &to, double distRemainingKm,
                              const std::string &action, int positionCellKm,
@@ -308,6 +316,7 @@ Undirected graph stored as `unordered_map<string, shared_ptr<Node>>` + `unordere
 ### Train
 
 Tracks a train's journey with physics properties. Key fields:
+- **id** (unique numeric identifier, auto-assigned by factory)
 - **weight** (metric tons), **frictionCoefficient** (μ), **maxAccelForce** / **maxBrakeForce** (kN)
 - **stopDuration** (seconds at each intermediate station)
 - **currentSpeed** (m/s), **posOnSegment** (metres on current edge)
@@ -334,11 +343,11 @@ Runtime simulation state per train, used by the `Simulation` loop:
 
 ### Event
 
-Probabilistic disruption bound to a node. `tryTrigger(rng)` rolls against `_probability` using a uniform distribution. Duration is in seconds.
+Probabilistic disruption bound to a node or a rail segment. A **node event** has a single `_nodeName`; a **rail event** additionally stores `_nodeName2` (the other end of the segment). `isRailEvent()` returns `true` when `_nodeName2` is non-empty. `tryTrigger(rng)` rolls against `_probability` using a uniform distribution. Duration is in seconds.
 
 ### InputHandler
 
-Static utility. Parses two text files into a `SimulationData` struct. Train format: `name weight friction accelForce brakeForce departure arrival time stopDuration`. Supports quoted event names (`"Passenger's Discomfort"`), duration units (`30m`, `48h`, `356d`), and time format (`14h10`).
+Static utility. Parses two text files into a `SimulationData` struct. Train format: `name weight friction accelForce brakeForce departure arrival time stopDuration`. Event format: `Event <name> <probability> <duration> <node> [node2]`. Supports quoted event names (`"Passenger's Discomfort"`), duration units (`30m`, `48h`, `356d`), and time format (`14h10`). An optional second node name makes the event a rail segment event.
 
 ### Simulation
 
