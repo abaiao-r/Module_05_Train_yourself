@@ -1,0 +1,35 @@
+Node Lisboa
+Node Santarem
+Node Entroncamento
+Node Coimbra
+Node Aveiro
+Node Porto
+Node Campanha
+Node Braga
+Node Guimaraes
+Node Guarda
+Node Evora
+Node Faro
+Node Tunes
+Node Leiria
+Rail Lisboa Santarem 78.0 160.0
+Rail Santarem Entroncamento 32.0 160.0
+Rail Entroncamento Coimbra 82.0 160.0
+Rail Coimbra Aveiro 62.0 160.0
+Rail Aveiro Porto 68.0 160.0
+Rail Porto Campanha 3.0 80.0
+Rail Campanha Braga 53.0 120.0
+Rail Campanha Guimaraes 55.0 100.0
+Rail Porto Guarda 202.0 120.0
+Rail Guarda Coimbra 160.0 120.0
+Rail Lisboa Evora 130.0 120.0
+Rail Lisboa Faro 278.0 160.0
+Rail Faro Tunes 30.0 120.0
+Rail Entroncamento Leiria 58.0 80.0
+Rail Leiria Coimbra 72.0 80.0
+Event Greve 0.05 4h Lisboa
+Event "Mau Tempo" 0.15 30m Porto
+Event "Obras na Via" 0.1 2h Entroncamento
+Event "Passageiro Indisposto" 0.2 15m Coimbra
+Event Atraso 0.1 20m Campanha
+Event "Deslizamento de Terras" 0.08 1h Lisboa Santarem

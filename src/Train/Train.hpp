@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 09:57:55 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,6 +30,7 @@ enum class TrainStatus
 class Train
 {
   private:
+	int _id;
 	std::string _name;
 	double _weight;             // metric tons
 	double _frictionCoefficient;
@@ -49,7 +50,7 @@ class Train
 	double _posOnSegment;       // metres on current segment
 
   public:
-	Train(const std::string &name, double weight, double friction,
+	Train(int id, const std::string &name, double weight, double friction,
 		  double accelForce, double brakeForce,
 		  const std::string &departure, const std::string &arrival,
 		  double departureTime, double stopDuration);
@@ -66,6 +67,7 @@ class Train
 	void setPathIndex(size_t idx);
 	void setCurrentTime(double t);
 
+	int getId() const;
 	const std::string &getName() const;
 	double getWeight() const;
 	double getFrictionCoefficient() const;

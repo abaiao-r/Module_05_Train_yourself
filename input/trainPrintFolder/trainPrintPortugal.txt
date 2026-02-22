@@ -1,0 +1,8 @@
+AlfaPendular 130 0.04 500.0 60.0 Lisboa Porto 07h00 00h05
+Intercidades01 100 0.05 400.0 50.0 Lisboa Faro 08h30 00h10
+Regional01 80 0.06 300.0 40.0 Porto Coimbra 09h00 00h08
+Intercidades02 100 0.05 400.0 50.0 Porto Guarda 10h15 00h10
+AlfaPendular02 130 0.04 500.0 60.0 Porto Lisboa 07h30 00h05
+Regional02 80 0.06 300.0 40.0 Coimbra Aveiro 11h00 00h08
+Suburbano01 60 0.07 250.0 35.0 Lisboa Santarem 06h45 00h03
+InterRegional 90 0.05 350.0 45.0 Braga Lisboa 06h00 00h07

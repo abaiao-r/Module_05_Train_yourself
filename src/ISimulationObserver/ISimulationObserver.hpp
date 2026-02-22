@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 09:57:55 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,7 @@ class ISimulationObserver
 	virtual ~ISimulationObserver() = default;
 
 	/** Called once before the simulation loop starts for a train. */
-	virtual void onTrainStart(const std::string &trainName,
+	virtual void onTrainStart(const std::string &trainName, int trainId,
 							  double estimatedTimeSec) = 0;
 
 	/** Called at each output interval during the simulation. */

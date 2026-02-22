@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 10:02:58 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:28:48 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,8 +22,9 @@ int main()
 	Test::TestSuite suite("Train");
 
 	suite.run("constructor sets all fields", [](std::string &msg) {
-		Train t("Express", 80.0, 0.05, 356.0, 30.0, "CityA", "CityB",
+		Train t(1, "Express", 80.0, 0.05, 356.0, 30.0, "CityA", "CityB",
 				50400.0, 600.0);
+		ASSERT_EQ(1, t.getId(), msg);
 		ASSERT_STR_EQ(std::string("Express"), t.getName(), msg);
 		ASSERT_TRUE(t.getWeight() == 80.0, msg);
 		ASSERT_TRUE(t.getFrictionCoefficient() == 0.05, msg);
@@ -38,7 +39,7 @@ int main()
 	});
 
 	suite.run("setPath and getPath work", [](std::string &msg) {
-		Train t("T1", 80.0, 0.05, 356.0, 30.0, "A", "C", 0.0, 0.0);
+		Train t(2, "T1", 80.0, 0.05, 356.0, 30.0, "A", "C", 0.0, 0.0);
 		auto a = std::make_shared<Node>("A");
 		auto b = std::make_shared<Node>("B");
 		auto c = std::make_shared<Node>("C");
@@ -49,7 +50,7 @@ int main()
 	});
 
 	suite.run("advanceToNextNode updates state", [](std::string &msg) {
-		Train t("T2", 80.0, 0.05, 356.0, 30.0, "A", "C", 1000.0, 0.0);
+		Train t(3, "T2", 80.0, 0.05, 356.0, 30.0, "A", "C", 1000.0, 0.0);
 		auto a = std::make_shared<Node>("A");
 		auto b = std::make_shared<Node>("B");
 		auto c = std::make_shared<Node>("C");
@@ -63,7 +64,7 @@ int main()
 
 	suite.run("advanceToNextNode marks arrived at end",
 			  [](std::string &msg) {
-				  Train t("T3", 80.0, 0.05, 356.0, 30.0, "A", "B",
+				  Train t(4, "T3", 80.0, 0.05, 356.0, 30.0, "A", "B",
 						  0.0, 0.0);
 				  auto a = std::make_shared<Node>("A");
 				  auto b = std::make_shared<Node>("B");
@@ -74,7 +75,7 @@ int main()
 			  });
 
 	suite.run("applyDelay accumulates", [](std::string &msg) {
-		Train t("T4", 80.0, 0.05, 356.0, 30.0, "A", "B", 0.0, 0.0);
+		Train t(5, "T4", 80.0, 0.05, 356.0, 30.0, "A", "B", 0.0, 0.0);
 		t.applyDelay(60.0);
 		t.applyDelay(120.0);
 		ASSERT_TRUE(t.getTotalDelay() == 180.0, msg);
@@ -83,7 +84,7 @@ int main()
 	});
 
 	suite.run("copy constructor works", [](std::string &msg) {
-		Train original("Orig", 60.0, 0.04, 412.0, 40.0, "X", "Y",
+		Train original(6, "Orig", 60.0, 0.04, 412.0, 40.0, "X", "Y",
 					   3600.0, 600.0);
 		Train copy(original);
 		ASSERT_STR_EQ(original.getName(), copy.getName(), msg);
@@ -117,7 +118,7 @@ int main()
 
 	suite.run("getCurrentNodeName empty path returns empty",
 			  [](std::string &msg) {
-				  Train t("T", 80.0, 0.05, 356.0, 30.0, "A", "B",
+				  Train t(7, "T", 80.0, 0.05, 356.0, 30.0, "A", "B",
 						  0.0, 0.0);
 				  ASSERT_STR_EQ(std::string(""), t.getCurrentNodeName(),
 								msg);
@@ -126,7 +127,7 @@ int main()
 
 	suite.run("advanceToNextNode on empty path is safe",
 			  [](std::string &msg) {
-				  Train t("T", 80.0, 0.05, 356.0, 30.0, "A", "B",
+				  Train t(8, "T", 80.0, 0.05, 356.0, 30.0, "A", "B",
 						  0.0, 0.0);
 				  t.advanceToNextNode(100.0);
 				  ASSERT_EQ(0u, t.getPathIndex(), msg);
@@ -135,7 +136,7 @@ int main()
 
 	suite.run("hasArrived is false after construction",
 			  [](std::string &msg) {
-				  Train t("T", 80.0, 0.05, 356.0, 30.0, "A", "B",
+				  Train t(9, "T", 80.0, 0.05, 356.0, 30.0, "A", "B",
 						  0.0, 0.0);
 				  ASSERT_FALSE(t.hasArrived(), msg);
 				  return true;
@@ -143,7 +144,7 @@ int main()
 
 	suite.run("getAccelRate returns correct value",
 			  [](std::string &msg) {
-				  Train t("T", 80.0, 0.05, 356.0, 30.0, "A", "B",
+				  Train t(10, "T", 80.0, 0.05, 356.0, 30.0, "A", "B",
 						  0.0, 0.0);
 				  double rate = t.getAccelRate();
 				  // F_net = 356000 - 0.05*80000*9.81 = 356000 - 39240
@@ -154,7 +155,7 @@ int main()
 
 	suite.run("getDecelRate returns correct value",
 			  [](std::string &msg) {
-				  Train t("T", 80.0, 0.05, 356.0, 30.0, "A", "B",
+				  Train t(11, "T", 80.0, 0.05, 356.0, 30.0, "A", "B",
 						  0.0, 0.0);
 				  double rate = t.getDecelRate();
 				  // decel = (30000 + 0.05*80000*9.81) / 80000
@@ -163,8 +164,27 @@ int main()
 				  return true;
 			  });
 
+	suite.run("copy constructor preserves ID", [](std::string &msg) {
+		Train original(42, "Orig", 60.0, 0.04, 412.0, 40.0, "X", "Y",
+					   3600.0, 600.0);
+		Train copy(original);
+		ASSERT_EQ(42, copy.getId(), msg);
+		return true;
+	});
+
+	suite.run("assignment operator preserves ID", [](std::string &msg) {
+		Train a(7, "A", 60.0, 0.04, 412.0, 40.0, "X", "Y", 3600.0,
+				600.0);
+		Train b(99, "B", 80.0, 0.05, 356.0, 30.0, "P", "Q", 0.0,
+				0.0);
+		b = a;
+		ASSERT_EQ(7, b.getId(), msg);
+		ASSERT_STR_EQ(std::string("A"), b.getName(), msg);
+		return true;
+	});
+
 	suite.run("currentSpeed initially zero", [](std::string &msg) {
-		Train t("T", 80.0, 0.05, 356.0, 30.0, "A", "B", 0.0, 0.0);
+		Train t(12, "T", 80.0, 0.05, 356.0, 30.0, "A", "B", 0.0, 0.0);
 		ASSERT_TRUE(t.getCurrentSpeed() == 0.0, msg);
 		ASSERT_TRUE(t.getPosOnSegment() == 0.0, msg);
 		return true;
