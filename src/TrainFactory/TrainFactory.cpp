@@ -6,13 +6,17 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 09:57:55 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "TrainFactory.hpp"
 
 #include <stdexcept>
+
+int TrainFactory::_nextId = 1;
+
+void TrainFactory::resetIdCounter() { _nextId = 1; }
 
 std::unique_ptr<Train> TrainFactory::createTrain(
 	const std::string &name, double weight, double friction,
@@ -38,7 +42,7 @@ std::unique_ptr<Train> TrainFactory::createTrain(
 		throw std::invalid_argument("Departure time cannot be negative");
 	if (stopDuration < 0.0)
 		throw std::invalid_argument("Stop duration cannot be negative");
-	return std::make_unique<Train>(name, weight, friction, accelForce,
-								   brakeForce, departure, arrival,
-								   departureTime, stopDuration);
+	return std::make_unique<Train>(_nextId++, name, weight, friction,
+								   accelForce, brakeForce, departure,
+								   arrival, departureTime, stopDuration);
 }

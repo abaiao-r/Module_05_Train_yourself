@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 16:10:08 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:18:37 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,10 +37,18 @@ int main()
 		return true;
 	});
 
-	suite.run("loads events including quoted names",
+	suite.run("loads events including quoted names and rail events",
 			  [](std::string &msg) {
 				  auto data = InputHandler::loadData(GOOD_NET, GOOD_TRN);
-				  ASSERT_EQ(5u, data.events.size(), msg);
+				  ASSERT_EQ(6u, data.events.size(), msg);
+				  /* Last event is a rail segment event */
+				  bool hasRailEvent = false;
+				  for (const auto &ev : data.events)
+				  {
+					  if (ev.isRailEvent())
+						  hasRailEvent = true;
+				  }
+				  ASSERT_TRUE(hasRailEvent, msg);
 				  return true;
 			  });
 
@@ -136,7 +144,7 @@ int main()
 				  ASSERT_THROWS(
 					  InputHandler::loadData(
 						  NET + "railNetworkNegativeDistance.txt", GOOD_TRN),
-					  std::invalid_argument, msg);
+					  InputHandler::ParseException, msg);
 				  return true;
 			  });
 
@@ -145,7 +153,7 @@ int main()
 				  ASSERT_THROWS(
 					  InputHandler::loadData(
 						  NET + "railNetworkZeroSpeed.txt", GOOD_TRN),
-					  std::invalid_argument, msg);
+					  InputHandler::ParseException, msg);
 				  return true;
 			  });
 
@@ -154,7 +162,7 @@ int main()
 				  ASSERT_THROWS(
 					  InputHandler::loadData(
 						  NET + "railNetworkSelfLoop.txt", GOOD_TRN),
-					  std::invalid_argument, msg);
+					  InputHandler::ParseException, msg);
 				  return true;
 			  });
 
@@ -163,7 +171,7 @@ int main()
 				  ASSERT_THROWS(
 					  InputHandler::loadData(
 						  NET + "railNetworkDuplicateNode.txt", GOOD_TRN),
-					  RailNetwork::DuplicateNodeException, msg);
+					  InputHandler::ParseException, msg);
 				  return true;
 			  });
 
@@ -172,7 +180,7 @@ int main()
 				  ASSERT_THROWS(
 					  InputHandler::loadData(
 						  NET + "railNetworkDuplicateRail.txt", GOOD_TRN),
-					  RailNetwork::DuplicateConnectionException, msg);
+					  InputHandler::ParseException, msg);
 				  return true;
 			  });
 
@@ -181,7 +189,7 @@ int main()
 				  ASSERT_THROWS(
 					  InputHandler::loadData(
 						  NET + "railNetworkUnknownNode.txt", GOOD_TRN),
-					  RailNetwork::NodeNotFoundException, msg);
+					  InputHandler::ParseException, msg);
 				  return true;
 			  });
 
@@ -241,13 +249,13 @@ int main()
 
 	/* ── Edge case valid inputs ── */
 
-	suite.run("empty network file loads zero nodes",
+	suite.run("empty network file throws",
 			  [](std::string &msg) {
-				  auto data = InputHandler::loadData(
-					  NET + "railNetworkEmpty.txt",
-					  TRN + "trainPrintEmpty.txt");
-				  ASSERT_EQ(0u, data.network.nodeCount(), msg);
-				  ASSERT_EQ(0u, data.trains.size(), msg);
+				  ASSERT_THROWS(
+					  InputHandler::loadData(
+						  NET + "railNetworkEmpty.txt",
+						  TRN + "trainPrintEmpty.txt"),
+					  InputHandler::ParseException, msg);
 				  return true;
 			  });
 

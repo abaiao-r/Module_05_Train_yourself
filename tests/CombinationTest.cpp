@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 17:00:00 by ctw03933          #+#    #+#             */
-/*   Updated: 2026/02/21 16:58:23 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/21 18:07:34 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,9 +51,14 @@ static const std::vector<std::string> NETWORK_FILES = {
 	"railNetworkDuplicateNode.txt",
 	"railNetworkDuplicateRail.txt",
 	"railNetworkEmpty.txt",
+	"railNetworkEurope.txt",
+	"railNetworkFrance.txt",
+	"railNetworkLisbonMetro.txt",
 	"railNetworkMinimal.txt",
 	"railNetworkMissingNodeName.txt",
 	"railNetworkNegativeDistance.txt",
+	"railNetworkParisMetro.txt",
+	"railNetworkPortugal.txt",
 	"railNetworkPrintGood.txt",
 	"railNetworkQuotedNames.txt",
 	"railNetworkSelfLoop.txt",
@@ -66,10 +71,15 @@ static const std::vector<std::string> TRAIN_FILES = {
 	"trainPrintBadTime.txt",
 	"trainPrintBadTimeFormat.txt",
 	"trainPrintEmpty.txt",
+	"trainPrintEurope.txt",
+	"trainPrintFrance.txt",
 	"trainPrintGood.txt",
 	"trainPrintIncomplete.txt",
 	"trainPrintLateNight.txt",
+	"trainPrintLisbonMetro.txt",
 	"trainPrintMidnight.txt",
+	"trainPrintParisMetro.txt",
+	"trainPrintPortugal.txt",
 	"trainPrintSingle.txt",
 	"trainPrintUnreachable.txt",
 };

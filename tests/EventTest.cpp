@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 03:22:12 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 13:10:31 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -97,6 +97,30 @@ int main()
 	suite.run("throws on empty node name", [](std::string &msg) {
 		ASSERT_THROWS(Event("Bad", 0.5, 100.0, ""),
 					  std::invalid_argument, msg);
+		return true;
+	});
+
+	suite.run("rail event with two nodes", [](std::string &msg) {
+		Event e("Storm", 0.3, 7200.0, "CityA", "CityB");
+		ASSERT_TRUE(e.isRailEvent(), msg);
+		ASSERT_STR_EQ(std::string("CityA"), e.getNodeName(), msg);
+		ASSERT_STR_EQ(std::string("CityB"), e.getNodeName2(), msg);
+		ASSERT_TRUE(e.getDuration() == 7200.0, msg);
+		return true;
+	});
+
+	suite.run("node event has empty nodeName2", [](std::string &msg) {
+		Event e("Riot", 0.1, 1000.0, "CityA");
+		ASSERT_FALSE(e.isRailEvent(), msg);
+		ASSERT_STR_EQ(std::string(""), e.getNodeName2(), msg);
+		return true;
+	});
+
+	suite.run("rail event copy preserves nodeName2", [](std::string &msg) {
+		Event original("Flood", 0.2, 3600.0, "NodeA", "NodeB");
+		Event copy(original);
+		ASSERT_TRUE(copy.isRailEvent(), msg);
+		ASSERT_STR_EQ(std::string("NodeB"), copy.getNodeName2(), msg);
 		return true;
 	});
 

@@ -59,7 +59,7 @@ group Create Observers & States
         Sim -> FObs ** : FileOutputObserver(trainName, departureTime)
         Sim -> Sim : TrainState { train*, segIdx=0, pos=0, speed=0, stopTimer=0 }
         Sim -> Sim : estimateTravelTime(train) → analytical estimate
-        Sim -> FObs : onTrainStart(trainName, estimatedTime)
+        Sim -> FObs : onTrainStart(trainName, trainId, estimatedTime)
     end
 end
 
@@ -91,12 +91,21 @@ group Concurrent Physics Loop (DT = 1s)
                     Sim -> Sim : handleSegmentTransition(state, idx)
                     Sim -> T : advanceToNextNode(...)
                     Sim -> OM : printArrival(train, node, time)
-                    group Event Check
+                    group Node Event Check
+                        Sim -> Sim : getEventsAtNode(nodeName)
                         Sim -> Ev : tryTrigger(rng)
                         alt event triggers
                             Sim -> T : applyDelay(duration)
                             Sim -> OM : printEvent(event, train)
                             Sim -> FObs : onTrainEvent(eventName, nodeName, delay)
+                        end
+                    end
+                    group Rail Segment Event Check
+                        Sim -> Sim : getEventsOnSegment(from, to)
+                        Sim -> Ev : tryTrigger(rng)
+                        alt event triggers
+                            Sim -> T : applyDelay(duration)
+                            Sim -> FObs : onTrainEvent(eventName, "from-to", delay)
                         end
                     end
                     alt not final destination

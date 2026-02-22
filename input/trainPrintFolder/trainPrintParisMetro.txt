@@ -1,0 +1,8 @@
+MetroL1west 40 0.06 200.0 40.0 LaDefense Nation 06h00 00h01
+MetroL1east 40 0.06 200.0 40.0 Nation LaDefense 06h05 00h01
+MetroL4nord 40 0.06 200.0 40.0 GareduNord Montparnasse 07h00 00h01
+MetroL4sud 40 0.06 200.0 40.0 Montparnasse GareduNord 07h10 00h01
+RERBcdg 60 0.05 250.0 45.0 CharlesDeGaulle GareDeLyon 05h30 00h02
+MetroL11 40 0.06 200.0 40.0 Chatelet Belleville 08h00 00h01
+MetroL13 40 0.06 200.0 40.0 SaintLazare Denfert 08h30 00h01
+MetroL6 40 0.06 200.0 40.0 Trocadero Nation 09h00 00h01
