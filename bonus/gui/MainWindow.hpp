@@ -6,13 +6,14 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef MAINWINDOW_HPP
 #define MAINWINDOW_HPP
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QGraphicsView>
 #include <QLabel>
@@ -20,6 +21,8 @@
 #include <QMainWindow>
 #include <QPushButton>
 #include <QSlider>
+#include <QSpinBox>
+#include <QSplitter>
 #include <QTextEdit>
 #include <QThread>
 #include <memory>
@@ -84,6 +87,8 @@ class MainWindow : public QMainWindow
 	void onSimError(const QString &msg);
 	void onSpeedChanged(int value);
 	void onFitGraph();
+	void onRunProgress(int currentRun, int totalRuns);
+	void onMultiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
 
   private:
 	void buildMenus();
@@ -115,6 +120,7 @@ class MainWindow : public QMainWindow
 	bool _simRunning;
 
 	/* ─── Widgets ───────────────────────────────────────────────────── */
+	QSplitter *_hSplit;
 	QGraphicsView *_view;
 	NetworkScene *_scene;
 	QListWidget *_nodeList;
@@ -123,10 +129,15 @@ class MainWindow : public QMainWindow
 	QListWidget *_eventList;
 	QTextEdit *_logView;
 	SimDashboard *_dashboard;
+
+	static constexpr int DASH_LIVE_W  = 420; /* px – fits BOX_INNER 56 */
+	static constexpr int DASH_STATS_W = 540; /* px – fits STAT_BOX 72  */
 	QPushButton *_runBtn;
 	QPushButton *_stopBtn;
 	QSlider *_speedSlider;
 	QLabel *_speedLabel;
+	QSpinBox *_runsSpinBox;
+	QCheckBox *_animateCheck;
 
 	/* ─── Preset combos ─────────────────────────────────────────────── */
 	QComboBox *_presetNetworkCombo;
