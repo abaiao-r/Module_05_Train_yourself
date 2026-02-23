@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   NetworkScene.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 14:04:59 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -253,6 +253,7 @@ void NetworkScene::clear()
 	_nodes.clear();
 	_edges.clear();
 	_trains.clear();
+	_trailLines.clear();
 }
 
 /* ================================================================== */
@@ -487,15 +488,18 @@ void NetworkScene::clearTrains()
 {
 	for (auto *seg : _trailLines)
 	{
-		removeItem(seg);
+		if (seg->scene() == this)
+			removeItem(seg);
 		delete seg;
 	}
 	_trailLines.clear();
 
 	for (auto it = _trains.begin(); it != _trains.end(); ++it)
 	{
-		removeItem(it.value().dot);
-		removeItem(it.value().label);
+		if (it.value().dot->scene() == this)
+			removeItem(it.value().dot);
+		if (it.value().label->scene() == this)
+			removeItem(it.value().label);
 		delete it.value().dot;
 		delete it.value().label;
 	}
