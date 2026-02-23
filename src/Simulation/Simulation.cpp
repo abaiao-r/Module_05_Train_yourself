@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/23 04:10:56 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,6 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
-#include <map>
 #include <utility>
 
 #include "Node.hpp"
@@ -29,7 +28,8 @@ Simulation::Simulation(RailNetwork network,
 					   PathWeightMode weightMode)
 	: _network(std::move(network)), _trains(std::move(trains)),
 	  _events(std::move(events)), _pathfinder(std::move(pathfinder)),
-	  _weightMode(weightMode), _rng(std::random_device{}())
+	  _weightMode(weightMode), _rng(std::random_device{}()),
+	  _quiet(false)
 {
 	if (!_pathfinder)
 		throw std::invalid_argument("Pathfinder cannot be null");
@@ -45,13 +45,27 @@ const std::vector<std::unique_ptr<Train>> &Simulation::getTrains() const
 	return _trains;
 }
 
+const std::vector<TrainResult> &Simulation::getResults() const
+{
+	return _results;
+}
+
+void Simulation::setAnimCallback(AnimTickCallback cb)
+{
+	_animCallback = std::move(cb);
+}
+
+void Simulation::setQuiet(bool q) { _quiet = q; }
+
 /* ---- Public ---- */
 void Simulation::run()
 {
-	_output.printNetwork(_network);
+	if (!_quiet)
+		_output.printNetwork(_network);
 	computePaths();
 
-	std::cout << "=== Simulation ===" << std::endl;
+	if (!_quiet)
+		std::cout << "=== Simulation ===" << std::endl;
 
 	/* Sort trains by departure time */
 	std::sort(_trains.begin(), _trains.end(),
@@ -126,7 +140,8 @@ void Simulation::run()
 				{
 					s.departed = true;
 					s.train->setStatus(TrainStatus::Running);
-					_output.printDeparture(*s.train);
+					if (!_quiet)
+						_output.printDeparture(*s.train);
 				}
 				continue;
 			}
@@ -245,6 +260,10 @@ void Simulation::run()
 
 		/* Overtaking / blocking check */
 		applyBlocking(states);
+
+		/* Live animation callback */
+		if (_animCallback)
+			_animCallback(simTime, states);
 	}
 
 	/* Finalize observer files */
@@ -254,13 +273,28 @@ void Simulation::run()
 									 states[i].timeSinceDepart);
 	}
 
-	_output.printResult(_trains);
+	if (!_quiet)
+		_output.printResult(_trains);
+
+	/* Collect per-train results */
+	_results.clear();
+	for (size_t i = 0; i < states.size(); i++)
+	{
+		TrainResult r;
+		r.name = states[i].train->getName();
+		r.id = states[i].train->getId();
+		r.estimatedTime = estimateTravelTime(*states[i].train);
+		r.actualTime = states[i].timeSinceDepart;
+		r.totalDelay = states[i].train->getTotalDelay();
+		_results.push_back(r);
+	}
 }
 
 /* ---- Path computation ---- */
 void Simulation::computePaths()
 {
-	std::cout << "=== Paths ===" << std::endl;
+	if (!_quiet)
+		std::cout << "=== Paths ===" << std::endl;
 	for (auto &train : _trains)
 	{
 		std::vector<std::shared_ptr<Node>> path;
@@ -284,9 +318,11 @@ void Simulation::computePaths()
 			continue;
 		}
 		train->setPath(path);
-		_output.printTrainPath(*train);
+		if (!_quiet)
+			_output.printTrainPath(*train);
 	}
-	std::cout << std::endl;
+	if (!_quiet)
+		std::cout << std::endl;
 }
 
 /* ---- Estimated travel time (analytical) ---- */
@@ -458,7 +494,8 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx)
 
 	/* Notify arrival at next node */
 	std::string arrNode = path[s.segmentIndex + 1]->getName();
-	_output.printArrival(*s.train, arrNode, s.train->getCurrentTime());
+	if (!_quiet)
+		_output.printArrival(*s.train, arrNode, s.train->getCurrentTime());
 
 	/* Trigger events at this node */
 	auto nodeEvents = getEventsAtNode(arrNode);
@@ -469,7 +506,8 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx)
 			double delay = event->getDuration();
 			s.train->applyDelay(delay);
 			s.timeSinceDepart += delay;
-			_output.printEvent(*event, *s.train);
+			if (!_quiet)
+				_output.printEvent(*event, *s.train);
 			_observers[trainIdx]->onTrainEvent(
 				event->getName(), event->getNodeName(), delay);
 		}
@@ -502,7 +540,8 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx)
 					double delay = event->getDuration();
 					s.train->applyDelay(delay);
 					s.timeSinceDepart += delay;
-					_output.printEvent(*event, *s.train);
+					if (!_quiet)
+						_output.printEvent(*event, *s.train);
 					std::string loc = event->getNodeName() + "-"
 									  + event->getNodeName2();
 					_observers[trainIdx]->onTrainEvent(
