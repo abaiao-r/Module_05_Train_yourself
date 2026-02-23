@@ -6,16 +6,16 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 12:26:07 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "FileOutputObserver.hpp"
 
+#include <filesystem>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
-#include <sys/stat.h>
 
 /* ---- Static helpers ---- */
 std::string FileOutputObserver::fmtTimeShort(double seconds)
@@ -31,7 +31,7 @@ std::string FileOutputObserver::fmtTimeShort(double seconds)
 
 static void ensureDir(const std::string &path)
 {
-	mkdir(path.c_str(), 0755);
+	std::filesystem::create_directories(path);
 }
 
 std::string FileOutputObserver::buildFilename(const std::string &trainName,

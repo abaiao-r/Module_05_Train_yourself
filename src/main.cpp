@@ -3,21 +3,21 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:22:01 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 13:36:29 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <sstream>
-#include <sys/stat.h>
 #include <vector>
 
 #include "DijkstraPathfinding.hpp"
@@ -26,6 +26,7 @@
 #include "InputHandler.hpp"
 #include "Simulation.hpp"
 #include "TerminalAnimDisplay.hpp"
+#include "TrainFactory.hpp"
 
 static void printHelp()
 {
@@ -35,11 +36,22 @@ static void printHelp()
 		<< "  --time              Optimise route by travel time "
 		<< "instead of distance\n"
 		<< "  --graph <file.dot>  Export network + paths as "
-		<< "Graphviz DOT file (default: output/graphs/)\n"
+		<< "Graphviz DOT file\n"
+		<< "                      Auto-renders PNG & SVG if graphviz is "
+		<< "installed\n"
+		<< "                      (default dir: output/graphs/)\n"
 		<< "  --animate           Show live terminal animation of "
 		<< "the simulation\n"
 		<< "  --runs N            Run simulation N times and report "
-		<< "average travel times\n\n"
+		<< "average travel times\n"
+		<< "  --help              Show this help message\n\n"
+		<< "=== Build targets ===\n"
+		<< "  make                Build the CLI binary (./bin/Train)\n"
+		<< "  make test           Run all test suites (unit + E2E)\n"
+		<< "  make bonus          Build the Qt 6 GUI (./bin/TrainGUI)\n"
+		<< "  make run-gui        Build and launch the GUI\n"
+		<< "  make run-animate    Run with terminal animation\n"
+		<< "  make run-multi      Run 1000 iterations with statistics\n\n"
 		<< "=== Input files ===\n"
 		<< "  Both input files use the .txt extension and must be\n"
 		<< "  placed in the input/ directory:\n"
@@ -85,8 +97,21 @@ static void printHelp()
 		<< "    TrainAB 80 0.05 356.0 30.0 CityA CityB 14h10 00h10\n"
 		<< "    TrainBC 60 0.04 300.0 25.0 CityB CityC 15h00 00h05\n\n"
 		<< "=== Output ===\n"
-		<< "  The program generates one .result file per train in\n"
-		<< "    output/results/TrainName_DepartureTime.result\n";
+		<< "  Per-train result files:\n"
+		<< "    output/results/TrainName_DepartureTime.result\n\n"
+		<< "  With --graph:\n"
+		<< "    <file>.dot   Graphviz source\n"
+		<< "    <file>.png   Rendered graph (if graphviz installed)\n"
+		<< "    <file>.svg   Rendered graph (if graphviz installed)\n\n"
+		<< "=== Bonus features ===\n"
+		<< "  --animate       Live terminal animation with progress "
+		<< "bars\n"
+		<< "  --runs N        Monte-Carlo statistics across N "
+		<< "simulation runs\n"
+		<< "  make bonus      Qt 6 GUI with CRUD, drag-and-drop, "
+		<< "dark theme,\n"
+		<< "                  presets, import/export, and live "
+		<< "simulation\n";
 }
 
 static std::string fmtTimeStat(double seconds)
@@ -195,6 +220,7 @@ int main(int argc, char **argv)
 
 		for (int run = 0; run < numRuns; run++)
 		{
+			TrainFactory::resetIdCounter();
 			auto data = InputHandler::loadData(argv[1], argv[2]);
 			auto pathfinder = std::make_unique<DijkstraPathfinding>();
 
@@ -237,8 +263,7 @@ int main(int argc, char **argv)
 			/* Export graph only on first run */
 			if (run == 0 && !graphFile.empty())
 			{
-				mkdir("output", 0755);
-				mkdir("output/graphs", 0755);
+				std::filesystem::create_directories("output/graphs");
 				if (graphFile.find('/') == std::string::npos)
 					graphFile = "output/graphs/" + graphFile;
 				GraphExporter::exportDot(graphFile, sim.getNetwork(),
