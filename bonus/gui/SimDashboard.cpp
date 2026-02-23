@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   SimDashboard.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/23 01:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 23:25:46 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -286,9 +286,13 @@ void SimDashboard::update(double simTime,
 			if (s.pathSize > 1)
 			{
 				double segCount = static_cast<double>(s.pathSize - 1);
-				frac = static_cast<double>(s.segmentIndex) / segCount;
-				if (s.segmentIndex + 1 < s.pathSize)
-					frac += (1.0 / segCount) * 0.5;
+				double withinSeg = 0.0;
+				if (s.segmentLength_m > 0.0)
+					withinSeg = s.posOnSegment_m / s.segmentLength_m;
+				if (withinSeg < 0.0) withinSeg = 0.0;
+				if (withinSeg > 1.0) withinSeg = 1.0;
+				frac = (static_cast<double>(s.segmentIndex) + withinSeg)
+					   / segCount;
 				if (frac > 1.0)
 					frac = 1.0;
 			}
