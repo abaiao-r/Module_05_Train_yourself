@@ -67,6 +67,7 @@ jobs:
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/IntegrationTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/EdgeCaseTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/CombinationTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/EndToEndTest
 
     - name: Valgrind - main program (default mode)
       run: |

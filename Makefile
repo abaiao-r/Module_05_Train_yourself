@@ -88,7 +88,8 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/OutputManagerTest \
 		$(BINDIR)/IntegrationTest \
 		$(BINDIR)/EdgeCaseTest \
-		$(BINDIR)/CombinationTest
+		$(BINDIR)/CombinationTest \
+		$(BINDIR)/EndToEndTest
 
 test: $(TESTS)
 	@echo ""
@@ -103,6 +104,7 @@ test: $(TESTS)
 	@./$(BINDIR)/IntegrationTest || exit 1
 	@./$(BINDIR)/EdgeCaseTest || exit 1
 	@./$(BINDIR)/CombinationTest || exit 1
+	@./$(BINDIR)/EndToEndTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -163,6 +165,11 @@ $(BINDIR)/EdgeCaseTest: $(TESTDIR)/EdgeCaseTest.cpp $(LIB_OBJS)
 $(BINDIR)/CombinationTest: $(TESTDIR)/CombinationTest.cpp $(LIB_OBJS)
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+# E2E test only needs TestFramework.hpp — runs ./bin/Train as subprocess
+$(BINDIR)/EndToEndTest: $(TESTDIR)/EndToEndTest.cpp $(BINDIR)/$(NAME)
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) -I$(TESTDIR) $< -o $@
 
 # ============================================================================ #
 #                                   UTILITY                                    #
