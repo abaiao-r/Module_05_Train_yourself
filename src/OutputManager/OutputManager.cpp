@@ -3,17 +3,18 @@
 /*                                                        :::      ::::::::   */
 /*   OutputManager.cpp                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 10:00:53 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "OutputManager.hpp"
 
-#include <cstdio>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 
 #include "Node.hpp"
 
@@ -33,9 +34,11 @@ std::string OutputManager::formatTime(double seconds)
 	int h = (totalSec / 3600) % 24;
 	int m = (totalSec % 3600) / 60;
 	int s = totalSec % 60;
-	char buf[16];
-	std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", h, m, s);
-	return buf;
+	std::ostringstream oss;
+	oss << std::setfill('0') << std::setw(2) << h << ":"
+		<< std::setw(2) << m << ":"
+		<< std::setw(2) << s;
+	return oss.str();
 }
 
 /* ---- Output methods ---- */
