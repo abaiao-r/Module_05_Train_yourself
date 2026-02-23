@@ -54,14 +54,6 @@ jobs:
           make CXX=clang++ test
         fi
 
-    - name: Test clean/fclean/re targets
-      run: |
-        if [ "${{ matrix.compiler }}" == 'gcc' ]; then
-          make CXX=g++ clean && make CXX=g++ fclean && make CXX=g++ re
-        elif [ "${{ matrix.compiler }}" == 'clang' ]; then
-          make CXX=clang++ clean && make CXX=clang++ fclean && make CXX=clang++ re
-        fi
-
     - name: Valgrind - tests
       run: |
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/NodeTest
@@ -91,3 +83,11 @@ jobs:
     - name: Valgrind - main program (--runs mode)
       run: |
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --runs 3
+
+    - name: Test clean/fclean/re targets
+      run: |
+        if [ "${{ matrix.compiler }}" == 'gcc' ]; then
+          make CXX=g++ clean && make CXX=g++ fclean && make CXX=g++ re
+        elif [ "${{ matrix.compiler }}" == 'clang' ]; then
+          make CXX=clang++ clean && make CXX=clang++ fclean && make CXX=clang++ re
+        fi
