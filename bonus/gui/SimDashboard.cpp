@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/23 01:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,7 @@ SimDashboard::SimDashboard(QWidget *parent) : QTextEdit(parent)
 {
 	setReadOnly(true);
 	setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 	setStyleSheet(
 		"QTextEdit {"
 		"  background: #0f172a;"
@@ -39,7 +39,7 @@ SimDashboard::SimDashboard(QWidget *parent) : QTextEdit(parent)
 		"  font-size: 11px;"
 		"  padding: 4px;"
 		"}");
-	setMinimumWidth(320);
+	setMinimumWidth(200);
 	clear();
 }
 
@@ -339,6 +339,131 @@ void SimDashboard::showResults(const QStringList &results)
 		html += boxRow("  " + r.toHtmlEscaped());
 
 	html += hRule(QString(QChar(0x255A)), QString(QChar(0x255D)), BOX_INNER);
+	html += "</pre>";
+
+	setHtml(html);
+}
+
+/* ── Show multi-run statistics ─────────────────────────────────────────── */
+
+void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
+									 int completedRuns)
+{
+	/* The stats table needs more width than the normal live view.
+	   Compute the box width dynamically:
+	   2 margin + 14 name + 5*(8 time + 2 gap) + 2 = 68 inner chars */
+	static constexpr int STAT_BOX = 72;
+
+	/* Local lambdas that use the wider box */
+	auto sHRule = [](const QString &left, const QString &right, int n) -> QString {
+		QString bar;
+		for (int i = 0; i < n; i++)
+			bar += QChar(0x2550);
+		return QString("<span style='color:%1;'>%2%3%4</span><br>")
+			.arg(C_BORDER, left, bar, right);
+	};
+
+	auto sBoxRow = [](const QString &html, int boxW) -> QString {
+		int vis = 0;
+		bool inTag = false;
+		for (int i = 0; i < html.size(); i++)
+		{
+			QChar c = html[i];
+			if (c == '<')          { inTag = true; continue; }
+			if (c == '>' && inTag) { inTag = false; continue; }
+			if (inTag) continue;
+			if (c == '&') {
+				int semi = html.indexOf(';', i + 1);
+				if (semi != -1 && semi - i < 10) i = semi;
+			}
+			vis++;
+		}
+		int pad = boxW - vis;
+		if (pad < 0) pad = 0;
+		QString spaces(pad, ' ');
+		return QString("<span style='color:%1;'>%2</span>%3%4"
+					   "<span style='color:%1;'>%5</span><br>")
+			.arg(C_BORDER,
+				 QString(QChar(0x2551)),
+				 html,
+				 spaces,
+				 QString(QChar(0x2551)));
+	};
+
+	QString html;
+	html += "<pre style='margin:0; line-height:1.4;'>";
+
+	/* Header */
+	html += sHRule(QString(QChar(0x2554)), QString(QChar(0x2557)), STAT_BOX);
+	html += sBoxRow(
+		QString("  <b style='color:%1;'>Multi-Run Statistics "
+				"\xe2\x9c\x93</b>  "
+				"<span style='color:%2;'>(%3 runs)</span>")
+			.arg(C_GREEN, C_DIM)
+			.arg(completedRuns),
+		STAT_BOX);
+	html += sHRule(QString(QChar(0x2560)), QString(QChar(0x2563)), STAT_BOX);
+
+	/* Column headers — fixed widths:
+	   2 margin + 14 name + 10 est + 10 avg + 10 min + 10 max + 10 delay = 66 */
+	QString hdr = QString(
+		"  <b style='color:%1;'>%-14s%-10s%-10s%-10s%-10s%-10s</b>")
+		.arg(C_CYAN);
+	/* Can't use %-14s with QString, so build manually */
+	auto pad = [](const QString &s, int w) -> QString {
+		if (s.length() >= w) return s.left(w);
+		return s + QString(w - s.length(), ' ');
+	};
+
+	html += sBoxRow(
+		QString("  <b style='color:%1;'>%2%3%4%5%6%7</b>")
+			.arg(C_CYAN)
+			.arg(pad("Train", 14))
+			.arg(pad("Est.", 10))
+			.arg(pad("Avg", 10))
+			.arg(pad("Min", 10))
+			.arg(pad("Max", 10))
+		+ QString("<b style='color:%1;'>%2</b>").arg(C_CYAN, pad("Delay", 8)),
+		STAT_BOX);
+
+	/* Separator */
+	QString sep;
+	for (int i = 0; i < STAT_BOX - 2; i++)
+		sep += QChar(0x2500);
+	html += sBoxRow(QString("  <span style='color:%1;'>%2</span>")
+					   .arg(C_DIM, sep), STAT_BOX);
+
+	/* Per-train rows */
+	for (const auto &s : stats)
+	{
+		QString name = s.name;
+		if (name.length() > 12)
+			name = name.left(11) + QChar(0x2026); /* … */
+
+		/* Determine delay colour */
+		const char *delayCol = C_GREEN;
+		if (s.avgDelay > 600)
+			delayCol = C_RED;
+		else if (s.avgDelay > 60)
+			delayCol = C_YELLOW;
+
+		html += sBoxRow(
+			QString("  <b>%1</b>"
+					"<span style='color:%2;'>%3</span>"
+					"<span style='color:%4;'>%5</span>"
+					"<span style='color:%6;'>%7</span>"
+					"<span style='color:%8;'>%9</span>"
+					"<span style='color:%10;'>%11</span>")
+				.arg(pad(name, 14))
+				.arg(C_DIM,     pad(fmtTime(s.estimated), 10))
+				.arg(C_YELLOW,  pad(fmtTime(s.avgActual), 10))
+				.arg(C_GREEN,   pad(fmtTime(s.minActual), 10))
+				.arg(C_RED,     pad(fmtTime(s.maxActual), 10))
+				.arg(delayCol,  pad(fmtTime(s.avgDelay), 8)),
+			STAT_BOX);
+	}
+
+	html += sHRule(QString(QChar(0x255A)), QString(QChar(0x255D)), STAT_BOX);
 	html += "</pre>";
 
 	setHtml(html);

@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,9 @@
 #include "InputHandler.hpp"
 #include "Node.hpp"
 #include "Simulation.hpp"
+#include "TrainFactory.hpp"
+
+#include <map>
 
 SimulationWorker::SimulationWorker(QObject *parent)
 	: QObject(parent) {}
@@ -159,6 +162,178 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 	catch (const SimulationStopException &)
 	{
 		emit finished(QStringList() << "--- Simulation stopped by user ---");
+	}
+	catch (const std::exception &e)
+	{
+		emit error(QString::fromStdString(e.what()));
+	}
+}
+
+/* ================================================================== */
+/*  runMulti — Monte-Carlo multi-run with optional first-run anim     */
+/* ================================================================== */
+
+void SimulationWorker::runMulti(const QString &networkFile,
+								const QString &trainFile,
+								bool useTimeWeight,
+								int numRuns,
+								bool animateFirst)
+{
+	_stopRequested.store(false, std::memory_order_relaxed);
+
+	try
+	{
+		/* Ensure CWD is the project root */
+		QDir projectRoot(QCoreApplication::applicationDirPath());
+		projectRoot.cdUp();
+		projectRoot.cdUp();
+		projectRoot.cdUp();
+		projectRoot.cdUp();
+		QDir::setCurrent(projectRoot.absolutePath());
+		QDir().mkpath("output/results");
+
+		PathWeightMode mode = useTimeWeight ? PathWeightMode::Time
+											: PathWeightMode::Distance;
+
+		/* Stats accumulators: key = trainName */
+		std::map<std::string, std::vector<double>> statActual;
+		std::map<std::string, std::vector<double>> statDelay;
+		std::map<std::string, double> statEstimated;
+
+		int completedRuns = 0;
+
+		for (int run = 0; run < numRuns; ++run)
+		{
+			if (_stopRequested.load(std::memory_order_relaxed))
+				break;
+
+			TrainFactory::resetIdCounter();
+			auto data = InputHandler::loadData(networkFile.toStdString(),
+											   trainFile.toStdString());
+			auto pathfinder = std::make_unique<DijkstraPathfinding>();
+
+			Simulation sim(std::move(data.network), std::move(data.trains),
+						   std::move(data.events), std::move(pathfinder),
+						   mode);
+			sim.setQuiet(true);
+
+			/* Animate only the first run if requested */
+			if (animateFirst && run == 0)
+			{
+				static constexpr double BASE_INTERVAL = 30.0;
+				static constexpr unsigned FRAME_DELAY_US = 50000;
+				double lastEmit = -BASE_INTERVAL;
+
+				sim.setAnimCallback(
+					[this, &lastEmit](double simTime,
+									  const std::vector<TrainState> &states) {
+						if (_stopRequested.load(std::memory_order_relaxed))
+							throw SimulationStopException();
+						double spd = _speedMult.load(std::memory_order_relaxed);
+						if (spd < 0.05) spd = 0.05;
+						double interval = BASE_INTERVAL * spd;
+						if (interval < 1.0) interval = 1.0;
+						if (simTime - lastEmit < interval)
+							return;
+						lastEmit = simTime;
+
+						QVector<TrainSnapshot> snaps;
+						snaps.reserve(static_cast<int>(states.size()));
+						for (const auto &s : states)
+						{
+							TrainSnapshot snap;
+							snap.name = QString::fromStdString(s.train->getName());
+							snap.id = s.train->getId();
+							snap.departure = QString::fromStdString(
+								s.train->getDepartureStation());
+							snap.arrival = QString::fromStdString(
+								s.train->getArrivalStation());
+							auto &path = s.train->getPath();
+							if (path.size() >= 2
+								&& s.segmentIndex + 1 < path.size())
+							{
+								snap.from = QString::fromStdString(
+									path[s.segmentIndex]->getName());
+								snap.to = QString::fromStdString(
+									path[s.segmentIndex + 1]->getName());
+							}
+							snap.posOnSegment_m = s.posOnSegment_m;
+							snap.speed_ms = s.speed_ms;
+							snap.timeSinceDepart = s.timeSinceDepart;
+							snap.stopTimer = s.stopTimer;
+							snap.departed = s.departed;
+							snap.arrived = s.arrived;
+							snap.segmentIndex = s.segmentIndex;
+							snap.pathSize = path.size();
+							snaps.push_back(snap);
+						}
+						emit tick(simTime, snaps);
+						QThread::usleep(FRAME_DELAY_US);
+					});
+			}
+			else
+			{
+				/* Non-animated runs: just check for stop requests */
+				sim.setAnimCallback(
+					[this](double, const std::vector<TrainState> &) {
+						if (_stopRequested.load(std::memory_order_relaxed))
+							throw SimulationStopException();
+					});
+			}
+
+			sim.run();
+
+			/* Collect results from this run */
+			for (const auto &r : sim.getResults())
+			{
+				statActual[r.name].push_back(r.actualTime);
+				statDelay[r.name].push_back(r.totalDelay);
+				statEstimated[r.name] = r.estimatedTime;
+			}
+
+			++completedRuns;
+			emit runProgress(completedRuns, numRuns);
+		}
+
+		/* Build aggregated stats */
+		QVector<TrainStatRow> stats;
+		for (const auto &pair : statActual)
+		{
+			const std::string &name = pair.first;
+			const auto &times = pair.second;
+			const auto &delays = statDelay[name];
+
+			double sum = 0.0, mn = times[0], mx = times[0];
+			for (double t : times)
+			{
+				sum += t;
+				if (t < mn) mn = t;
+				if (t > mx) mx = t;
+			}
+			double avg = sum / static_cast<double>(times.size());
+
+			double dsum = 0.0;
+			for (double d : delays)
+				dsum += d;
+			double avgDelay = dsum / static_cast<double>(delays.size());
+
+			TrainStatRow row;
+			row.name = QString::fromStdString(name);
+			row.estimated = statEstimated[name];
+			row.avgActual = avg;
+			row.minActual = mn;
+			row.maxActual = mx;
+			row.avgDelay = avgDelay;
+			row.runs = completedRuns;
+			stats.push_back(row);
+		}
+
+		emit multiRunFinished(stats, completedRuns);
+	}
+	catch (const SimulationStopException &)
+	{
+		/* Stopped mid-run — still emit partial stats if we have any */
+		emit multiRunFinished(QVector<TrainStatRow>(), 0);
 	}
 	catch (const std::exception &e)
 	{

@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -218,6 +218,7 @@ MainWindow::MainWindow(QWidget *parent)
 	_worker = new SimulationWorker;
 	_worker->moveToThread(&_simThread);
 	qRegisterMetaType<QVector<TrainSnapshot>>("QVector<TrainSnapshot>");
+	qRegisterMetaType<QVector<TrainStatRow>>("QVector<TrainStatRow>");
 
 	connect(&_simThread, &QThread::finished, _worker, &QObject::deleteLater);
 	connect(_worker, &SimulationWorker::tick,
@@ -226,6 +227,10 @@ MainWindow::MainWindow(QWidget *parent)
 			this, &MainWindow::onSimFinished);
 	connect(_worker, &SimulationWorker::error,
 			this, &MainWindow::onSimError);
+	connect(_worker, &SimulationWorker::runProgress,
+			this, &MainWindow::onRunProgress);
+	connect(_worker, &SimulationWorker::multiRunFinished,
+			this, &MainWindow::onMultiRunFinished);
 	_simThread.start();
 
 	/* ── Sensible initial window size ── */
@@ -445,6 +450,40 @@ void MainWindow::buildToolbar()
 
 	tb->addSeparator();
 
+	/* ── Runs spinbox ── */
+	auto *runsCaption = new QLabel("  Runs: ");
+	runsCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
+	tb->addWidget(runsCaption);
+
+	_runsSpinBox = new QSpinBox;
+	_runsSpinBox->setRange(1, 100);
+	_runsSpinBox->setValue(1);
+	_runsSpinBox->setToolTip("Number of simulation runs (multi-run Monte Carlo)");
+	_runsSpinBox->setFixedWidth(60);
+	_runsSpinBox->setStyleSheet(
+		"QSpinBox { background: #1e293b; color: #e0e0e0; "
+		"border: 1px solid #334155; border-radius: 4px; padding: 4px; "
+		"font-size: 12px; }"
+		"QSpinBox:focus { border-color: #533483; }");
+	tb->addWidget(_runsSpinBox);
+
+	/* ── Animate checkbox ── */
+	_animateCheck = new QCheckBox("Animate");
+	_animateCheck->setChecked(true);
+	_animateCheck->setToolTip(
+		"When multi-run: animate the first run, then fast-run the rest.\n"
+		"Uncheck for maximum speed (no animation at all).");
+	_animateCheck->setStyleSheet(
+		"QCheckBox { color: #94a3b8; font-size: 12px; spacing: 4px; }"
+		"QCheckBox::indicator { width: 14px; height: 14px; "
+		"border-radius: 3px; border: 1px solid #475569; }"
+		"QCheckBox::indicator:unchecked { background: #1e293b; }"
+		"QCheckBox::indicator:checked { background: #059669; "
+		"border-color: #059669; }");
+	tb->addWidget(_animateCheck);
+
+	tb->addSeparator();
+
 	/* ── Speed slider ── */
 	auto *spdCaption = new QLabel("  Speed: ");
 	spdCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
@@ -490,21 +529,21 @@ void MainWindow::buildCentralWidget()
 	auto *vSplit = new QSplitter(Qt::Vertical, this);
 
 	/* ── Top: graph + live dashboard side by side ── */
-	auto *hSplit = new QSplitter(Qt::Horizontal);
+	_hSplit = new QSplitter(Qt::Horizontal);
 
 	_view = new ZoomableView(_scene);
 	_view->setStyleSheet(
 		"QGraphicsView { background: #1a1a2e; border: 1px solid #334155;"
 		"  border-radius: 6px; }");
-	hSplit->addWidget(_view);
+	_hSplit->addWidget(_view);
 
 	_dashboard = new SimDashboard;
-	_dashboard->setMaximumWidth(420);
-	hSplit->addWidget(_dashboard);
+	_hSplit->addWidget(_dashboard);
 
-	hSplit->setStretchFactor(0, 5);
-	hSplit->setStretchFactor(1, 1);
-	vSplit->addWidget(hSplit);
+	_hSplit->setStretchFactor(0, 5);   /* graph gets lion's share  */
+	_hSplit->setStretchFactor(1, 0);   /* dashboard keeps its size */
+	_hSplit->setSizes({1200, DASH_LIVE_W}); /* initial preset      */
+	vSplit->addWidget(_hSplit);
 
 	/* ── Bottom: log view ── */
 	_logView = new QTextEdit;
@@ -2400,7 +2439,6 @@ void MainWindow::onRunSimulation()
 	_stopBtn->setEnabled(true);
 	_simRunning = true;
 	_scene->clearTrains();
-	logInfo("--- Starting simulation ---");
 
 	/* Always write temp files from current in-memory state so that
 	   any GUI modifications (add/edit/delete) are included. */
@@ -2412,10 +2450,31 @@ void MainWindow::onRunSimulation()
 	logInfo(QString("  Trains: %1, Events: %2")
 				.arg(_trainDefs.size()).arg(_eventDefs.size()));
 
-	QMetaObject::invokeMethod(
-		_worker, "runSimulation", Qt::QueuedConnection,
-		Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
-		Q_ARG(bool, _useTimeWeight));
+	int numRuns = _runsSpinBox->value();
+	bool animate = _animateCheck->isChecked();
+
+	if (numRuns > 1)
+	{
+		/* Multi-run Monte Carlo mode */
+		logInfo(QString("--- Starting multi-run (%1 runs, animate first: %2) ---")
+					.arg(numRuns).arg(animate ? "yes" : "no"));
+		_runBtn->setText(QString("  Run 0/%1...  ").arg(numRuns));
+		QMetaObject::invokeMethod(
+			_worker, "runMulti", Qt::QueuedConnection,
+			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
+			Q_ARG(bool, _useTimeWeight),
+			Q_ARG(int, numRuns),
+			Q_ARG(bool, animate));
+	}
+	else
+	{
+		/* Single run — always animated */
+		logInfo("--- Starting simulation ---");
+		QMetaObject::invokeMethod(
+			_worker, "runSimulation", Qt::QueuedConnection,
+			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
+			Q_ARG(bool, _useTimeWeight));
+	}
 }
 
 void MainWindow::onSimTick(double simTime,
@@ -2492,6 +2551,55 @@ void MainWindow::onFitGraph()
 		return;
 	_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
 					 Qt::KeepAspectRatio);
+}
+
+void MainWindow::onRunProgress(int currentRun, int totalRuns)
+{
+	_runBtn->setText(QString("  Run %1/%2...  ").arg(currentRun).arg(totalRuns));
+	statusBar()->showMessage(
+		QString("Multi-run: completed %1 of %2 runs")
+			.arg(currentRun).arg(totalRuns));
+}
+
+void MainWindow::onMultiRunFinished(QVector<TrainStatRow> stats,
+									int completedRuns)
+{
+	_runBtn->setEnabled(true);
+	_runBtn->setText("  Run Simulation  ");
+	_stopBtn->setEnabled(false);
+	_stopBtn->setText("  Stop  ");
+	_simRunning = false;
+
+	if (stats.isEmpty())
+	{
+		logInfo("--- Multi-run stopped (no complete runs) ---");
+		_dashboard->clear();
+		statusBar()->showMessage("Multi-run stopped by user");
+		return;
+	}
+
+	logSuccess(QString("--- Multi-run complete: %1 runs ---").arg(completedRuns));
+	for (const auto &s : stats)
+	{
+		logInfo(QString("  %1: avg=%2s  min=%3s  max=%4s  avgDelay=%5s")
+					.arg(s.name)
+					.arg(static_cast<int>(s.avgActual))
+					.arg(static_cast<int>(s.minActual))
+					.arg(static_cast<int>(s.maxActual))
+					.arg(static_cast<int>(s.avgDelay)));
+	}
+	_dashboard->showMultiRunStats(stats, completedRuns);
+
+	/* Widen dashboard to fit the wider stats table */
+	QList<int> sizes = _hSplit->sizes();
+	if (sizes.size() == 2 && sizes[1] < DASH_STATS_W)
+	{
+		int total = sizes[0] + sizes[1];
+		_hSplit->setSizes({total - DASH_STATS_W, DASH_STATS_W});
+	}
+
+	statusBar()->showMessage(
+		QString("Multi-run finished: %1 runs completed").arg(completedRuns));
 }
 
 void MainWindow::onSpeedChanged(int value)

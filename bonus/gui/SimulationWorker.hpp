@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,6 +49,22 @@ struct TrainSnapshot
 Q_DECLARE_METATYPE(QVector<TrainSnapshot>)
 
 /**
+ * Aggregated statistics for one train across multiple simulation runs.
+ */
+struct TrainStatRow
+{
+	QString name;
+	double estimated;
+	double avgActual;
+	double minActual;
+	double maxActual;
+	double avgDelay;
+	int runs;
+};
+
+Q_DECLARE_METATYPE(QVector<TrainStatRow>)
+
+/**
  * Runs a simulation in a background thread, emitting per-tick snapshots
  * via a Qt signal so the GUI can update without blocking.
  *
@@ -75,10 +91,20 @@ class SimulationWorker : public QObject
 					   const QString &trainFile,
 					   bool useTimeWeight);
 
+	/** Run N simulations, optionally animating the first run.
+	    Emits runProgress() after each run, then multiRunFinished(). */
+	void runMulti(const QString &networkFile,
+				  const QString &trainFile,
+				  bool useTimeWeight,
+				  int numRuns,
+				  bool animateFirst);
+
   signals:
 	void tick(double simTime, QVector<TrainSnapshot> snapshots);
 	void finished(QStringList results);
 	void error(const QString &message);
+	void runProgress(int currentRun, int totalRuns);
+	void multiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
 
   private:
 	std::atomic<double> _speedMult{1.0};
