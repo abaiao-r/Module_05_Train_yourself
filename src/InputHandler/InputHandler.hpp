@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 17:21:05 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/23 02:19:46 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,6 +37,15 @@ class InputHandler
 	static SimulationData loadData(const std::string &networkFile,
 								   const std::string &trainFile);
 
+	/** Parse a network file only (nodes, rails, events). No cross-validation. */
+	static void parseNetworkFile(const std::string &filepath,
+								 RailNetwork &network,
+								 std::vector<Event> &events);
+
+	/** Parse a train file only.  No station-existence validation. */
+	static std::vector<std::unique_ptr<Train>> parseTrainFile(
+		const std::string &filepath);
+
 	class ParseException : public std::runtime_error
 	{
 	  public:
@@ -44,11 +53,6 @@ class InputHandler
 	};
 
   private:
-	static void parseNetworkFile(const std::string &filepath,
-								 RailNetwork &network,
-								 std::vector<Event> &events);
-	static std::vector<std::unique_ptr<Train>> parseTrainFile(
-		const std::string &filepath);
 	static void validateData(const std::string &networkFile,
 							 const std::string &trainFile,
 							 const SimulationData &data);
