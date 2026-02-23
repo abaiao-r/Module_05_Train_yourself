@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   SimulationWorker.hpp                               :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 23:25:46 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,6 +44,7 @@ struct TrainSnapshot
 	bool arrived;
 	size_t segmentIndex;
 	size_t pathSize;
+	double segmentLength_m;
 };
 
 Q_DECLARE_METATYPE(QVector<TrainSnapshot>)
