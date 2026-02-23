@@ -6,13 +6,12 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/23 10:00:53 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "FileOutputObserver.hpp"
 
-#include <cstdio>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
@@ -24,9 +23,10 @@ std::string FileOutputObserver::fmtTimeShort(double seconds)
 	int total = static_cast<int>(seconds);
 	int h = total / 3600;
 	int m = (total % 3600) / 60;
-	char buf[16];
-	std::snprintf(buf, sizeof(buf), "%02dh%02d", h, m);
-	return buf;
+	std::ostringstream oss;
+	oss << std::setfill('0') << std::setw(2) << h << "h"
+		<< std::setw(2) << m;
+	return oss.str();
 }
 
 static void ensureDir(const std::string &path)
@@ -94,9 +94,10 @@ void FileOutputObserver::onTrainStep(double timeSinceStart,
 		  << "[" << padRight(toNode, 10) << "] - ";
 
 	// Distance remaining
-	char distBuf[16];
-	std::snprintf(distBuf, sizeof(distBuf), "%05.2f", distRemainingKm);
-	_file << "[" << distBuf << "km] - ";
+	std::ostringstream distOss;
+	distOss << std::fixed << std::setprecision(2)
+			<< std::setfill('0') << std::setw(5) << distRemainingKm;
+	_file << "[" << distOss.str() << "km] - ";
 
 	// Action (right-padded to 8 chars)
 	_file << "[" << padRight(action, 8) << "] - ";

@@ -6,15 +6,15 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 15:56:34 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/23 10:00:53 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "GraphExporter.hpp"
 
-#include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <set>
 #include <sstream>
@@ -108,11 +108,12 @@ void GraphExporter::exportDot(
 				continue;
 			emitted.insert(key);
 
-			char label[64];
-			std::snprintf(label, sizeof(label), "%.1f km\\n%.0f km/h",
-						  edge.distance, edge.speedLimit);
+			std::ostringstream labelOss;
+			labelOss << std::fixed << std::setprecision(1) << edge.distance
+					 << " km\\n" << std::setprecision(0) << edge.speedLimit
+					 << " km/h";
 			out << "    \"" << nodeName << "\" -- \"" << dest
-				<< "\" [label=\"" << label << "\"];\n";
+				<< "\" [label=\"" << labelOss.str() << "\"];";
 		}
 	}
 	out << "\n";
@@ -153,10 +154,10 @@ void GraphExporter::exportDot(
 				<< "\", penwidth=3, style=bold";
 			if (speed > 0.0)
 			{
-				char speedLabel[32];
-				std::snprintf(speedLabel, sizeof(speedLabel),
-							  "%.0f km/h", speed);
-				out << ", label=\"" << speedLabel << "\","
+				std::ostringstream speedOss;
+				speedOss << std::fixed << std::setprecision(0) << speed
+						 << " km/h";
+				out << ", label=\"" << speedOss.str() << "\","
 					<< " fontcolor=\"" << colour << "\"";
 			}
 			out << "];\n";
