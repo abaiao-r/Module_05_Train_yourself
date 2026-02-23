@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 16:00:00 by ctw03933          #+#    #+#             */
-/*   Updated: 2026/02/21 17:27:50 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/23 04:10:56 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -180,7 +180,6 @@ int main()
 						  NET + "railNetworkMinimal.txt",
 						  TRN + "trainPrintBadStation.txt"),
 					  InputHandler::ParseException, msg);
-				  return true;
 				  return true;
 			  });
 
