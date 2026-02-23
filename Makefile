@@ -2,7 +2,7 @@ NAME		= Train
 
 # Compiler
 CXX			= c++
-CXXFLAGS	= -Wall -Wextra -Werror -std=c++17 -g
+CXXFLAGS	= -Wall -Wextra -Werror -std=c++17 -g -MMD -MP
 
 # Directories
 SRCDIR		= src
@@ -45,6 +45,10 @@ SRCS		= $(SRCDIR)/main.cpp \
 
 # Object files
 OBJS		= $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRCS))
+
+# Auto-generated header dependencies
+DEPS		= $(OBJS:.o=.d)
+-include $(DEPS)
 
 # ============================================================================ #
 #                                    RULES                                     #

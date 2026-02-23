@@ -3,21 +3,21 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:22:01 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 12:26:07 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <sstream>
-#include <sys/stat.h>
 #include <vector>
 
 #include "DijkstraPathfinding.hpp"
@@ -26,6 +26,7 @@
 #include "InputHandler.hpp"
 #include "Simulation.hpp"
 #include "TerminalAnimDisplay.hpp"
+#include "TrainFactory.hpp"
 
 static void printHelp()
 {
@@ -195,6 +196,7 @@ int main(int argc, char **argv)
 
 		for (int run = 0; run < numRuns; run++)
 		{
+			TrainFactory::resetIdCounter();
 			auto data = InputHandler::loadData(argv[1], argv[2]);
 			auto pathfinder = std::make_unique<DijkstraPathfinding>();
 
@@ -237,8 +239,7 @@ int main(int argc, char **argv)
 			/* Export graph only on first run */
 			if (run == 0 && !graphFile.empty())
 			{
-				mkdir("output", 0755);
-				mkdir("output/graphs", 0755);
+				std::filesystem::create_directories("output/graphs");
 				if (graphFile.find('/') == std::string::npos)
 					graphFile = "output/graphs/" + graphFile;
 				GraphExporter::exportDot(graphFile, sim.getNetwork(),

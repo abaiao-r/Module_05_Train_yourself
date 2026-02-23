@@ -3,21 +3,22 @@
 /*                                                        :::      ::::::::   */
 /*   TerminalAnimDisplay.cpp                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:00:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 12:26:07 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "TerminalAnimDisplay.hpp"
 #include "Simulation.hpp"
 
+#include <chrono>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <unistd.h>
+#include <thread>
 
 /* ---- ANSI helpers ---- */
 static const char *CSI       = "\033[";
@@ -309,5 +310,5 @@ void TerminalAnimDisplay::render(double simTime,
 	_lastLineCount = lineCount;
 
 	std::cout << out.str() << std::flush;
-	usleep(50000);
+	std::this_thread::sleep_for(std::chrono::microseconds(50000));
 }

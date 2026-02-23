@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   TestFramework.hpp                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/21 02:45:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 12:26:07 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,6 +68,22 @@
 		}                                                          \
 	} while (0)
 
+#define ASSERT_NEAR(expected, actual, epsilon, msg)                 \
+	do                                                             \
+	{                                                              \
+		double _diff = (expected) - (actual);                      \
+		if (_diff < 0) _diff = -_diff;                             \
+		if (_diff > (epsilon))                                     \
+		{                                                          \
+			std::ostringstream oss;                                \
+			oss << "Expected ~" << (expected)                     \
+				<< " (±" << (epsilon) << ") but got "            \
+				<< (actual);                                       \
+			msg = oss.str();                                       \
+			return false;                                          \
+		}                                                          \
+	} while (0)
+
 #define ASSERT_THROWS(expr, exType, msg)                           \
 	do                                                             \
 	{                                                              \
@@ -82,6 +98,9 @@
 		}                                                          \
 		catch (...)                                                \
 		{                                                          \
+			msg = std::string("Caught unexpected exception, ")    \
+				  + "expected " + #exType;                         \
+			return false;                                          \
 		}                                                          \
 		if (!caught)                                               \
 		{                                                          \
