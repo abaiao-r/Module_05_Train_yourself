@@ -4,7 +4,7 @@ skinparam defaultFontSize 11
 skinparam shadowing false
 skinparam ActivityFontSize 12
 
-title Simulation — High-Level Flow
+title Simulation — High-Level Flow (Mandatory + Bonus)
 
 |#LightBlue|Loading|
 start
@@ -23,10 +23,22 @@ end note
 
 :Validate via TrainFactory;
 
+if (--graph flag?) then (yes)
+  #LightYellow:GraphExporter::exportDot();
+  note right
+    **Bonus — Graph Export**
+    Output: network_graph.dot
+    Renders .png/.svg if dot installed
+    Colour-coded train paths (8 palette)
+  end note
+  stop
+endif
+
 |#LightGreen|Initialisation|
 :Compute shortest paths (Dijkstra);
 note right
   Cost metric = distance (km)
+  or time (--time-weight flag)
   One path per train
 end note
 
@@ -43,7 +55,25 @@ note right
   speed = 0, stopTimer = 0
 end note
 
+if (--animate flag?) then (yes)
+  #LightYellow:Register TerminalAnimDisplay;
+  note right
+    **Bonus — Animation**
+    Callback renders terminal UI
+    at 50ms frame intervals
+  end note
+endif
+
 |#LightYellow|Concurrent Physics Loop|
+
+#LightCyan:Multi-run wrapper (--runs N);
+note right
+  **Bonus — Multi-Run**
+  Default N=1. Loop N times,
+  deep-copy trains each run,
+  aggregate min/avg/max times.
+end note
+
 repeat
   :simTime += 1 second;
 
@@ -91,6 +121,19 @@ repeat
     speed ≤ ahead train speed
   end note
 
+  #LightYellow:Invoke animation callback;
+  note right
+    --animate: TerminalAnimDisplay::render()
+    GUI: signal tick(simTime, snapshots)
+    Includes usleep(FRAME_DELAY_US)
+  end note
+
+  #LightCyan:Check stop flag (GUI);
+  note right
+    if _stopRequested → throw
+    SimulationStopException
+  end note
+
 repeat while (any train still active?) is (yes)
 ->no;
 
@@ -105,6 +148,23 @@ end note
 note right
   Per train: status, arrival time, delay
 end note
+
+if (--runs N > 1?) then (yes)
+  #LightCyan:Print statistical summary;
+  note right
+    **Bonus — Multi-Run Stats**
+    Per train: min / avg / max travel time
+    Across N simulation runs
+  end note
+endif
+
+if (--animate?) then (yes)
+  #LightYellow:TerminalAnimDisplay::cleanup();
+  note right
+    Restore terminal state,
+    show cursor
+  end note
+endif
 
 stop
 

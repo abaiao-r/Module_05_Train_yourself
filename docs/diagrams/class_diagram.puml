@@ -1,13 +1,15 @@
 @startuml class_diagram
 
 skinparam classAttributeIconSize 0
-skinparam classFontSize 12
-skinparam defaultFontSize 11
+skinparam classFontSize 11
+skinparam defaultFontSize 10
 skinparam shadowing false
-skinparam linetype ortho
 skinparam packageStyle rectangle
+skinparam dpi 150
 
-title Train Simulator — Class Diagram
+left to right direction
+
+title Train Simulator — Complete Class Diagram (Mandatory + Bonus)
 
 package "Domain" {
     class Node {
@@ -175,6 +177,8 @@ package "I/O" {
     class InputHandler {
         - InputHandler() = delete
         + {static} loadData(networkFile, trainFile) : SimulationData
+        + {static} parseNetworkFile(file, net, events) : void
+        + {static} parseTrainFile(file) : vector<unique_ptr<Train>>
     }
     InputHandler ..> SimulationData : produces
     InputHandler ..> RailNetwork : builds
@@ -190,6 +194,13 @@ package "I/O" {
         + printResult(trains) : void
         + {static} formatTime(seconds : double) : string
     }
+
+    class GraphExporter {
+        - GraphExporter() = delete
+        + {static} exportDot(filename, network, trains) : void
+    }
+    GraphExporter ..> RailNetwork : reads
+    GraphExporter ..> Train : reads paths
 }
 
 package "Orchestration" {
@@ -212,16 +223,19 @@ package "Orchestration" {
         - _weightMode : PathWeightMode
         - _output : OutputManager
         - _observers : vector<unique_ptr<ISimulationObserver>>
+        - _animCallback : function<void(double, vector<TrainState>)>
         - _rng : mt19937
+        - _quiet : bool
         - {static} DT : double = 1.0
         - {static} OUTPUT_INTERVAL : double = 60.0
         + Simulation(network, trains, events, pathfinder, weightMode)
         + ~Simulation()
         + run() : void
+        + setAnimCallback(cb) : void
+        + setQuiet(q : bool) : void
+        + getResults() : map<string, pair<double, double>>
         - computePaths() : void
         - estimateTravelTime(train) : double
-        - getSegmentInfo(from, to, length_m&, speedLimit_ms&) : void
-        - totalRemainingDistance(s : TrainState) : double
         - updatePhysics(s : TrainState&) : void
         - handleSegmentTransition(s : TrainState&, idx) : void
         - applyBlocking(states : vector<TrainState>&) : void
@@ -235,6 +249,88 @@ package "Orchestration" {
     Simulation *-- TrainState : runtime state
     Simulation --> IPathfinding : uses (injected)
     Simulation *-- ISimulationObserver : notifies
+}
+
+package "Bonus — Terminal Animation" #LightYellow {
+    class TerminalAnimDisplay {
+        - _firstFrame : bool
+        - _lastLineCount : int
+        + render(simTime : double, states : vector<TrainState>) : void
+        + cleanup() : void
+        - {static} fmtTime(seconds) : string
+        - {static} progressBar(fraction, width) : string
+        - {static} speedStr(speed_ms) : string
+        - {static} visLen(s : string) : size_t
+        - {static} boxLine(content : string) : string
+    }
+    TerminalAnimDisplay ..> TrainState : renders
+    Simulation ..> TerminalAnimDisplay : animCallback
+}
+
+package "Bonus — Qt GUI" #LightCyan {
+    class MainWindow <<QMainWindow>> {
+        - _network : RailNetwork
+        - _trainDefs : vector<unique_ptr<Train>>
+        - _eventDefs : vector<Event>
+        - _simRunning : bool
+        + onRunSimulation() : void
+        + onStopSimulation() : void
+        + onFitGraph() : void
+        + onSpeedChanged(value : int) : void
+        - buildMenus() : void
+        - buildToolbar() : void
+        - buildCentralWidget() : void
+        - buildSidebar() : void
+    }
+
+    class NetworkScene <<QGraphicsScene>> {
+        - _nodes : map<string, NodeVis>
+        - _edges : vector<EdgeVis>
+        + loadFromNetwork(net : RailNetwork) : void
+        + addNode(name, pos) : void
+        + removeNode(name) : void
+        + addEdge(from, to, dist, speed) : void
+        + updateTrains(simTime, snapshots) : void
+        + clearTrains() : void
+        + layoutForceDirected() : void
+    }
+
+    class SimulationWorker <<QObject>> {
+        - _speedMult : atomic<double>
+        - _stopRequested : atomic<bool>
+        + runSimulation(netFile, trainFile, useTimeWeight) : void
+        + setSpeedMultiplier(mult : double) : void
+        + requestStop() : void
+        ..signals..
+        + tick(simTime, snapshots) : void
+        + finished(results) : void
+        + error(msg) : void
+    }
+
+    struct TrainSnapshot <<struct>> {
+        + name : string
+        + from, to : string
+        + posOnSegment_m : double
+        + speed_ms : double
+        + departed, arrived : bool
+    }
+
+    class SimDashboard <<QTextEdit>> {
+        + update(simTime, snapshots) : void
+        + showResults(results) : void
+        + clear() : void
+        - {static} visLen(html) : int
+        - {static} visTruncate(html, max) : string
+        - {static} boxRow(content) : string
+    }
+
+    MainWindow *-- NetworkScene
+    MainWindow *-- SimDashboard
+    MainWindow --> SimulationWorker : controls
+    SimulationWorker ..> TrainSnapshot : emits
+    SimulationWorker ..> Simulation : runs internally
+    NetworkScene ..> TrainSnapshot : renders
+    SimDashboard ..> TrainSnapshot : renders
 }
 
 @enduml
