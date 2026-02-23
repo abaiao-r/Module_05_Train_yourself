@@ -70,6 +70,23 @@ if (every 60 seconds?) then (yes)
 else (no)
 endif
 
+#LightYellow:Invoke animation callback\n(if registered);
+note right
+  **Bonus — Animation / GUI**
+  _animCallback(simTime, states)
+  • --animate → TerminalAnimDisplay::render()
+  • GUI → signal tick(simTime, snapshots)
+  Called every FRAME_DELAY_US (50ms)
+  after all trains processed,
+  not per-train per-tick.
+end note
+
+#LightCyan:Check stop flag\n(GUI only);
+note right
+  if _stopRequested.load()
+    throw SimulationStopException
+end note
+
 stop
 
 @enduml

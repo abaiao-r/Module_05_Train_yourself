@@ -4,16 +4,28 @@ skinparam defaultFontSize 11
 skinparam shadowing false
 skinparam sequenceMessageAlign center
 
-title Input Parsing — File Loading Sequence
+title Input Parsing — File Loading Sequence (CLI + GUI)
 
-participant "main" as Main
+participant "main / MainWindow" as Main
 participant "InputHandler" as IH
 participant "RailNetwork" as Net
 participant "TrainFactory" as TF
 participant "Train" as T
 participant "Event" as Ev
 
-Main -> IH : loadData("network.txt", "trains.txt")
+alt CLI path
+    Main -> IH : loadData("network.txt", "trains.txt")
+else GUI path (deferred loading)
+    Main -> IH : parseNetworkFile(filepath, network, events)
+    note right of IH
+        **Bonus — GUI Deferred Parsing**
+        parseNetworkFile() and parseTrainFile()
+        are public static methods, called
+        independently by MainWindow when
+        user loads files via Open dialog.
+    end note
+    Main -> IH : parseTrainFile(filepath)
+end
 
 == Network File Parsing ==
 IH -> IH : parseNetworkFile(filepath, network, events)
@@ -72,5 +84,10 @@ group Read lines from trains.txt
 end
 
 IH --> Main : SimulationData { network, trains, events }
+note right of Main
+    GUI: network & trains stored in
+    MainWindow members, validated
+    only when "Run" is clicked.
+end note
 
 @enduml

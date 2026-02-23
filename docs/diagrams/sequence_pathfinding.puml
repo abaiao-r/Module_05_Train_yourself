@@ -11,7 +11,13 @@ participant "DijkstraPathfinding" as Dijk
 participant "RailNetwork" as Net
 participant "Node" as N
 
-Sim -> Dijk : findPath("CityA", "CityB", network)
+Sim -> Dijk : findPath("CityA", "CityB", network, mode)
+
+note over Sim
+    **PathWeightMode** (set via --time-weight flag)
+    • Distance (default) — edge weight = distance km
+    • Time — edge weight = distance / speedLimit
+end note
 
 == Validation ==
 Dijk -> Net : findNode("CityA")
@@ -36,7 +42,12 @@ loop while priority queue not empty
         Dijk -> Net : getNeighbours(current)
         Net --> Dijk : vector<Edge>
         loop for each edge
-            Dijk -> Dijk : newDist = dist[current] + edge.distance
+            Dijk -> Dijk : weight = edgeWeight(edge, mode)
+            note right of Dijk
+                Distance mode: weight = edge.distance
+                Time mode:     weight = edge.distance / edge.speedLimit
+            end note
+            Dijk -> Dijk : newDist = dist[current] + weight
             alt newDist < dist[neighbour]
                 Dijk -> Dijk : dist[neighbour] = newDist
                 Dijk -> Dijk : prev[neighbour] = current

@@ -5,9 +5,9 @@ skinparam shadowing false
 skinparam StateFontSize 13
 skinparam StateAttributeFontSize 11
 
-title Train Lifecycle — State Machine
+title Train Lifecycle — State Machine (Mandatory + Bonus)
 
-[*] --> Waiting : Train created\n(from input file)
+[*] --> Waiting : Train created\n(from input file or GUI)
 
 Waiting --> Running : simTime >= departureTime
 Waiting : name, weight, friction
@@ -18,21 +18,46 @@ Waiting : stopDuration
 Running --> StoppedAtStation : reached intermediate node
 Running --> Delayed : event triggers at node
 Running --> Arrived : reached final destination
+Running --> Aborted : SimulationStopException\n(GUI stop requested)
 Running : physics loop (1s ticks)
 Running : accelerate / brake / maintain
 Running : speed capped by segment limit
+Running : animation callback invoked\n(if --animate or GUI)
 
 StoppedAtStation --> Running : stopTimer reaches 0
+StoppedAtStation --> Aborted : SimulationStopException
 StoppedAtStation : speed = 0, position = 0
 StoppedAtStation : timer counts down from stopDuration
 
 Delayed --> Running : delay timer expires
 Delayed --> StoppedAtStation : delay at intermediate node
+Delayed --> Aborted : SimulationStopException
 Delayed : totalDelay += event.duration
 Delayed : clock advances by delay
 
 Arrived --> [*] : .result file finalised
 Arrived : actual travel time recorded
 Arrived : observer notified
+
+Aborted --> [*] : GUI stop button pressed
+Aborted : partial results discarded
+Aborted : thrown from usleep / animCallback
+
+note right of Aborted
+  **Bonus — GUI Stop**
+  SimulationWorker sets
+  _stopRequested (atomic).
+  Simulation checks flag in
+  sleep loop and throws
+  SimulationStopException.
+end note
+
+note left of Running
+  **Bonus — Multi-Run**
+  Same lifecycle repeats
+  N times with different
+  RNG seeds. Statistics
+  aggregated afterward.
+end note
 
 @enduml

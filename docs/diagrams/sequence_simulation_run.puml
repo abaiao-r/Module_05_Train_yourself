@@ -4,10 +4,10 @@ skinparam defaultFontSize 11
 skinparam shadowing false
 skinparam sequenceMessageAlign center
 
-title Simulation Run — Full Lifecycle (Physics + Concurrent)
+title Simulation Run — Full Lifecycle (Mandatory + Bonus)
 
 actor User
-participant "main" as Main
+participant "main / MainWindow" as Main
 participant "InputHandler" as IH
 participant "TrainFactory" as TF
 participant "Simulation" as Sim
@@ -17,9 +17,12 @@ participant "FileOutputObserver" as FObs
 participant "RailNetwork" as Net
 participant "Train" as T
 participant "Event" as Ev
+participant "TerminalAnimDisplay" as Anim #LightYellow
+participant "GraphExporter" as GE #LightYellow
+participant "SimulationWorker" as SW #LightCyan
 
 == 1. Loading Phase ==
-User -> Main : ./Train network.txt trains.txt
+User -> Main : ./Train network.txt trains.txt [flags]
 Main -> IH : loadData(networkFile, trainFile)
 
 group Parse Network File
@@ -37,16 +40,55 @@ end
 
 IH --> Main : SimulationData { network, trains, events }
 
+== 1b. Graph Export (--graph flag) ==
+alt --graph flag set
+    Main -> GE : exportDot("network_graph.dot", network, trains)
+    note right of GE #LightYellow
+        **Bonus — Graph Export**
+        Writes DOT with 8-colour
+        palette for train paths.
+        Auto-renders PNG/SVG
+        if `dot` is available.
+    end note
+    GE --> Main : files written
+    Main --> User : "Graph exported"
+    note over Main : exit (no simulation)
+end
+
 == 2. Initialisation ==
-Main -> Sim ** : Simulation(network, trains, events, DijkstraPathfinding)
+Main -> Sim ** : Simulation(network, trains, events, DijkstraPathfinding, weightMode)
+
+alt --animate flag set
+    Main -> Sim : setAnimCallback(anim.render)
+    note right of Sim #LightYellow
+        **Bonus — Animation**
+        Registers TerminalAnimDisplay
+        callback invoked each frame.
+    end note
+end
+
+alt GUI mode
+    Main -> SW ** : SimulationWorker()
+    Main -> SW : moveToThread(workerThread)
+    note right of SW #LightCyan
+        **Bonus — GUI**
+        Simulation runs in QThread.
+        Signals: tick(), finished(), error()
+    end note
+end
 
 == 3. Simulation Run ==
-Main -> Sim : run()
+alt CLI
+    Main -> Sim : run()
+else GUI
+    Main -> SW : runSimulation(netFile, trainFile, useTimeWeight)
+    SW -> Sim : run()
+end
 
 group Path Computation
     Sim -> OM : printNetwork(network)
     loop for each train
-        Sim -> Dijk : findPath(departureStation, arrivalStation, network)
+        Sim -> Dijk : findPath(departureStation, arrivalStation, network, mode)
         Dijk -> Net : getNeighbours(node)
         Dijk --> Sim : vector<Node> path
         Sim -> T : setPath(path)
@@ -130,6 +172,23 @@ group Concurrent Physics Loop (DT = 1s)
             Trains on same segment:
             behind train speed ≤ ahead train speed
         end note
+
+        alt animation callback registered
+            Sim -> Anim : render(simTime, states)
+            note right of Anim #LightYellow
+                Terminal: ANSI progress bars
+                GUI: signal tick(simTime, snapshots)
+                usleep(FRAME_DELAY_US / speedMult)
+            end note
+        end
+
+        alt GUI — stop requested
+            Sim -> Sim : check _stopRequested.load()
+            note right #LightCyan
+                throws SimulationStopException
+                caught by SimulationWorker
+            end note
+        end
     end
 end
 
@@ -143,6 +202,31 @@ group Finalize
     end
     Sim -> OM : printResult(trains)
     OM --> User : Console summary (status, arrival time, delays)
+end
+
+alt --animate flag
+    Sim -> Anim : cleanup()
+    note right of Anim #LightYellow
+        Restore terminal, show cursor
+    end note
+end
+
+alt --runs N > 1
+    note over Main #LightCyan
+        **Bonus — Multi-Run**
+        Loop repeats N times with
+        deep-copied trains. After all
+        runs, prints min/avg/max
+        travel times per train.
+    end note
+end
+
+alt GUI mode
+    SW --> Main : signal finished(results)
+    note right of SW #LightCyan
+        MainWindow updates dashboard
+        with final results table
+    end note
 end
 
 @enduml
