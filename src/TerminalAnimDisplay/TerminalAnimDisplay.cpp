@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:00:00 by ctw03933          #+#    #+#             */
-/*   Updated: 2026/02/23 01:22:27 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/23 10:00:53 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,7 @@
 #include "Simulation.hpp"
 
 #include <cmath>
-#include <cstdio>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
@@ -54,9 +54,11 @@ std::string TerminalAnimDisplay::fmtTime(double seconds)
 	int h = total / 3600;
 	int m = (total % 3600) / 60;
 	int s = total % 60;
-	char buf[16];
-	std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", h, m, s);
-	return buf;
+	std::ostringstream oss;
+	oss << std::setfill('0') << std::setw(2) << h << ":"
+		<< std::setw(2) << m << ":"
+		<< std::setw(2) << s;
+	return oss.str();
 }
 
 std::string TerminalAnimDisplay::progressBar(double fraction, int width)
@@ -83,9 +85,10 @@ std::string TerminalAnimDisplay::progressBar(double fraction, int width)
 std::string TerminalAnimDisplay::speedStr(double speed_ms)
 {
 	double kmh = speed_ms * 3.6;
-	char buf[16];
-	std::snprintf(buf, sizeof(buf), "%6.1f km/h", kmh);
-	return buf;
+	std::ostringstream oss;
+	oss << std::fixed << std::setprecision(1)
+		<< std::setw(6) << kmh << " km/h";
+	return oss.str();
 }
 
 /* ---- Main render ---- */
@@ -276,11 +279,11 @@ void TerminalAnimDisplay::render(double simTime,
 			if (frac > 1.0)
 				frac = 1.0;
 			int pct = static_cast<int>(frac * 100.0);
-			char pctBuf[8];
-			std::snprintf(pctBuf, sizeof(pctBuf), "%3d%%", pct);
+			std::ostringstream pctOss;
+			pctOss << std::setw(3) << pct << "%";
 			out << boxLine(std::string("      ") + CYAN
 				+ progressBar(frac, 40) + RESET + " "
-				+ BOLD + pctBuf + RESET);
+				+ BOLD + pctOss.str() + RESET);
 			lineCount++;
 
 			out << boxLine(std::string("      ") + DIM + "Elapsed: "

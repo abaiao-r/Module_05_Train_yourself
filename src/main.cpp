@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 04:16:37 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/23 10:00:53 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <sys/stat.h>
 #include <vector>
 
@@ -94,9 +95,11 @@ static std::string fmtTimeStat(double seconds)
 	int h = total / 3600;
 	int m = (total % 3600) / 60;
 	int s = total % 60;
-	char buf[32];
-	std::snprintf(buf, sizeof(buf), "%02dh%02dm%02ds", h, m, s);
-	return buf;
+	std::ostringstream oss;
+	oss << std::setfill('0') << std::setw(2) << h << "h"
+		<< std::setw(2) << m << "m"
+		<< std::setw(2) << s << "s";
+	return oss.str();
 }
 
 static bool hasTxtExtension(const std::string &path)
