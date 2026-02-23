@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/23 01:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,6 +37,10 @@ class SimDashboard : public QTextEdit
 
 	/** Show final results after the simulation completes. */
 	void showResults(const QStringList &results);
+
+	/** Show aggregated multi-run statistics table. */
+	void showMultiRunStats(const QVector<TrainStatRow> &stats,
+						   int completedRuns);
 
 	/** Reset to the idle / welcome state. */
 	void clear();
