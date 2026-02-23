@@ -6,12 +6,14 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 12:26:07 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "GraphExporter.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
@@ -174,6 +176,19 @@ void GraphExporter::exportDot(
 	std::string base = filename;
 	if (base.size() > 4 && base.substr(base.size() - 4) == ".dot")
 		base = base.substr(0, base.size() - 4);
+
+	/* Validate filename to prevent shell injection */
+	auto isSafeChar = [](char c) {
+		return std::isalnum(static_cast<unsigned char>(c))
+			   || c == '.' || c == '/' || c == '_' || c == '-';
+	};
+	if (!std::all_of(filename.begin(), filename.end(), isSafeChar)
+		|| !std::all_of(base.begin(), base.end(), isSafeChar))
+	{
+		std::cerr << "Warning: unsafe characters in graph filename, "
+					 "skipping auto-render" << std::endl;
+		return;
+	}
 
 	/* Auto-render PNG and SVG if Graphviz is available */
 	std::string cmdPng = "dot -Tpng " + filename + " -o " + base + ".png";

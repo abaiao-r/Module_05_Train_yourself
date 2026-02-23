@@ -26,17 +26,17 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y valgrind
-        if [ ${{ matrix.compiler }} == 'gcc' ]; then
+        if [ "${{ matrix.compiler }}" == 'gcc' ]; then
           sudo apt-get install -y g++
-        elif [ ${{ matrix.compiler }} == 'clang' ]; then
+        elif [ "${{ matrix.compiler }}" == 'clang' ]; then
           sudo apt-get install -y clang
         fi
 
     - name: Build
       run: |
-        if [ ${{ matrix.compiler }} == 'gcc' ]; then
+        if [ "${{ matrix.compiler }}" == 'gcc' ]; then
           make CXX=g++
-        elif [ ${{ matrix.compiler }} == 'clang' ]; then
+        elif [ "${{ matrix.compiler }}" == 'clang' ]; then
           make CXX=clang++
         fi
 
@@ -48,9 +48,9 @@ jobs:
 
     - name: Run tests
       run: |
-        if [ ${{ matrix.compiler }} == 'gcc' ]; then
+        if [ "${{ matrix.compiler }}" == 'gcc' ]; then
           make CXX=g++ test
-        elif [ ${{ matrix.compiler }} == 'clang' ]; then
+        elif [ "${{ matrix.compiler }}" == 'clang' ]; then
           make CXX=clang++ test
         fi
 
@@ -67,6 +67,7 @@ jobs:
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/IntegrationTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/EdgeCaseTest
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/CombinationTest
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/EndToEndTest
 
     - name: Valgrind - main program (default mode)
       run: |
@@ -79,3 +80,15 @@ jobs:
     - name: Valgrind - main program (--graph mode)
       run: |
         valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --graph output/graphs/ci_test.dot
+
+    - name: Valgrind - main program (--runs mode)
+      run: |
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./bin/Train input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --runs 3
+
+    - name: Test clean/fclean/re targets
+      run: |
+        if [ "${{ matrix.compiler }}" == 'gcc' ]; then
+          make CXX=g++ clean && make CXX=g++ fclean && make CXX=g++ re
+        elif [ "${{ matrix.compiler }}" == 'clang' ]; then
+          make CXX=clang++ clean && make CXX=clang++ fclean && make CXX=clang++ re
+        fi

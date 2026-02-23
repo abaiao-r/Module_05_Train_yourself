@@ -23,3 +23,10 @@ output/
 
 # macOS
 .DS_Store
+
+# Qt / bonus build artifacts
+bonus/gui/Makefile
+bonus/gui/.qmake.stash
+**/moc_*
+**/*.app/
+objs/gui/
