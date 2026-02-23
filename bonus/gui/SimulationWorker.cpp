@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   SimulationWorker.cpp                               :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/23 23:25:46 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -95,7 +95,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		double lastEmit = -BASE_INTERVAL;
 
 		sim.setAnimCallback(
-			[this, &lastEmit](double simTime,
+			[this, &lastEmit, &sim](double simTime,
 				   const std::vector<TrainState> &states) {
 				if (_stopRequested.load(std::memory_order_relaxed))
 					throw SimulationStopException();
@@ -136,6 +136,24 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 					snap.arrived = s.arrived;
 					snap.segmentIndex = s.segmentIndex;
 					snap.pathSize = path.size();
+					snap.segmentLength_m = 0.0;
+					if (path.size() >= 2
+						&& s.segmentIndex + 1 < path.size())
+					{
+						try {
+							const auto &edges = sim.getNetwork()
+								.getNeighbours(path[s.segmentIndex]->getName());
+							for (const auto &e : edges)
+							{
+								if (e.destination->getName()
+									== path[s.segmentIndex + 1]->getName())
+								{
+									snap.segmentLength_m = e.distance * 1000.0;
+									break;
+								}
+							}
+						} catch (...) {}
+					}
 					snaps.push_back(snap);
 				}
 				emit tick(simTime, snaps);
@@ -225,7 +243,7 @@ void SimulationWorker::runMulti(const QString &networkFile,
 				double lastEmit = -BASE_INTERVAL;
 
 				sim.setAnimCallback(
-					[this, &lastEmit](double simTime,
+					[this, &lastEmit, &sim](double simTime,
 									  const std::vector<TrainState> &states) {
 						if (_stopRequested.load(std::memory_order_relaxed))
 							throw SimulationStopException();
@@ -265,6 +283,24 @@ void SimulationWorker::runMulti(const QString &networkFile,
 							snap.arrived = s.arrived;
 							snap.segmentIndex = s.segmentIndex;
 							snap.pathSize = path.size();
+							snap.segmentLength_m = 0.0;
+							if (path.size() >= 2
+								&& s.segmentIndex + 1 < path.size())
+							{
+								try {
+									const auto &edges = sim.getNetwork()
+										.getNeighbours(path[s.segmentIndex]->getName());
+									for (const auto &e : edges)
+									{
+										if (e.destination->getName()
+											== path[s.segmentIndex + 1]->getName())
+										{
+											snap.segmentLength_m = e.distance * 1000.0;
+											break;
+										}
+									}
+								} catch (...) {}
+							}
 							snaps.push_back(snap);
 						}
 						emit tick(simTime, snaps);
