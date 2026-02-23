@@ -9,6 +9,7 @@ SRCDIR		= src
 OBJDIR		= objs
 BINDIR		= bin
 TESTDIR		= tests
+SCRIPTS		= scripts
 
 # Include paths (one per class folder)
 INC			= -I$(SRCDIR)/Edge \
@@ -24,7 +25,8 @@ INC			= -I$(SRCDIR)/Edge \
 			  -I$(SRCDIR)/Simulation \
 			  -I$(SRCDIR)/ISimulationObserver \
 			  -I$(SRCDIR)/FileOutputObserver \
-			  -I$(SRCDIR)/GraphExporter
+			  -I$(SRCDIR)/GraphExporter \
+			  -I$(SRCDIR)/TerminalAnimDisplay
 
 # Source files
 SRCS		= $(SRCDIR)/main.cpp \
@@ -38,7 +40,8 @@ SRCS		= $(SRCDIR)/main.cpp \
 			  $(SRCDIR)/OutputManager/OutputManager.cpp \
 			  $(SRCDIR)/Simulation/Simulation.cpp \
 			  $(SRCDIR)/FileOutputObserver/FileOutputObserver.cpp \
-			  $(SRCDIR)/GraphExporter/GraphExporter.cpp
+			  $(SRCDIR)/GraphExporter/GraphExporter.cpp \
+			  $(SRCDIR)/TerminalAnimDisplay/TerminalAnimDisplay.cpp
 
 # Object files
 OBJS		= $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRCS))
@@ -173,4 +176,67 @@ run-time: all
 run-graph: all
 	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --graph network.dot
 
-.PHONY: all clean fclean re test run run-time run-graph
+run-graph-time: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --time --graph network.dot
+
+# ============================================================================ #
+#                               DEPENDENCIES                                   #
+# ============================================================================ #
+
+check-deps:
+	@bash $(SCRIPTS)/check_deps.sh cli
+
+check-deps-gui:
+	@bash $(SCRIPTS)/check_deps.sh gui
+
+deps:
+	@bash $(SCRIPTS)/check_deps.sh install-cli
+
+deps-gui:
+	@bash $(SCRIPTS)/check_deps.sh install-gui
+
+# ============================================================================ #
+#                                   BONUS                                      #
+# ============================================================================ #
+
+# Auto-detect qmake: try qmake6, qmake, then common Homebrew paths
+QMAKE := $(shell command -v qmake6 2>/dev/null \
+         || command -v qmake 2>/dev/null \
+         || ([ -x /opt/homebrew/bin/qmake ] && echo /opt/homebrew/bin/qmake) \
+         || ([ -x /opt/homebrew/opt/qt/bin/qmake ] && echo /opt/homebrew/opt/qt/bin/qmake) \
+         || ([ -x /usr/local/bin/qmake ] && echo /usr/local/bin/qmake) \
+         || echo "")
+
+bonus:
+	@bash $(SCRIPTS)/check_deps.sh gui
+	@if [ -z "$(QMAKE)" ]; then \
+		echo "\n\033[0;31m✗ qmake not found. Install Qt 6 first:\033[0m"; \
+		echo "  \033[0;36mmake deps-gui\033[0m\n"; \
+		exit 1; \
+	fi
+	@echo "\nBuilding Qt GUI bonus..."
+	@mkdir -p objs/gui/moc
+	@cd bonus/gui && $(QMAKE) bonus.pro && $(MAKE) -j4
+	@echo "\nTrainGUI built successfully ✓  →  bin/TrainGUI\n"
+
+bonus-clean:
+	@cd bonus/gui && [ -f Makefile ] && $(MAKE) clean || true
+	rm -rf objs/gui
+	rm -f $(BINDIR)/TrainGUI
+
+run-animate: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --animate
+
+run-multi: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --runs 1000
+
+run-gui: bonus
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		open ./$(BINDIR)/TrainGUI.app; \
+	else \
+		./$(BINDIR)/TrainGUI; \
+	fi
+
+.PHONY: all clean fclean re test run run-time run-graph run-graph-time \
+        check-deps check-deps-gui deps deps-gui \
+        bonus bonus-clean run-animate run-multi run-gui

@@ -6,13 +6,14 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/22 13:05:50 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/22 18:19:38 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef SIMULATION_HPP
 #define SIMULATION_HPP
 
+#include <functional>
 #include <memory>
 #include <random>
 #include <string>
@@ -41,6 +42,25 @@ struct TrainState
 	bool arrived;
 };
 
+/**
+ * Collected result for one train after a simulation run.
+ */
+struct TrainResult
+{
+	std::string name;
+	int id;
+	double estimatedTime;  // seconds
+	double actualTime;     // seconds
+	double totalDelay;     // seconds
+};
+
+/**
+ * Callback signature for live animation displays.
+ * Receives the current wall-clock simulation time and the full state vector.
+ */
+using AnimTickCallback = std::function<void(double simTime,
+											const std::vector<TrainState> &)>;
+
 class Simulation
 {
   private:
@@ -52,6 +72,9 @@ class Simulation
 	OutputManager _output;
 	std::mt19937 _rng;
 	std::vector<std::unique_ptr<ISimulationObserver>> _observers;
+	std::vector<TrainResult> _results;
+	AnimTickCallback _animCallback;
+	bool _quiet;
 
 	static constexpr double DT = 1.0;             // 1-second timestep
 	static constexpr double OUTPUT_INTERVAL = 60.0; // output every minute
@@ -70,6 +93,12 @@ class Simulation
 
 	const RailNetwork &getNetwork() const;
 	const std::vector<std::unique_ptr<Train>> &getTrains() const;
+	const std::vector<TrainResult> &getResults() const;
+
+	/** Set a per-tick callback for live animation (optional). */
+	void setAnimCallback(AnimTickCallback cb);
+	/** Suppress stdout output (useful for multi-run). */
+	void setQuiet(bool q);
 
   private:
 	void computePaths();
