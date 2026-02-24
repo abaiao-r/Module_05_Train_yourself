@@ -210,12 +210,13 @@ deps-gui:
 #                                   BONUS                                      #
 # ============================================================================ #
 
-# Auto-detect qmake: try qmake6, qmake, then common Homebrew paths
+# Auto-detect qmake: try qmake6, qmake, then common Homebrew/Linux paths
 QMAKE := $(shell command -v qmake6 2>/dev/null \
          || command -v qmake 2>/dev/null \
          || ([ -x /opt/homebrew/bin/qmake ] && echo /opt/homebrew/bin/qmake) \
          || ([ -x /opt/homebrew/opt/qt/bin/qmake ] && echo /opt/homebrew/opt/qt/bin/qmake) \
          || ([ -x /usr/local/bin/qmake ] && echo /usr/local/bin/qmake) \
+         || ([ -x /usr/lib/qt6/bin/qmake ] && echo /usr/lib/qt6/bin/qmake) \
          || echo "")
 
 bonus:
@@ -227,13 +228,14 @@ bonus:
 	fi
 	@echo "\nBuilding Qt GUI bonus..."
 	@mkdir -p objs/gui/moc
-	@cd bonus/gui && $(QMAKE) bonus.pro && $(MAKE) -j4
+	@cd bonus/gui && rm -f .qmake.stash && $(QMAKE) bonus.pro && $(MAKE) -j4
 	@echo "\nTrainGUI built successfully ✓  →  bin/TrainGUI\n"
 
 bonus-clean:
 	@cd bonus/gui && [ -f Makefile ] && $(MAKE) clean || true
 	rm -rf objs/gui
 	rm -f $(BINDIR)/TrainGUI
+	rm -rf $(BINDIR)/TrainGUI.app
 
 run-animate: all
 	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --animate

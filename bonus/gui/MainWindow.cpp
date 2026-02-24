@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   MainWindow.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/02/24 00:09:19 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,17 @@
 #include <QDateTime>
 #include <QDir>
 #include <cmath>
+
+/*  Qt 6.3 added  addAction(text, shortcut, receiver, slot).
+    Qt 6.2 only has addAction(text, receiver, slot, shortcut).
+    Use this macro so the code compiles on both without deprecation warnings. */
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
+# define MENU_ACTION(menu, text, shortcut, rcv, slot) \
+    (menu)->addAction((text), QKeySequence(shortcut), (rcv), (slot))
+#else
+# define MENU_ACTION(menu, text, shortcut, rcv, slot) \
+    (menu)->addAction((text), (rcv), (slot), QKeySequence(shortcut))
+#endif
 #include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
@@ -338,23 +349,23 @@ bool MainWindow::guardSimRunning(const QString &action)
 void MainWindow::buildMenus()
 {
 	QMenu *file = menuBar()->addMenu("&File");
-	file->addAction("Import All...", QKeySequence("Ctrl+I"),
-					this, &MainWindow::onImportAll);
+	MENU_ACTION(file, "Import All...", "Ctrl+I",
+				this, &MainWindow::onImportAll);
 	file->addSeparator();
-	file->addAction("Load Network...", QKeySequence("Ctrl+O"),
-					this, &MainWindow::onLoadNetwork);
-	file->addAction("Load Trains...", QKeySequence("Ctrl+T"),
-					this, &MainWindow::onLoadTrains);
+	MENU_ACTION(file, "Load Network...", "Ctrl+O",
+				this, &MainWindow::onLoadNetwork);
+	MENU_ACTION(file, "Load Trains...", "Ctrl+T",
+				this, &MainWindow::onLoadTrains);
 	file->addSeparator();
 	file->addAction("Save Network...", this, &MainWindow::onSaveNetwork);
 	file->addAction("Save Trains...", this, &MainWindow::onSaveTrains);
 	file->addSeparator();
-	file->addAction("Export All...", QKeySequence("Ctrl+E"),
-					this, &MainWindow::onExportAll);
-	file->addAction("Export as DOT...", QKeySequence("Ctrl+G"),
-					this, &MainWindow::onExportDot);
+	MENU_ACTION(file, "Export All...", "Ctrl+E",
+				this, &MainWindow::onExportAll);
+	MENU_ACTION(file, "Export as DOT...", "Ctrl+G",
+				this, &MainWindow::onExportDot);
 	file->addSeparator();
-	file->addAction("Quit", QKeySequence("Ctrl+Q"), this, &QWidget::close);
+	MENU_ACTION(file, "Quit", "Ctrl+Q", this, &QWidget::close);
 
 	QMenu *edit = menuBar()->addMenu("&Edit");
 	edit->addAction("Add Node...", this, &MainWindow::onAddNode);
@@ -373,12 +384,12 @@ void MainWindow::buildMenus()
 	edit->addAction("Delete Selected Event", this, &MainWindow::onDeleteEvent);
 
 	QMenu *sim = menuBar()->addMenu("&Simulation");
-	sim->addAction("Run", QKeySequence("Ctrl+R"),
-				   this, &MainWindow::onRunSimulation);
+	MENU_ACTION(sim, "Run", "Ctrl+R",
+				this, &MainWindow::onRunSimulation);
 
 	QMenu *help = menuBar()->addMenu("&Help");
-	help->addAction("Controls && Shortcuts...", QKeySequence("F1"),
-					this, [this]() {
+	MENU_ACTION(help, "Controls && Shortcuts...", "F1",
+				this, [this]() {
 		QMessageBox box(this);
 		box.setWindowTitle("Controls & Shortcuts");
 		box.setIcon(QMessageBox::Information);
@@ -690,9 +701,11 @@ void MainWindow::scanPresetFiles()
 	   scanning works regardless of how the app was launched (open,
 	   double-click, terminal, etc.). */
 	QDir root(QCoreApplication::applicationDirPath());
+#ifdef Q_OS_MACOS
 	root.cdUp(); // MacOS -> Contents
 	root.cdUp(); // Contents -> TrainGUI.app
 	root.cdUp(); // TrainGUI.app -> bin
+#endif
 	root.cdUp(); // bin -> project root
 
 	/* Scan network presets (skip files with known-bad names) */

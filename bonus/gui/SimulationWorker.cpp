@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 23:25:46 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/02/24 00:09:19 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,9 +68,11 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		   write to the relative "output/results/" directory.
 		   QFileDialog may have changed the CWD in the main thread. */
 		QDir projectRoot(QCoreApplication::applicationDirPath());
+#ifdef Q_OS_MACOS
 		projectRoot.cdUp(); // MacOS -> Contents
 		projectRoot.cdUp(); // Contents -> TrainGUI.app
 		projectRoot.cdUp(); // TrainGUI.app -> bin
+#endif
 		projectRoot.cdUp(); // bin -> project root
 		QDir::setCurrent(projectRoot.absolutePath());
 		QDir().mkpath("output/results");
@@ -203,9 +205,11 @@ void SimulationWorker::runMulti(const QString &networkFile,
 	{
 		/* Ensure CWD is the project root */
 		QDir projectRoot(QCoreApplication::applicationDirPath());
+#ifdef Q_OS_MACOS
 		projectRoot.cdUp();
 		projectRoot.cdUp();
 		projectRoot.cdUp();
+#endif
 		projectRoot.cdUp();
 		QDir::setCurrent(projectRoot.absolutePath());
 		QDir().mkpath("output/results");

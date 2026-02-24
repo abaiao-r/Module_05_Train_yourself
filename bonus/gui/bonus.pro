@@ -53,3 +53,8 @@ HEADERS += \
 
 OBJECTS_DIR = ../../objs/gui
 MOC_DIR     = ../../objs/gui/moc
+
+# On Linux the binary goes straight into DESTDIR (no .app bundle)
+linux {
+    CONFIG -= app_bundle
+}
