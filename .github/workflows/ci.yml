@@ -24,11 +24,11 @@ jobs:
     - name: Install dependencies
       run: sudo apt-get update -qq && sudo apt-get install -y build-essential g++ clang make
 
-    - name: Build with ${{ matrix.compiler }}
-      run: make CXX=${{ matrix.compiler }}
+    - name: Build with ${{ matrix.compiler }} (ASan enabled)
+      run: make CXX=${{ matrix.compiler }} SANITIZE=1
 
     - name: Run tests
-      run: make CXX=${{ matrix.compiler }} test
+      run: make CXX=${{ matrix.compiler }} SANITIZE=1 test
 
     - name: Smoke-run binary
       run: |
@@ -38,20 +38,6 @@ jobs:
 
     - name: Verify clean/fclean/re
       run: make CXX=${{ matrix.compiler }} clean && make CXX=${{ matrix.compiler }} fclean && make CXX=${{ matrix.compiler }} re
-
-  # ── Memory safety: AddressSanitizer ────────────────────────────────────
-  sanitize:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Install dependencies
-      run: sudo apt-get update -qq && sudo apt-get install -y build-essential g++ make
-
-    - name: Build + test with ASan
-      run: make CXX=g++ SANITIZE=1 && make CXX=g++ SANITIZE=1 test
 
   # ── GUI: Qt bonus builds ───────────────────────────────────────────────
   bonus:
