@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 15:19:32 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 15:45:29 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,7 @@
 static void printHelp()
 {
 	std::cout
-		<< "Usage: ./Train <network_file> <train_file> [options]\n\n"
+		<< "Usage: ./train_yourself <network_file> <train_file> [options]\n\n"
 		<< "Options:\n"
 		<< "  --time              Optimise route by travel time "
 		<< "instead of distance\n"
@@ -46,7 +46,7 @@ static void printHelp()
 		<< "average travel times\n"
 		<< "  --help              Show this help message\n\n"
 		<< "=== Build targets ===\n"
-		<< "  make                Build the CLI binary (./bin/Train)\n"
+		<< "  make                Build the CLI binary (./bin/train_yourself)\n"
 		<< "  make test           Run all test suites (unit + E2E)\n"
 		<< "  make bonus          Build the Qt 6 GUI (./bin/TrainGUI)\n"
 		<< "  make run-gui        Build and launch the GUI\n"
@@ -58,7 +58,7 @@ static void printHelp()
 		<< "    input/railNetworkPrintFolder/<network>.txt\n"
 		<< "    input/trainPrintFolder/<trains>.txt\n\n"
 		<< "  Example:\n"
-		<< "    ./Train input/railNetworkPrintFolder/"
+		<< "    ./train_yourself input/railNetworkPrintFolder/"
 		<< "railNetworkPrintGood.txt \\\n"
 		<< "           input/trainPrintFolder/"
 		<< "trainPrintGood.txt\n\n"

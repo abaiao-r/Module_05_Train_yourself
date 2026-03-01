@@ -10,13 +10,13 @@ A live full-screen terminal dashboard that visualises the simulation in real tim
 
 ```bash
 # Run with live animation
-./bin/Train network.txt trains.txt --animate
+./bin/train_yourself network.txt trains.txt --animate
 
 # Combine with time routing
-./bin/Train network.txt trains.txt --time --animate
+./bin/train_yourself network.txt trains.txt --time --animate
 
 # Combine with multi-run (animation plays first run only)
-./bin/Train network.txt trains.txt --animate --runs 100
+./bin/train_yourself network.txt trains.txt --animate --runs 100
 
 # Shortcut
 make run-animate

@@ -46,8 +46,8 @@ An interactive graphical application built with Qt 6 for creating, editing, and 
 ### Build & Launch
 
 ```bash
-# Check / install Qt 6 dependencies
-make deps-gui
+# Check / install dependencies (compiler + Qt >= 6.3)
+make setup
 
 # Build the GUI
 make bonus
