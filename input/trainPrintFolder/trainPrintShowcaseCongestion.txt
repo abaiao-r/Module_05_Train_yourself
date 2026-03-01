@@ -1,0 +1,6 @@
+Shuttle01 200 0.05 400.0 50.0 Origin Dest 08h00 00h03
+Shuttle02 200 0.05 400.0 50.0 Origin Dest 08h01 00h03
+Shuttle03 200 0.05 400.0 50.0 Origin Dest 08h02 00h03
+Shuttle04 200 0.05 400.0 50.0 Origin Dest 08h03 00h03
+Shuttle05 200 0.05 400.0 50.0 Origin Dest 08h04 00h03
+Shuttle06 200 0.05 400.0 50.0 Origin Dest 08h05 00h03

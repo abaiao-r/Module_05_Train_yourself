@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   OutputManager.cpp                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/03/01 19:46:54 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -98,6 +98,13 @@ void OutputManager::printEvent(const Event &event,
 			  << event.getNodeName() << " delays " << train.getName()
 			  << " by " << (event.getDuration() / 60.0) << " min"
 			  << std::endl;
+}
+
+void OutputManager::printReroute(const Train &train,
+								 const std::string &newRoute) const
+{
+	std::cout << "  >> REROUTE: " << train.getName()
+			  << " now via " << newRoute << std::endl;
 }
 
 void OutputManager::printResult(

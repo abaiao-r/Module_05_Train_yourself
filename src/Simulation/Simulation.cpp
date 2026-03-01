@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 19:20:41 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 19:45:36 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -562,29 +562,16 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 		/* Apply stop duration at intermediate stations */
 		s.stopTimer = s.train->getStopDuration();
 
-		/* Congestion-aware re-routing from the new current node */
+		/* Congestion-aware re-routing from the new current node.
+		   Note: tickOccupancy was built at tick start (before transitions),
+		   so this train is counted on its OLD segment, not its new one.
+		   No self-exclusion is needed. */
 		s.segsSinceReroute++;
 		if (_weightMode == PathWeightMode::Congestion
 			&& s.segsSinceReroute >= REROUTE_COOLDOWN
 			&& hasCongestedSegmentAhead(s, tickOccupancy))
 		{
-			/* Build occupancy excluding this train to avoid self-avoidance */
-			SegmentOccupancy selfExcluded = tickOccupancy;
-			const auto &p = s.train->getPath();
-			if (p.size() >= 2 && s.segmentIndex + 1 < p.size())
-			{
-				std::string selfKey = p[s.segmentIndex]->getName()
-									  + "->"
-									  + p[s.segmentIndex + 1]->getName();
-				auto it = selfExcluded.find(selfKey);
-				if (it != selfExcluded.end())
-				{
-					it->second--;
-					if (it->second <= 0)
-						selfExcluded.erase(it);
-				}
-			}
-			rerouteFromNode(s, selfExcluded);
+			rerouteFromNode(s, tickOccupancy);
 		}
 	}
 }
@@ -683,6 +670,19 @@ void Simulation::rerouteFromNode(TrainState &s,
 	s.segmentIndex = newPath.size() - newTail.size();
 	s.train->setPathIndex(s.segmentIndex);
 	s.segsSinceReroute = 0;
+
+	/* Log the reroute */
+	if (!_quiet)
+	{
+		std::string newRoute;
+		for (size_t i = s.segmentIndex; i < newPath.size(); i++)
+		{
+			if (i > s.segmentIndex)
+				newRoute += " -> ";
+			newRoute += newPath[i]->getName();
+		}
+		_output.printReroute(*s.train, newRoute);
+	}
 }
 
 /* ---- Overtaking / blocking between trains ---- */

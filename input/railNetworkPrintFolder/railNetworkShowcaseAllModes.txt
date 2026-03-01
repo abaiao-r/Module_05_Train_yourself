@@ -1,0 +1,15 @@
+Node Capital
+Node Suburbs
+Node Express
+Node Hub
+Node MainLine
+Node Bypass
+Node Terminal
+Rail Capital Suburbs 60.0 60.0
+Rail Suburbs Hub 60.0 60.0
+Rail Capital Express 180.0 300.0
+Rail Express Hub 180.0 300.0
+Rail Hub MainLine 40.0 200.0
+Rail MainLine Terminal 40.0 200.0
+Rail Hub Bypass 42.0 200.0
+Rail Bypass Terminal 42.0 200.0
