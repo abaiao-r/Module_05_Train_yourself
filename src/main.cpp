@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 15:45:29 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 18:28:59 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,6 +35,8 @@ static void printHelp()
 		<< "Options:\n"
 		<< "  --time              Optimise route by travel time "
 		<< "instead of distance\n"
+		<< "  --congestion        Congestion-aware routing: dynamic "
+		<< "re-routing around occupied segments\n"
 		<< "  --graph <file.dot>  Export network + paths as "
 		<< "Graphviz DOT file\n"
 		<< "                      Auto-renders PNG & SVG if graphviz is "
@@ -147,7 +149,7 @@ int main(int argc, char **argv)
 	if (argc < 3 || argc > 10)
 	{
 		std::cerr << "Usage: " << argv[0]
-				  << " <network_file> <train_file> [--time] "
+				  << " <network_file> <train_file> [--time|--congestion] "
 				     "[--graph file.dot] [--animate] [--runs N]"
 				  << std::endl;
 		std::cerr << "Use --help for detailed format information."
@@ -178,6 +180,8 @@ int main(int argc, char **argv)
 	{
 		if (std::strcmp(argv[i], "--time") == 0)
 			weightMode = PathWeightMode::Time;
+		else if (std::strcmp(argv[i], "--congestion") == 0)
+			weightMode = PathWeightMode::Congestion;
 		else if (std::strcmp(argv[i], "--animate") == 0)
 			animate = true;
 		else if (std::strcmp(argv[i], "--runs") == 0)

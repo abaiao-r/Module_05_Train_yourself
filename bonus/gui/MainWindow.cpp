@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 16:19:44 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 18:28:59 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -194,7 +194,7 @@ QGraphicsView { border: 1px solid #334155; border-radius: 6px; }
 /* ================================================================== */
 
 MainWindow::MainWindow(QWidget *parent)
-	: QMainWindow(parent), _useTimeWeight(false), _simRunning(false),
+	: QMainWindow(parent), _weightMode(0), _simRunning(false),
 	  _view(nullptr),
 	  _scene(nullptr), _nodeList(nullptr), _edgeList(nullptr),
 	  _trainList(nullptr), _eventList(nullptr), _logView(nullptr),
@@ -492,11 +492,13 @@ void MainWindow::buildToolbar()
 	_pathWeightCombo = new QComboBox;
 	_pathWeightCombo->addItem("Distance");
 	_pathWeightCombo->addItem("Time");
+	_pathWeightCombo->addItem("Congestion");
 	_pathWeightCombo->setCurrentIndex(0);
 	_pathWeightCombo->setToolTip(
 		"Pathfinding weight:\n"
-		"  Distance — shortest path by km\n"
-		"  Time     — fastest path (accounts for speed limits)");
+		"  Distance   — shortest path by km\n"
+		"  Time       — fastest path (accounts for speed limits)\n"
+		"  Congestion — dynamic re-routing around occupied segments");
 	_pathWeightCombo->setFixedWidth(100);
 	_pathWeightCombo->setStyleSheet(
 		"QComboBox { background: #1e293b; color: #e0e0e0; "
@@ -508,7 +510,7 @@ void MainWindow::buildToolbar()
 		"QComboBox QAbstractItemView { background: #1e293b; color: #e0e0e0; "
 		"selection-background-color: #533483; border: 1px solid #334155; }");
 	connect(_pathWeightCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-			this, [this](int idx) { _useTimeWeight = (idx == 1); });
+			this, [this](int idx) { _weightMode = idx; });
 	tb->addWidget(_pathWeightCombo);
 
 	tb->addSeparator();
@@ -2497,7 +2499,7 @@ void MainWindow::onRunSimulation()
 		QMetaObject::invokeMethod(
 			_worker, "runMulti", Qt::QueuedConnection,
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
-			Q_ARG(bool, _useTimeWeight),
+			Q_ARG(int, _weightMode),
 			Q_ARG(int, numRuns),
 			Q_ARG(bool, animate));
 	}
@@ -2508,7 +2510,7 @@ void MainWindow::onRunSimulation()
 		QMetaObject::invokeMethod(
 			_worker, "runSimulation", Qt::QueuedConnection,
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
-			Q_ARG(bool, _useTimeWeight));
+			Q_ARG(int, _weightMode));
 	}
 }
 

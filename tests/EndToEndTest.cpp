@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/23 13:00:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 15:45:29 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 18:42:55 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -243,6 +243,20 @@ int main()
 			  });
 
 	/* ------------------------------------------------------------------ */
+	/*  --congestion mode                                                 */
+	/* ------------------------------------------------------------------ */
+
+	suite.run("--congestion mode -> exit 0 + trains arrive",
+			  [](std::string &msg) {
+				  cleanupE2E();
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --congestion");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
+				  return true;
+			  });
+
+	/* ------------------------------------------------------------------ */
 	/*  --graph mode                                                      */
 	/* ------------------------------------------------------------------ */
 
@@ -340,6 +354,28 @@ int main()
 				  ASSERT_TRUE(
 					  outputContains(r.output, "Multi-Run Statistics"),
 					  msg);
+				  return true;
+			  });
+
+	suite.run("--congestion --runs 2 combined -> exit 0 + stats",
+			  [](std::string &msg) {
+				  cleanupE2E();
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --congestion --runs 2");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(
+					  outputContains(r.output, "Multi-Run Statistics"),
+					  msg);
+				  return true;
+			  });
+
+	suite.run("--congestion --graph combined -> exit 0",
+			  [](std::string &msg) {
+				  cleanupE2E();
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --congestion --graph output/graphs/e2e_cong.dot");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
 				  return true;
 			  });
 

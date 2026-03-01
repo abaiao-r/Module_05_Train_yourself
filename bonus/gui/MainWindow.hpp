@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 16:19:44 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 18:28:59 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -116,7 +116,7 @@ class MainWindow : public QMainWindow
 	std::vector<Event> _eventDefs;
 	QString _networkFilePath;
 	QString _trainFilePath;
-	bool _useTimeWeight;
+	int _weightMode;  // 0 = Distance, 1 = Time, 2 = Congestion
 	bool _simRunning;
 
 	/* ─── Widgets ───────────────────────────────────────────────────── */
