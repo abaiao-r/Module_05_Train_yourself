@@ -86,6 +86,19 @@ install_hint_qt() {
     esac
 }
 
+install_hint_graphviz() {
+    case "$OS" in
+        macos) echo "  Run: ${CYAN}brew install graphviz${NC}" ;;
+        *)
+            case "$DISTRO" in
+                debian) echo "  Run: ${CYAN}sudo apt-get update && sudo apt-get install -y graphviz${NC}" ;;
+                fedora) echo "  Run: ${CYAN}sudo dnf install -y graphviz${NC}" ;;
+                arch)   echo "  Run: ${CYAN}sudo pacman -S --noconfirm graphviz${NC}" ;;
+                *)      echo "  Install graphviz for your distribution" ;;
+            esac ;;
+    esac
+}
+
 install_hint_brew() {
     echo "  Run: ${CYAN}/bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"${NC}"
 }
@@ -98,7 +111,7 @@ try_install_compiler() {
             if ! xcode-select -p &>/dev/null; then
                 warn "Xcode Command Line Tools required. A system dialog may appear."
                 xcode-select --install 2>/dev/null || true
-                printf "\n${YELLOW}  After the installation dialog completes, re-run: make deps${NC}\n\n"
+                printf "\n${YELLOW}  After the installation dialog completes, re-run: make setup${NC}\n\n"
                 exit 1
             fi ;;
         *)
@@ -180,6 +193,51 @@ try_install_qt() {
     esac
 }
 
+try_install_graphviz() {
+    info "Attempting to install Graphviz..."
+    case "$OS" in
+        macos)
+            if ! command -v brew &>/dev/null; then
+                fail "Homebrew is not installed (needed to install Graphviz on macOS)."
+                echo -e "$(install_hint_brew)\n"
+                echo -e "$(install_hint_graphviz)\n"
+                return 1
+            fi
+            brew install graphviz ;;
+        *)
+            case "$DISTRO" in
+                debian)
+                    if command -v sudo &>/dev/null; then
+                        sudo apt-get update -qq && sudo apt-get install -y graphviz
+                    else
+                        fail "sudo not available."
+                        echo -e "$(install_hint_graphviz)\n"
+                        return 1
+                    fi ;;
+                fedora)
+                    if command -v sudo &>/dev/null; then
+                        sudo dnf install -y graphviz
+                    else
+                        fail "sudo not available."
+                        echo -e "$(install_hint_graphviz)\n"
+                        return 1
+                    fi ;;
+                arch)
+                    if command -v sudo &>/dev/null; then
+                        sudo pacman -S --noconfirm graphviz
+                    else
+                        fail "sudo not available."
+                        echo -e "$(install_hint_graphviz)\n"
+                        return 1
+                    fi ;;
+                *)
+                    fail "Unknown distro — cannot auto-install."
+                    echo -e "$(install_hint_graphviz)\n"
+                    return 1 ;;
+            esac ;;
+    esac
+}
+
 # ── Locate qmake (exported for Makefile) ─────────────────────────────────────
 find_qmake() {
     # Try common names/paths in order of preference
@@ -233,41 +291,79 @@ check_cli() {
 # ═══════════════════════════════════════════════════════════════════════════════
 #  CHECK / INSTALL — Qt 6 + qmake
 # ═══════════════════════════════════════════════════════════════════════════════
+MIN_QT="6.3"
+
+# Compare two dot-separated version strings: returns 0 if $1 >= $2
+version_ge() {
+    local IFS=.
+    local i a=($1) b=($2)
+    for ((i = 0; i < ${#b[@]}; i++)); do
+        local va=${a[i]:-0} vb=${b[i]:-0}
+        if ((va > vb)); then return 0; fi
+        if ((va < vb)); then return 1; fi
+    done
+    return 0
+}
+
 check_gui() {
-    printf "\n${BOLD}── Qt 6 (for GUI bonus) ──${NC}\n"
+    printf "\n${BOLD}── Qt 6 (for GUI bonus) — minimum ${MIN_QT} ──${NC}\n"
 
     local qm
     if qm="$(find_qmake)"; then
         ok "qmake found  —  $qm"
-        # Verify it's Qt 6
         local ver
         ver="$("$qm" -query QT_VERSION 2>/dev/null || echo "unknown")"
         if [[ "$ver" == 6.* ]]; then
-            ok "Qt version $ver"
+            if version_ge "$ver" "$MIN_QT"; then
+                ok "Qt version $ver  (>= $MIN_QT)"
+            else
+                fail "Qt $ver is too old — minimum required is $MIN_QT"
+                echo -e "$(install_hint_qt)\n"
+                ERRORS=$((ERRORS + 1))
+            fi
         elif [[ "$ver" == 5.* ]]; then
-            fail "qmake points to Qt $ver — Qt 6 is required"
+            fail "qmake points to Qt $ver — Qt >= $MIN_QT is required"
             echo -e "$(install_hint_qt)\n"
             ERRORS=$((ERRORS + 1))
         else
             warn "Could not determine Qt version (got: $ver)"
         fi
     else
-        fail "qmake not found — Qt 6 is required for the GUI bonus"
+        fail "qmake not found — Qt >= $MIN_QT is required for the GUI bonus"
         echo -e "$(install_hint_qt)\n"
         ERRORS=$((ERRORS + 1))
     fi
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  CHECK / INSTALL — Graphviz (optional — for --graph rendering)
+# ═══════════════════════════════════════════════════════════════════════════════
+check_graphviz() {
+    printf "\n${BOLD}── Graphviz (for --graph PNG/SVG rendering) ──${NC}\n"
+
+    if command -v dot &>/dev/null; then
+        ok "dot (graphviz)  —  $(dot -V 2>&1 | head -1)"
+    else
+        warn "graphviz not found — --graph will produce .dot files but not PNG/SVG"
+        echo -e "$(install_hint_graphviz)\n"
+        GRAPHVIZ_MISSING=1
+    fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  MAIN
 # ═══════════════════════════════════════════════════════════════════════════════
+GRAPHVIZ_MISSING=0
+
 case "$MODE" in
     cli)
         check_cli
+        check_graphviz
         ;;
     gui)
         check_cli
         check_gui
+        check_graphviz
         ;;
     install-cli)
         check_cli
@@ -277,6 +373,14 @@ case "$MODE" in
             ERRORS=0
             echo ""
             check_cli
+        fi
+        check_graphviz
+        if [[ $GRAPHVIZ_MISSING -gt 0 ]]; then
+            echo ""
+            try_install_graphviz
+            GRAPHVIZ_MISSING=0
+            echo ""
+            check_graphviz
         fi
         ;;
     install-gui)
@@ -295,6 +399,14 @@ case "$MODE" in
             ERRORS=0
             echo ""
             check_gui
+        fi
+        check_graphviz
+        if [[ $GRAPHVIZ_MISSING -gt 0 ]]; then
+            echo ""
+            try_install_graphviz
+            GRAPHVIZ_MISSING=0
+            echo ""
+            check_graphviz
         fi
         ;;
     *)

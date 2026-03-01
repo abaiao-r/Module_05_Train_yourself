@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   MainWindow.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/03/01 16:19:44 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -484,6 +484,35 @@ void MainWindow::buildToolbar()
 
 	tb->addSeparator();
 
+	/* ── Path weight mode ── */
+	auto *pathCaption = new QLabel("  Path: ");
+	pathCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
+	tb->addWidget(pathCaption);
+
+	_pathWeightCombo = new QComboBox;
+	_pathWeightCombo->addItem("Distance");
+	_pathWeightCombo->addItem("Time");
+	_pathWeightCombo->setCurrentIndex(0);
+	_pathWeightCombo->setToolTip(
+		"Pathfinding weight:\n"
+		"  Distance — shortest path by km\n"
+		"  Time     — fastest path (accounts for speed limits)");
+	_pathWeightCombo->setFixedWidth(100);
+	_pathWeightCombo->setStyleSheet(
+		"QComboBox { background: #1e293b; color: #e0e0e0; "
+		"border: 1px solid #334155; border-radius: 4px; padding: 4px 8px; "
+		"font-size: 12px; }"
+		"QComboBox:focus { border-color: #533483; }"
+		"QComboBox::drop-down { border: none; }"
+		"QComboBox::down-arrow { image: none; }"
+		"QComboBox QAbstractItemView { background: #1e293b; color: #e0e0e0; "
+		"selection-background-color: #533483; border: 1px solid #334155; }");
+	connect(_pathWeightCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+			this, [this](int idx) { _useTimeWeight = (idx == 1); });
+	tb->addWidget(_pathWeightCombo);
+
+	tb->addSeparator();
+
 	/* ── Speed slider ── */
 	auto *spdCaption = new QLabel("  Speed: ");
 	spdCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
@@ -688,11 +717,17 @@ void MainWindow::scanPresetFiles()
 {
 	/* Resolve project root from the binary location so that preset
 	   scanning works regardless of how the app was launched (open,
-	   double-click, terminal, etc.). */
+	   double-click, terminal, etc.).
+	   On macOS the binary lives inside a .app bundle:
+	       bin/TrainGUI.app/Contents/MacOS/TrainGUI  →  4 cdUp()
+	   On Linux the binary is a plain ELF:
+	       bin/TrainGUI                               →  1 cdUp()  */
 	QDir root(QCoreApplication::applicationDirPath());
+#ifdef Q_OS_MACOS
 	root.cdUp(); // MacOS -> Contents
 	root.cdUp(); // Contents -> TrainGUI.app
 	root.cdUp(); // TrainGUI.app -> bin
+#endif
 	root.cdUp(); // bin -> project root
 
 	/* Scan network presets (skip files with known-bad names) */
