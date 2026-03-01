@@ -10,13 +10,13 @@ Run the simulation N times with different random seeds and aggregate travel-time
 
 ```bash
 # Run 1000 simulations and display statistics
-./bin/Train network.txt trains.txt --runs 1000
+./bin/train_yourself network.txt trains.txt --runs 1000
 
 # Combine with time-based routing
-./bin/Train network.txt trains.txt --time --runs 500
+./bin/train_yourself network.txt trains.txt --time --runs 500
 
 # Combine with animation (animation plays run 0 only)
-./bin/Train network.txt trains.txt --animate --runs 100
+./bin/train_yourself network.txt trains.txt --animate --runs 100
 
 # Shortcut
 make run-multi    # runs 1000 by default (editable in Makefile)

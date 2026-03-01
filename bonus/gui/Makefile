@@ -37,7 +37,7 @@ MOVE          = mv -f
 TAR           = tar -cf
 COMPRESS      = gzip -9f
 DISTNAME      = TrainGUI1.0.0
-DISTDIR = /Users/abaiao-r/Module_05_Train_yourself/objs/gui/TrainGUI1.0.0
+DISTDIR = /Users/ctw03933/Module_05_Train_yourself/objs/gui/TrainGUI1.0.0
 LINK          = /Library/Developer/CommandLineTools/usr/bin/clang++
 LFLAGS        = -stdlib=libc++ -headerpad_max_install_names $(EXPORT_ARCH_ARGS) -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mmacosx-version-min=14.0 -Wl,-rpath,@executable_path/../Frameworks -Wl,-rpath,/opt/homebrew/lib
 LIBS          = $(SUBLIBS) -F/opt/homebrew/lib -framework QtWidgets -framework QtGui -framework AppKit -framework ImageIO -framework Metal -framework QtCore -framework IOKit -framework DiskArbitration -framework UniformTypeIdentifiers -framework OpenGL   
@@ -490,12 +490,12 @@ TARGET        = ../../bin/TrainGUI.app/Contents/MacOS/TrainGUI
 EXPORT_QMAKE_MAC_SDK = macosx
 EXPORT_QMAKE_MAC_SDK_VERSION = 26.2
 EXPORT_QMAKE_XCODE_DEVELOPER_PATH = /Library/Developer/CommandLineTools
-EXPORT__QMAKE_STASH_ = /Users/abaiao-r/Module_05_Train_yourself/bonus/gui/.qmake.stash
+EXPORT__QMAKE_STASH_ = /Users/ctw03933/Module_05_Train_yourself/bonus/gui/.qmake.stash
 EXPORT_VALID_ARCHS = arm64
 EXPORT_DEFAULT_ARCHS = arm64
 EXPORT_ARCHS = $(filter $(EXPORT_VALID_ARCHS), $(if $(ARCHS), $(ARCHS), $(if $(EXPORT_DEFAULT_ARCHS), $(EXPORT_DEFAULT_ARCHS), $(EXPORT_VALID_ARCHS))))
 EXPORT_ARCH_ARGS = $(foreach arch, $(if $(EXPORT_ARCHS), $(EXPORT_ARCHS), $(EXPORT_VALID_ARCHS)), -arch $(arch))
-EXPORT__PRO_FILE_ = /Users/abaiao-r/Module_05_Train_yourself/bonus/gui/bonus.pro
+EXPORT__PRO_FILE_ = /Users/ctw03933/Module_05_Train_yourself/bonus/gui/bonus.pro
 
 
 include /opt/homebrew/share/qt/mkspecs/features/mac/sdk.mk
@@ -1318,6 +1318,8 @@ compiler_moc_header_make_all: ../../objs/gui/moc/moc_MainWindow.cpp ../../objs/g
 compiler_moc_header_clean:
 	-$(DEL_FILE) ../../objs/gui/moc/moc_MainWindow.cpp ../../objs/gui/moc/moc_NetworkScene.cpp ../../objs/gui/moc/moc_SimulationWorker.cpp ../../objs/gui/moc/moc_SimDashboard.cpp
 ../../objs/gui/moc/moc_MainWindow.cpp: MainWindow.hpp \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QCheckBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qcheckbox.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QComboBox \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qcombobox.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QGraphicsView \
@@ -1332,6 +1334,10 @@ compiler_moc_header_clean:
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QSlider \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSpinBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QTextEdit \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qtextedit.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QThread \
@@ -1365,7 +1371,7 @@ compiler_moc_header_clean:
 		../../src/Train/Train.hpp \
 		../../objs/gui/moc/moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
-	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/abaiao-r/Module_05_Train_yourself/objs/gui/moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/abaiao-r/Module_05_Train_yourself/bonus/gui -I/Users/abaiao-r/Module_05_Train_yourself/src/Edge -I/Users/abaiao-r/Module_05_Train_yourself/src/Node -I/Users/abaiao-r/Module_05_Train_yourself/src/RailNetwork -I/Users/abaiao-r/Module_05_Train_yourself/src/Train -I/Users/abaiao-r/Module_05_Train_yourself/src/Event -I/Users/abaiao-r/Module_05_Train_yourself/src/TrainFactory -I/Users/abaiao-r/Module_05_Train_yourself/src/IPathfinding -I/Users/abaiao-r/Module_05_Train_yourself/src/DijkstraPathfinding -I/Users/abaiao-r/Module_05_Train_yourself/src/InputHandler -I/Users/abaiao-r/Module_05_Train_yourself/src/OutputManager -I/Users/abaiao-r/Module_05_Train_yourself/src/Simulation -I/Users/abaiao-r/Module_05_Train_yourself/src/ISimulationObserver -I/Users/abaiao-r/Module_05_Train_yourself/src/FileOutputObserver -I/Users/abaiao-r/Module_05_Train_yourself/src/GraphExporter -I/Users/abaiao-r/Module_05_Train_yourself/src/TerminalAnimDisplay -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib MainWindow.hpp -o ../../objs/gui/moc/moc_MainWindow.cpp
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/ctw03933/Module_05_Train_yourself/objs/gui/moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/ctw03933/Module_05_Train_yourself/bonus/gui -I/Users/ctw03933/Module_05_Train_yourself/src/Edge -I/Users/ctw03933/Module_05_Train_yourself/src/Node -I/Users/ctw03933/Module_05_Train_yourself/src/RailNetwork -I/Users/ctw03933/Module_05_Train_yourself/src/Train -I/Users/ctw03933/Module_05_Train_yourself/src/Event -I/Users/ctw03933/Module_05_Train_yourself/src/TrainFactory -I/Users/ctw03933/Module_05_Train_yourself/src/IPathfinding -I/Users/ctw03933/Module_05_Train_yourself/src/DijkstraPathfinding -I/Users/ctw03933/Module_05_Train_yourself/src/InputHandler -I/Users/ctw03933/Module_05_Train_yourself/src/OutputManager -I/Users/ctw03933/Module_05_Train_yourself/src/Simulation -I/Users/ctw03933/Module_05_Train_yourself/src/ISimulationObserver -I/Users/ctw03933/Module_05_Train_yourself/src/FileOutputObserver -I/Users/ctw03933/Module_05_Train_yourself/src/GraphExporter -I/Users/ctw03933/Module_05_Train_yourself/src/TerminalAnimDisplay -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib MainWindow.hpp -o ../../objs/gui/moc/moc_MainWindow.cpp
 
 ../../objs/gui/moc/moc_NetworkScene.cpp: NetworkScene.hpp \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QGraphicsEllipseItem \
@@ -1390,7 +1396,7 @@ compiler_moc_header_clean:
 		/opt/homebrew/lib/QtCore.framework/Headers/qmutex.h \
 		../../objs/gui/moc/moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
-	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/abaiao-r/Module_05_Train_yourself/objs/gui/moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/abaiao-r/Module_05_Train_yourself/bonus/gui -I/Users/abaiao-r/Module_05_Train_yourself/src/Edge -I/Users/abaiao-r/Module_05_Train_yourself/src/Node -I/Users/abaiao-r/Module_05_Train_yourself/src/RailNetwork -I/Users/abaiao-r/Module_05_Train_yourself/src/Train -I/Users/abaiao-r/Module_05_Train_yourself/src/Event -I/Users/abaiao-r/Module_05_Train_yourself/src/TrainFactory -I/Users/abaiao-r/Module_05_Train_yourself/src/IPathfinding -I/Users/abaiao-r/Module_05_Train_yourself/src/DijkstraPathfinding -I/Users/abaiao-r/Module_05_Train_yourself/src/InputHandler -I/Users/abaiao-r/Module_05_Train_yourself/src/OutputManager -I/Users/abaiao-r/Module_05_Train_yourself/src/Simulation -I/Users/abaiao-r/Module_05_Train_yourself/src/ISimulationObserver -I/Users/abaiao-r/Module_05_Train_yourself/src/FileOutputObserver -I/Users/abaiao-r/Module_05_Train_yourself/src/GraphExporter -I/Users/abaiao-r/Module_05_Train_yourself/src/TerminalAnimDisplay -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib NetworkScene.hpp -o ../../objs/gui/moc/moc_NetworkScene.cpp
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/ctw03933/Module_05_Train_yourself/objs/gui/moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/ctw03933/Module_05_Train_yourself/bonus/gui -I/Users/ctw03933/Module_05_Train_yourself/src/Edge -I/Users/ctw03933/Module_05_Train_yourself/src/Node -I/Users/ctw03933/Module_05_Train_yourself/src/RailNetwork -I/Users/ctw03933/Module_05_Train_yourself/src/Train -I/Users/ctw03933/Module_05_Train_yourself/src/Event -I/Users/ctw03933/Module_05_Train_yourself/src/TrainFactory -I/Users/ctw03933/Module_05_Train_yourself/src/IPathfinding -I/Users/ctw03933/Module_05_Train_yourself/src/DijkstraPathfinding -I/Users/ctw03933/Module_05_Train_yourself/src/InputHandler -I/Users/ctw03933/Module_05_Train_yourself/src/OutputManager -I/Users/ctw03933/Module_05_Train_yourself/src/Simulation -I/Users/ctw03933/Module_05_Train_yourself/src/ISimulationObserver -I/Users/ctw03933/Module_05_Train_yourself/src/FileOutputObserver -I/Users/ctw03933/Module_05_Train_yourself/src/GraphExporter -I/Users/ctw03933/Module_05_Train_yourself/src/TerminalAnimDisplay -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib NetworkScene.hpp -o ../../objs/gui/moc/moc_NetworkScene.cpp
 
 ../../objs/gui/moc/moc_SimulationWorker.cpp: SimulationWorker.hpp \
 		/opt/homebrew/lib/QtCore.framework/Headers/QObject \
@@ -1403,7 +1409,7 @@ compiler_moc_header_clean:
 		/opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
 		../../objs/gui/moc/moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
-	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/abaiao-r/Module_05_Train_yourself/objs/gui/moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/abaiao-r/Module_05_Train_yourself/bonus/gui -I/Users/abaiao-r/Module_05_Train_yourself/src/Edge -I/Users/abaiao-r/Module_05_Train_yourself/src/Node -I/Users/abaiao-r/Module_05_Train_yourself/src/RailNetwork -I/Users/abaiao-r/Module_05_Train_yourself/src/Train -I/Users/abaiao-r/Module_05_Train_yourself/src/Event -I/Users/abaiao-r/Module_05_Train_yourself/src/TrainFactory -I/Users/abaiao-r/Module_05_Train_yourself/src/IPathfinding -I/Users/abaiao-r/Module_05_Train_yourself/src/DijkstraPathfinding -I/Users/abaiao-r/Module_05_Train_yourself/src/InputHandler -I/Users/abaiao-r/Module_05_Train_yourself/src/OutputManager -I/Users/abaiao-r/Module_05_Train_yourself/src/Simulation -I/Users/abaiao-r/Module_05_Train_yourself/src/ISimulationObserver -I/Users/abaiao-r/Module_05_Train_yourself/src/FileOutputObserver -I/Users/abaiao-r/Module_05_Train_yourself/src/GraphExporter -I/Users/abaiao-r/Module_05_Train_yourself/src/TerminalAnimDisplay -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib SimulationWorker.hpp -o ../../objs/gui/moc/moc_SimulationWorker.cpp
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/ctw03933/Module_05_Train_yourself/objs/gui/moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/ctw03933/Module_05_Train_yourself/bonus/gui -I/Users/ctw03933/Module_05_Train_yourself/src/Edge -I/Users/ctw03933/Module_05_Train_yourself/src/Node -I/Users/ctw03933/Module_05_Train_yourself/src/RailNetwork -I/Users/ctw03933/Module_05_Train_yourself/src/Train -I/Users/ctw03933/Module_05_Train_yourself/src/Event -I/Users/ctw03933/Module_05_Train_yourself/src/TrainFactory -I/Users/ctw03933/Module_05_Train_yourself/src/IPathfinding -I/Users/ctw03933/Module_05_Train_yourself/src/DijkstraPathfinding -I/Users/ctw03933/Module_05_Train_yourself/src/InputHandler -I/Users/ctw03933/Module_05_Train_yourself/src/OutputManager -I/Users/ctw03933/Module_05_Train_yourself/src/Simulation -I/Users/ctw03933/Module_05_Train_yourself/src/ISimulationObserver -I/Users/ctw03933/Module_05_Train_yourself/src/FileOutputObserver -I/Users/ctw03933/Module_05_Train_yourself/src/GraphExporter -I/Users/ctw03933/Module_05_Train_yourself/src/TerminalAnimDisplay -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib SimulationWorker.hpp -o ../../objs/gui/moc/moc_SimulationWorker.cpp
 
 ../../objs/gui/moc/moc_SimDashboard.cpp: SimDashboard.hpp \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QTextEdit \
@@ -1419,7 +1425,7 @@ compiler_moc_header_clean:
 		/opt/homebrew/lib/QtCore.framework/Headers/qstring.h \
 		../../objs/gui/moc/moc_predefs.h \
 		/opt/homebrew/share/qt/libexec/moc
-	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/abaiao-r/Module_05_Train_yourself/objs/gui/moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/abaiao-r/Module_05_Train_yourself/bonus/gui -I/Users/abaiao-r/Module_05_Train_yourself/src/Edge -I/Users/abaiao-r/Module_05_Train_yourself/src/Node -I/Users/abaiao-r/Module_05_Train_yourself/src/RailNetwork -I/Users/abaiao-r/Module_05_Train_yourself/src/Train -I/Users/abaiao-r/Module_05_Train_yourself/src/Event -I/Users/abaiao-r/Module_05_Train_yourself/src/TrainFactory -I/Users/abaiao-r/Module_05_Train_yourself/src/IPathfinding -I/Users/abaiao-r/Module_05_Train_yourself/src/DijkstraPathfinding -I/Users/abaiao-r/Module_05_Train_yourself/src/InputHandler -I/Users/abaiao-r/Module_05_Train_yourself/src/OutputManager -I/Users/abaiao-r/Module_05_Train_yourself/src/Simulation -I/Users/abaiao-r/Module_05_Train_yourself/src/ISimulationObserver -I/Users/abaiao-r/Module_05_Train_yourself/src/FileOutputObserver -I/Users/abaiao-r/Module_05_Train_yourself/src/GraphExporter -I/Users/abaiao-r/Module_05_Train_yourself/src/TerminalAnimDisplay -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib SimDashboard.hpp -o ../../objs/gui/moc/moc_SimDashboard.cpp
+	/opt/homebrew/share/qt/libexec/moc $(DEFINES) --include /Users/ctw03933/Module_05_Train_yourself/objs/gui/moc/moc_predefs.h -I/opt/homebrew/share/qt/mkspecs/macx-clang -I/Users/ctw03933/Module_05_Train_yourself/bonus/gui -I/Users/ctw03933/Module_05_Train_yourself/src/Edge -I/Users/ctw03933/Module_05_Train_yourself/src/Node -I/Users/ctw03933/Module_05_Train_yourself/src/RailNetwork -I/Users/ctw03933/Module_05_Train_yourself/src/Train -I/Users/ctw03933/Module_05_Train_yourself/src/Event -I/Users/ctw03933/Module_05_Train_yourself/src/TrainFactory -I/Users/ctw03933/Module_05_Train_yourself/src/IPathfinding -I/Users/ctw03933/Module_05_Train_yourself/src/DijkstraPathfinding -I/Users/ctw03933/Module_05_Train_yourself/src/InputHandler -I/Users/ctw03933/Module_05_Train_yourself/src/OutputManager -I/Users/ctw03933/Module_05_Train_yourself/src/Simulation -I/Users/ctw03933/Module_05_Train_yourself/src/ISimulationObserver -I/Users/ctw03933/Module_05_Train_yourself/src/FileOutputObserver -I/Users/ctw03933/Module_05_Train_yourself/src/GraphExporter -I/Users/ctw03933/Module_05_Train_yourself/src/TerminalAnimDisplay -I/opt/homebrew/lib/QtWidgets.framework/Headers -I/opt/homebrew/lib/QtGui.framework/Headers -I/opt/homebrew/lib/QtCore.framework/Headers -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -I/Library/Developer/CommandLineTools/usr/lib/clang/17/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -I/Library/Developer/CommandLineTools/usr/include -F/opt/homebrew/lib SimDashboard.hpp -o ../../objs/gui/moc/moc_SimDashboard.cpp
 
 compiler_moc_objc_header_make_all:
 compiler_moc_objc_header_clean:
@@ -1520,7 +1526,11 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 
 ../../objs/gui/main.o: main.cpp /opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QStyleFactory \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qstylefactory.h \
 		MainWindow.hpp \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QCheckBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qcheckbox.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QComboBox \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qcombobox.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QGraphicsView \
@@ -1535,6 +1545,10 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QSlider \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSpinBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QTextEdit \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qtextedit.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QThread \
@@ -1569,6 +1583,8 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../objs/gui/main.o main.cpp
 
 ../../objs/gui/MainWindow.o: MainWindow.cpp MainWindow.hpp \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QCheckBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qcheckbox.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QComboBox \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qcombobox.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QGraphicsView \
@@ -1583,6 +1599,10 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QSlider \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSpinBox \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
+		/opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QTextEdit \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qtextedit.h \
 		/opt/homebrew/lib/QtCore.framework/Headers/QThread \
@@ -1625,7 +1645,6 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QDockWidget \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qdockwidget.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QDoubleSpinBox \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/qspinbox.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QFileDialog \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qfiledialog.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QFormLayout \
@@ -1648,9 +1667,6 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		/opt/homebrew/lib/QtCore.framework/Headers/qregularexpression.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QScrollArea \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qscrollarea.h \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/QSpinBox \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
-		/opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QStatusBar \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/qstatusbar.h \
 		/opt/homebrew/lib/QtWidgets.framework/Headers/QTabWidget \
@@ -1741,7 +1757,8 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../src/Simulation/Simulation.hpp \
 		../../src/FileOutputObserver/FileOutputObserver.hpp \
 		../../src/ISimulationObserver/ISimulationObserver.hpp \
-		../../src/OutputManager/OutputManager.hpp
+		../../src/OutputManager/OutputManager.hpp \
+		../../src/TrainFactory/TrainFactory.hpp
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../objs/gui/SimulationWorker.o SimulationWorker.cpp
 
 ../../objs/gui/SimDashboard.o: SimDashboard.cpp SimDashboard.hpp \

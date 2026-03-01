@@ -17,7 +17,7 @@ A physics-based train simulation engine that models rail traffic across a config
 | **Pathfinding** | Dijkstra shortest-path (Strategy pattern) · distance or time weight mode (`--time` flag) |
 | **Per-train output** | `TrainName_HHhMM.result` file with header, estimated time, every-minute rail graph, events, actual time |
 | **Random events** | Probability-based disruptions at stations (riots, discomfort, …) inject delays |
-| **315 unit / integration tests** | Custom TestFramework, 11 suites covering nodes, networks, trains, events, pathfinding, I/O, factories, edge cases, combinations |
+| **498 unit / integration tests** | Custom TestFramework, 13 suites covering nodes, networks, trains, events, pathfinding, I/O, factories, edge cases, combinations, end-to-end, input combos |
 | **3 design patterns + 6 principles** | Strategy, Factory, Observer · KISS, DRY, Encapsulation, SRP, Separation of Concerns, Interface Segregation |
 | **7 UML diagrams** | Class, 3 sequence, state machine, 2 activity — PlantUML sources + PNG + SVG |
 
@@ -35,62 +35,31 @@ A physics-based train simulation engine that models rail traffic across a config
 
 ### Requirements
 
-- A C++17 compiler (`c++`, `g++`, or `clang++`)
-- `make`
-- **Qt 6** (only for the GUI bonus)
+- **C++17 compiler** (g++ >= 7 or clang++ >= 5)
+- **make**
+- **Qt >= 6.3** (for GUI bonus only)
 - Supported platforms: **macOS**, **Linux**, **WSL**
 
-### Install Dependencies
-
-The project can check and install everything it needs automatically:
+### Setup
 
 ```bash
-make deps           # check & install CLI build dependencies
-make deps-gui       # check & install CLI + Qt 6 for the GUI bonus
-make check-deps     # just check CLI deps (no install)
-make check-deps-gui # just check CLI + Qt deps (no install)
+make setup    # checks dependencies, installs missing ones (compiler, Qt)
 ```
 
-<details>
-<summary>Manual install per platform</summary>
-
-**macOS**
-```bash
-xcode-select --install   # C++ compiler & make
-brew install qt           # Qt 6 (GUI bonus only)
-```
-
-**Ubuntu / Debian / WSL**
-```bash
-sudo apt-get update && sudo apt-get install -y build-essential   # C++ & make
-sudo apt-get install -y qt6-base-dev                              # Qt 6 (GUI bonus only)
-```
-
-**Fedora**
-```bash
-sudo dnf install -y gcc-c++ make       # C++ & make
-sudo dnf install -y qt6-qtbase-devel   # Qt 6 (GUI bonus only)
-```
-
-**Arch Linux**
-```bash
-sudo pacman -S --noconfirm base-devel   # C++ & make
-sudo pacman -S --noconfirm qt6-base     # Qt 6 (GUI bonus only)
-```
-</details>
+The script detects your platform (macOS/Homebrew, Debian/Ubuntu, Fedora, Arch) and installs what's needed.
 
 ### Build & Run
 
 ```bash
 make                # build
 make run            # run with sample data
-./bin/Train --help  # show input file format
+./bin/train_yourself --help  # show input file format
 
 # Or supply your own files
-./bin/Train path/to/network.txt path/to/trains.txt
+./bin/train_yourself path/to/network.txt path/to/trains.txt
 
 # Optimise route by travel time instead of distance
-./bin/Train path/to/network.txt path/to/trains.txt --time
+./bin/train_yourself path/to/network.txt path/to/trains.txt --time
 
 # Terminal animation
 make run-animate
@@ -99,7 +68,7 @@ make run-animate
 make run-multi
 
 # Graph export (Graphviz DOT + auto-render PNG/SVG)
-./bin/Train network.txt trains.txt --graph output/network.dot
+./bin/train_yourself network.txt trains.txt --graph output/network.dot
 make run-graph    # shortcut with sample data
 
 # GUI bonus
@@ -110,10 +79,10 @@ make run-gui        # build & launch
 ### CLI Reference
 
 <details>
-<summary><code>./bin/Train --help</code> (click to expand)</summary>
+<summary><code>./bin/train_yourself --help</code> (click to expand)</summary>
 
 ```
-Usage: ./Train <network_file> <train_file> [options]
+Usage: ./train_yourself <network_file> <train_file> [options]
 
 Options:
   --time              Optimise route by travel time instead of distance
@@ -141,7 +110,7 @@ Options:
 The `--graph` flag exports the rail network and all computed train paths as a **Graphviz DOT** file:
 
 ```bash
-./bin/Train network.txt trains.txt --graph output/network.dot
+./bin/train_yourself network.txt trains.txt --graph output/network.dot
 ```
 
 - Stations are drawn as rounded boxes (city nodes highlighted in blue)
@@ -153,7 +122,7 @@ The `--graph` flag exports the rail network and all computed train paths as a **
 ### Run Tests
 
 ```bash
-make test     # 315 tests across 11 suites
+make test     # 498 tests across 13 suites
 ```
 
 ### Clean
@@ -232,7 +201,7 @@ See [docs/TECHNICAL.md](docs/TECHNICAL.md) for the full documentation index, or 
 | [Design Patterns](docs/DESIGN_PATTERNS.md) | Strategy, Factory, Observer · DI · Class Relationships · 6 Design Principles |
 | [Class Reference](docs/CLASS_REFERENCE.md) | Per-class API documentation |
 | [Diagrams](docs/DIAGRAMS.md) | 7 UML diagrams (class, state, sequence, activity) |
-| [Build & Testing](docs/BUILD_SYSTEM.md) | Makefile targets, 315 tests, CI pipeline |
+| [Build & Testing](docs/BUILD_SYSTEM.md) | Makefile targets, 498 tests, CI pipeline |
 
 ### Design Patterns
 

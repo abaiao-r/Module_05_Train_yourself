@@ -6,12 +6,12 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/23 13:00:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 15:19:32 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 15:45:29 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 /**
- * End-to-End tests — runs the compiled ./bin/Train binary as a subprocess
+ * End-to-End tests — runs the compiled ./bin/train_yourself binary as a subprocess
  * and validates exit codes, stdout/stderr content, and generated output files.
  */
 
@@ -24,7 +24,7 @@
 
 #include "TestFramework.hpp"
 
-static const std::string BIN = "./bin/Train";
+static const std::string BIN = "./bin/train_yourself";
 static const std::string NET =
 	"input/railNetworkPrintFolder/railNetworkPrintGood.txt";
 static const std::string TRN = "input/trainPrintFolder/trainPrintGood.txt";

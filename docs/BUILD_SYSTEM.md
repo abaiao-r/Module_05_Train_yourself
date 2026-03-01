@@ -10,7 +10,7 @@ Plain `Makefile` with:
 - **No relink**: pattern rules produce `.o` in `objs/`, binary only re-links if objects change
 - **Compiler**: `CXX = c++` (overridable: `make CXX=g++`)
 - **Flags**: `-Wall -Wextra -Werror -std=c++17 -g`
-- **Dependency check**: `make deps` / `make deps-gui` auto-detects platform and installs missing tools
+- **Dependency check**: `make setup` auto-detects platform and installs missing tools (compiler + Qt)
 - **qmake auto-detect**: Makefile finds qmake6/qmake across macOS Homebrew and Linux system paths
 
 ---
@@ -20,7 +20,7 @@ Plain `Makefile` with:
 | Target | Description |
 |--------|-------------|
 | `make` | Build the CLI simulator |
-| `make test` | Run all 315 tests |
+| `make test` | Run all 498 tests |
 | `make run` | Run with sample data |
 | `make run-time` | Run with time-based routing |
 | `make run-animate` | Run with terminal animation |
@@ -29,10 +29,7 @@ Plain `Makefile` with:
 | `make run-graph-time` | Export graph with time-based routing |
 | `make bonus` | Build the Qt GUI (checks Qt 6 first) |
 | `make run-gui` | Build & launch the GUI |
-| `make check-deps` | Check CLI dependencies |
-| `make check-deps-gui` | Check CLI + Qt dependencies |
-| `make deps` | Auto-install CLI dependencies |
-| `make deps-gui` | Auto-install CLI + Qt dependencies |
+| `make setup` | Check & install all dependencies (compiler + Qt) |
 | `make clean` | Remove object files |
 | `make fclean` | Remove objects + binaries |
 | `make bonus-clean` | Remove GUI build artifacts |
@@ -54,32 +51,31 @@ The `scripts/check_deps.sh` script auto-detects the platform and manages depende
 
 **Usage:**
 ```bash
-make deps           # check & install CLI build dependencies
-make deps-gui       # check & install CLI + Qt 6 for the GUI bonus
-make check-deps     # just check CLI deps (no install)
-make check-deps-gui # just check CLI + Qt deps (no install)
+make setup      # check & install all dependencies (compiler, make, Qt >= 6.3)
 ```
 
 ---
 
 ## Testing
 
-**315 tests** across **11 suites**, all using the custom `TestFramework.hpp`:
+**498 tests** across **13 suites**, all using the custom `TestFramework.hpp`:
 
 | Suite | Tests | Coverage |
 |-------|------:|----------|
 | NodeTest | 5 | Construction, naming, exceptions |
 | RailNetworkTest | 14 | Graph operations, validation |
-| TrainTest | 14 | Properties, physics calculations |
+| TrainTest | 16 | Properties, physics calculations |
 | EventTest | 13 | Probability, duration, rail events |
 | DijkstraTest | 11 | Shortest path, weight modes |
 | InputHandlerTest | 28 | Parsing, validation, error handling |
-| TrainFactoryTest | 11 | Factory method, ID assignment |
+| TrainFactoryTest | 13 | Factory method, ID assignment |
 | OutputManagerTest | 5 | Formatting, file output |
 | IntegrationTest | 7 | End-to-end with .result file checks |
 | EdgeCaseTest | 9 | Boundary values, error paths |
-| CombinationTest | 198 | Exhaustive parameter combinations |
-| **Total** | **315** | |
+| CombinationTest | 315 | Exhaustive parameter combinations |
+| EndToEndTest | 26 | Subprocess binary validation, exit codes |
+| InputComboTest | 36 | All input file pairs, ASan leak checks |
+| **Total** | **498** | |
 
 ### Test Framework
 
@@ -92,7 +88,7 @@ Custom `TestFramework.hpp` provides:
 ### Running Tests
 
 ```bash
-make test     # run all 315 tests
+make test     # run all 498 tests
 ```
 
 ---
