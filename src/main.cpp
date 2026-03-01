@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 18:28:59 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 18:56:25 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,6 +37,8 @@ static void printHelp()
 		<< "instead of distance\n"
 		<< "  --congestion        Congestion-aware routing: dynamic "
 		<< "re-routing around occupied segments\n"
+		<< "                      (--time and --congestion are mutually "
+		<< "exclusive)\n"
 		<< "  --graph <file.dot>  Export network + paths as "
 		<< "Graphviz DOT file\n"
 		<< "                      Auto-renders PNG & SVG if graphviz is "
@@ -173,15 +175,34 @@ int main(int argc, char **argv)
 
 	/* Parse optional flags */
 	PathWeightMode weightMode = PathWeightMode::Distance;
+	bool weightModeSet = false;
 	std::string graphFile;
 	bool animate = false;
 	int numRuns = 1;
 	for (int i = 3; i < argc; i++)
 	{
 		if (std::strcmp(argv[i], "--time") == 0)
+		{
+			if (weightModeSet)
+			{
+				std::cerr << "Error: --time and --congestion are "
+							  "mutually exclusive" << std::endl;
+				return EXIT_FAILURE;
+			}
 			weightMode = PathWeightMode::Time;
+			weightModeSet = true;
+		}
 		else if (std::strcmp(argv[i], "--congestion") == 0)
+		{
+			if (weightModeSet)
+			{
+				std::cerr << "Error: --time and --congestion are "
+							  "mutually exclusive" << std::endl;
+				return EXIT_FAILURE;
+			}
 			weightMode = PathWeightMode::Congestion;
+			weightModeSet = true;
+		}
 		else if (std::strcmp(argv[i], "--animate") == 0)
 			animate = true;
 		else if (std::strcmp(argv[i], "--runs") == 0)
