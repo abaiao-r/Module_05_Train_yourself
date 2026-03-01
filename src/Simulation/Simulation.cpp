@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 18:28:59 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 19:20:41 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -89,6 +89,7 @@ void Simulation::run()
 		s.stopTimer = 0.0;
 		s.departed = false;
 		s.arrived = false;
+		s.segsSinceReroute = REROUTE_COOLDOWN; // allow immediate first reroute
 		states.push_back(s);
 
 		auto obs = std::make_unique<FileOutputObserver>(
@@ -126,6 +127,11 @@ void Simulation::run()
 	while (anyActive())
 	{
 		simTime += DT;
+
+		/* Build occupancy snapshot once per tick (congestion mode only) */
+		SegmentOccupancy tickOccupancy;
+		if (_weightMode == PathWeightMode::Congestion)
+			tickOccupancy = buildOccupancy(states);
 
 		for (size_t i = 0; i < states.size(); i++)
 		{
@@ -182,7 +188,7 @@ void Simulation::run()
 							   segLen_m, segSpd_ms);
 
 				if (s.posOnSegment_m >= segLen_m)
-					handleSegmentTransition(s, i, states);
+					handleSegmentTransition(s, i, states, tickOccupancy);
 			}
 
 			/* Output at intervals */
@@ -486,8 +492,10 @@ void Simulation::updatePhysics(TrainState &s)
 
 /* ---- Segment transition ---- */
 void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
-										 const std::vector<TrainState> &states)
+										 const std::vector<TrainState> &states,
+										 const SegmentOccupancy &tickOccupancy)
 {
+	(void)states; // occupancy is now pre-built per tick
 	auto &path = s.train->getPath();
 	if (path.size() < 2)
 		return;
@@ -555,21 +563,42 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 		s.stopTimer = s.train->getStopDuration();
 
 		/* Congestion-aware re-routing from the new current node */
-		if (_weightMode == PathWeightMode::Congestion)
+		s.segsSinceReroute++;
+		if (_weightMode == PathWeightMode::Congestion
+			&& s.segsSinceReroute >= REROUTE_COOLDOWN
+			&& hasCongestedSegmentAhead(s, tickOccupancy))
 		{
-			SegmentOccupancy occ = buildOccupancy(states);
-			rerouteFromNode(s, occ);
+			/* Build occupancy excluding this train to avoid self-avoidance */
+			SegmentOccupancy selfExcluded = tickOccupancy;
+			const auto &p = s.train->getPath();
+			if (p.size() >= 2 && s.segmentIndex + 1 < p.size())
+			{
+				std::string selfKey = p[s.segmentIndex]->getName()
+									  + "->"
+									  + p[s.segmentIndex + 1]->getName();
+				auto it = selfExcluded.find(selfKey);
+				if (it != selfExcluded.end())
+				{
+					it->second--;
+					if (it->second <= 0)
+						selfExcluded.erase(it);
+				}
+			}
+			rerouteFromNode(s, selfExcluded);
 		}
 	}
 }
 
 /* ---- Build segment occupancy map ---- */
 SegmentOccupancy Simulation::buildOccupancy(
-	const std::vector<TrainState> &states) const
+	const std::vector<TrainState> &states, size_t excludeIdx) const
 {
 	SegmentOccupancy occ;
-	for (const auto &ts : states)
+	for (size_t i = 0; i < states.size(); i++)
 	{
+		if (i == excludeIdx)
+			continue;
+		const auto &ts = states[i];
 		if (ts.arrived || !ts.departed)
 			continue;
 		const auto &p = ts.train->getPath();
@@ -580,6 +609,24 @@ SegmentOccupancy Simulation::buildOccupancy(
 		occ[key]++;
 	}
 	return occ;
+}
+
+/* ---- Check if any remaining segment on the path is congested ---- */
+bool Simulation::hasCongestedSegmentAhead(
+	const TrainState &s, const SegmentOccupancy &occupancy) const
+{
+	if (occupancy.empty())
+		return false;
+	const auto &path = s.train->getPath();
+	for (size_t i = s.segmentIndex; i + 1 < path.size(); i++)
+	{
+		std::string key = path[i]->getName() + "->"
+						  + path[i + 1]->getName();
+		auto it = occupancy.find(key);
+		if (it != occupancy.end() && it->second > 0)
+			return true;
+	}
+	return false;
 }
 
 /* ---- Re-route a train from its current node using occupancy data ---- */
@@ -608,6 +655,23 @@ void Simulation::rerouteFromNode(TrainState &s,
 	if (newTail.size() < 2)
 		return;
 
+	/* Only apply if the new tail differs from the current remaining path */
+	bool same = (newTail.size() == path.size() - s.segmentIndex);
+	if (same)
+	{
+		for (size_t i = 0; i < newTail.size(); i++)
+		{
+			if (newTail[i]->getName()
+				!= path[s.segmentIndex + i]->getName())
+			{
+				same = false;
+				break;
+			}
+		}
+	}
+	if (same)
+		return;
+
 	/* Build the full path: segments already traversed + new tail */
 	std::vector<std::shared_ptr<Node>> newPath;
 	for (size_t i = 0; i < s.segmentIndex; i++)
@@ -618,6 +682,7 @@ void Simulation::rerouteFromNode(TrainState &s,
 	s.train->setPath(newPath);
 	s.segmentIndex = newPath.size() - newTail.size();
 	s.train->setPathIndex(s.segmentIndex);
+	s.segsSinceReroute = 0;
 }
 
 /* ---- Overtaking / blocking between trains ---- */

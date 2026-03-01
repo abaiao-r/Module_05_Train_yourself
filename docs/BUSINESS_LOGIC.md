@@ -41,8 +41,24 @@ Before simulation begins, each train is assigned an **optimal route** through th
 
 - **Distance** (default) — minimises total kilometres: edge weight = `distance`
 - **Time** — minimises travel time: edge weight = `distance / speedLimit`
+- **Congestion** — dynamic re-routing that avoids occupied segments (see §3a)
 
-Pass `--time` on the command line to use time-based routing. If no route exists, the train is skipped with a warning.
+Pass `--time` or `--congestion` on the command line (mutually exclusive). If no route exists, the train is skipped with a warning.
+
+### 3a. Congestion-Aware Routing
+
+When `--congestion` is active, the simulator dynamically re-routes trains at node transitions to avoid occupied segments:
+
+1. **Base cost** = `distance / speedLimit` (identical to Time mode)
+2. **Congestion penalty** = `120 seconds × (number of trains on segment) / 3600` hours, added per occupied segment
+3. **Segment occupancy** is tracked as a snapshot each tick: `map<"from->to", count>`
+
+**Performance guards** (to prevent pathological re-routing on dense networks):
+- **Tick-level caching**: occupancy is built once per tick, not per-transition
+- **Self-exclusion**: a train does not count itself when evaluating its own segments
+- **Ahead-check**: re-routing only triggers if a remaining segment on the current path is actually congested
+- **Cooldown**: minimum 3 segments must elapse between reroutes (prevents path oscillation)
+- **Diff-check**: the new path is only applied if it differs from the current one
 
 ### 4. Physics-Based Travel Time
 

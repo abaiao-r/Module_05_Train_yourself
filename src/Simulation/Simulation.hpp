@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 18:28:59 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 19:20:41 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,7 @@ struct TrainState
 	double stopTimer;        // seconds remaining at a station stop
 	bool departed;
 	bool arrived;
+	size_t segsSinceReroute; // segments elapsed since last congestion reroute
 };
 
 /**
@@ -78,6 +79,7 @@ class Simulation
 
 	static constexpr double DT = 1.0;             // 1-second timestep
 	static constexpr double OUTPUT_INTERVAL = 60.0; // output every minute
+	static constexpr size_t REROUTE_COOLDOWN = 3;  // min segments between reroutes
 
   public:
 	Simulation(RailNetwork network,
@@ -108,10 +110,14 @@ class Simulation
 	double totalRemainingDistance(const TrainState &s) const;
 	void updatePhysics(TrainState &s);
 	void handleSegmentTransition(TrainState &s, size_t trainIdx,
-								 const std::vector<TrainState> &states);
+								 const std::vector<TrainState> &states,
+								 const SegmentOccupancy &tickOccupancy);
 	void applyBlocking(std::vector<TrainState> &states);
 	SegmentOccupancy buildOccupancy(
-		const std::vector<TrainState> &states) const;
+		const std::vector<TrainState> &states,
+		size_t excludeIdx = SIZE_MAX) const;
+	bool hasCongestedSegmentAhead(const TrainState &s,
+								 const SegmentOccupancy &occupancy) const;
 	void rerouteFromNode(TrainState &s,
 						 const SegmentOccupancy &occupancy);
 	std::vector<const Event *> getEventsAtNode(
