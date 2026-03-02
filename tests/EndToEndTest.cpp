@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/23 13:00:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 15:45:29 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 18:56:25 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -98,9 +98,12 @@ int main()
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Options:"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--time"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "--congestion"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--graph"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--animate"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--runs"), msg);
+				  ASSERT_TRUE(outputContains(r.output,
+							  "mutually exclusive"), msg);
 				  return true;
 			  });
 
@@ -243,6 +246,20 @@ int main()
 			  });
 
 	/* ------------------------------------------------------------------ */
+	/*  --congestion mode                                                 */
+	/* ------------------------------------------------------------------ */
+
+	suite.run("--congestion mode -> exit 0 + trains arrive",
+			  [](std::string &msg) {
+				  cleanupE2E();
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --congestion");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
+				  return true;
+			  });
+
+	/* ------------------------------------------------------------------ */
 	/*  --graph mode                                                      */
 	/* ------------------------------------------------------------------ */
 
@@ -340,6 +357,48 @@ int main()
 				  ASSERT_TRUE(
 					  outputContains(r.output, "Multi-Run Statistics"),
 					  msg);
+				  return true;
+			  });
+
+	suite.run("--congestion --runs 2 combined -> exit 0 + stats",
+			  [](std::string &msg) {
+				  cleanupE2E();
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --congestion --runs 2");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(
+					  outputContains(r.output, "Multi-Run Statistics"),
+					  msg);
+				  return true;
+			  });
+
+	suite.run("--congestion --graph combined -> exit 0",
+			  [](std::string &msg) {
+				  cleanupE2E();
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --congestion --graph output/graphs/e2e_cong.dot");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
+				  return true;
+			  });
+
+	suite.run("--time --congestion -> exit 1 (mutually exclusive)",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --time --congestion");
+				  ASSERT_EQ(1, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "mutually exclusive"),
+							  msg);
+				  return true;
+			  });
+
+	suite.run("--congestion --time -> exit 1 (mutually exclusive)",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --congestion --time");
+				  ASSERT_EQ(1, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "mutually exclusive"),
+							  msg);
 				  return true;
 			  });
 

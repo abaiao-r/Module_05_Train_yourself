@@ -1,0 +1,4 @@
+SlowR1 200 0.05 200.0 50.0 Capital Terminal 08h00 00h03
+FastR2 200 0.05 600.0 50.0 Capital Terminal 08h01 00h03
+SlowR3 200 0.05 200.0 50.0 Capital Terminal 08h02 00h03
+FastR4 200 0.05 600.0 50.0 Capital Terminal 08h03 00h03

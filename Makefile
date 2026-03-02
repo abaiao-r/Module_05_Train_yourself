@@ -6,7 +6,7 @@
 #    By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/28 20:50:03 by ctw03933          #+#    #+#              #
-#    Updated: 2026/03/01 15:45:29 by ctw03933         ###   ########.fr        #
+#    Updated: 2026/03/01 18:37:08 by ctw03933         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -183,7 +183,8 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/EdgeCaseTest \
 		$(BINDIR)/CombinationTest \
 		$(BINDIR)/EndToEndTest \
-		$(BINDIR)/InputComboTest
+		$(BINDIR)/InputComboTest \
+		$(BINDIR)/CongestionTest
 
 test: $(TESTS)
 	@echo ""
@@ -200,6 +201,7 @@ test: $(TESTS)
 	@./$(BINDIR)/CombinationTest || exit 1
 	@./$(BINDIR)/EndToEndTest || exit 1
 	@./$(BINDIR)/InputComboTest || exit 1
+	@./$(BINDIR)/CongestionTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -282,6 +284,12 @@ $(BINDIR)/InputComboTest: $(TESTDIR)/InputComboTest.cpp $(BINDIR)/$(NAME)
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(SANFLAGS) -I$(TESTDIR) $< -o $@
 
+$(BINDIR)/CongestionTest: $(TESTDIR)/CongestionTest.cpp \
+	$(OBJDIR)/DijkstraPathfinding/DijkstraPathfinding.o \
+	$(OBJDIR)/RailNetwork/RailNetwork.o $(OBJDIR)/Node/Node.o
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
 # ============================================================================ #
 #                                   UTILITY                                    #
 # ============================================================================ #
@@ -300,6 +308,9 @@ run-graph: all
 
 run-graph-time: all
 	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --time --graph network.dot
+
+run-congestion: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --congestion
 
 # ============================================================================ #
 #                               DEPENDENCIES                                   #

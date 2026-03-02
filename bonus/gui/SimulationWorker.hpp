@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 23:25:46 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 18:28:59 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -90,13 +90,13 @@ class SimulationWorker : public QObject
   public slots:
 	void runSimulation(const QString &networkFile,
 					   const QString &trainFile,
-					   bool useTimeWeight);
+					   int weightMode);
 
 	/** Run N simulations, optionally animating the first run.
 	    Emits runProgress() after each run, then multiRunFinished(). */
 	void runMulti(const QString &networkFile,
 				  const QString &trainFile,
-				  bool useTimeWeight,
+				  int weightMode,
 				  int numRuns,
 				  bool animateFirst);
 

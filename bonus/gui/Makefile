@@ -1497,7 +1497,8 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 		../../src/RailNetwork/RailNetwork.hpp \
 		../../src/Edge/Edge.hpp \
 		../../src/Node/Node.hpp \
-		../../src/Train/Train.hpp
+		../../src/Train/Train.hpp \
+		../../src/DijkstraPathfinding/DijkstraPathfinding.hpp
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ../../objs/gui/Simulation.o ../../src/Simulation/Simulation.cpp
 
 ../../objs/gui/FileOutputObserver.o: ../../src/FileOutputObserver/FileOutputObserver.cpp ../../src/FileOutputObserver/FileOutputObserver.hpp \

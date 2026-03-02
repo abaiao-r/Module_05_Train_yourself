@@ -41,8 +41,91 @@ Before simulation begins, each train is assigned an **optimal route** through th
 
 - **Distance** (default) — minimises total kilometres: edge weight = `distance`
 - **Time** — minimises travel time: edge weight = `distance / speedLimit`
+- **Congestion** — dynamic re-routing that avoids occupied segments (see §3a)
 
-Pass `--time` on the command line to use time-based routing. If no route exists, the train is skipped with a warning.
+Pass `--time` or `--congestion` on the command line (mutually exclusive). If no route exists, the train is skipped with a warning.
+
+### 3a. Congestion-Aware Routing
+
+When `--congestion` is active, the simulator **dynamically re-routes trains at runtime** to spread traffic across parallel corridors and avoid crowded segments. This contrasts with Distance and Time modes, where every train's path is fixed before the simulation starts and never changes.
+
+#### How it works — step by step
+
+**Initial paths** are computed identically to Time mode (minimise `distance / speedLimit`). No congestion penalty applies yet because no trains have departed.
+
+**During simulation**, a **segment occupancy map** is maintained — a snapshot that counts how many trains are currently travelling on each directed segment (e.g., `"Paris->Lyon" : 3` means three trains occupy the Paris→Lyon track right now).
+
+**At every node transition** (when a train arrives at an intermediate station), the simulator evaluates whether the train should switch to a different route:
+
+1. **[Guard] Cooldown check** — at least 3 segments must have elapsed since the last reroute for this train. This prevents *path oscillation*, where two trains keep swapping routes every segment.
+
+2. **[Guard] Congestion-ahead check** — the engine scans every remaining segment on the train's current path. If none of them appear in the occupancy map (i.e., no other train shares any upcoming segment), no Dijkstra call is made — the current path is already uncongested.
+
+3. **[Guard] Would-be-blocked check** — rerouting only triggers if this train would actually be **blocked** by a slower train ahead on a shared segment. The check compares: (a) the current speed of the train ahead vs this train's speed, and (b) the acceleration rates of both trains. If the train ahead has the same or higher acceleration capability and isn't currently slower, no reroute occurs — there is no benefit to taking a longer detour when the train behind isn't gaining. This prevents the scenario where same-speed trains needlessly reroute onto longer paths that arrive later.
+
+4. **Congestion-aware Dijkstra** — a modified Dijkstra's algorithm runs from the train's current node to its destination. The edge weight formula is:
+
+$$w(e) = \frac{\text{distance}(e)}{\text{speedLimit}(e)} + \frac{120 \times n_e}{3600}$$
+
+where $n_e$ is the number of trains currently on segment $e$ (from the occupancy map), and 120 seconds is the `CONGESTION_PENALTY` constant. Every additional train on a segment adds the equivalent of a 2-minute delay to that edge's cost.
+
+5. **[Guard] Diff check** — the new route is compared against the remaining portion of the current path. If they are identical, no change is applied (avoids unnecessary state mutations).
+
+6. **[Guard] Cost-margin check** — the congestion-weighted cost of the new route is compared to the cost of the current remaining path (using the same occupancy snapshot). Only if the new path is **at least 10 % cheaper** (`REROUTE_MARGIN = 0.10`) is the reroute applied. This prevents cascading reroutes where the alternative corridor has already become almost as congested as the main one (e.g., if earlier trains already rerouted there, a late train would gain nothing by following them).
+
+7. **Apply reroute** — the path segments already traversed are preserved; only the "tail" (from current node onward) is replaced. The cooldown counter resets to 0, and a `>> REROUTE` log line is printed.
+
+#### Segment occupancy semantics
+
+| Key | Value | Example |
+|---|---|---|
+| `"from->to"` | Number of trains on that directed segment | `"Paris->Lyon" : 2` |
+
+- Built **once per tick** from all active trains (tick-level caching).
+- **Directional**: `"A->B"` and `"B->A"` are separate entries — a train going A→B does not congest B→A.
+- The snapshot is taken at tick start, before any transitions happen this tick. A train that just arrived at a node is still counted on its *previous* segment in this tick's snapshot, so no self-exclusion is needed.
+
+#### Why trains spread across corridors
+
+Consider 6 trains all going North→South with two parallel routes:
+- **Route A**: North → MainA → MainB → South (shorter)
+- **Route B**: North → AltA → AltB → South (slightly longer)
+
+In Distance or Time mode, all 6 take Route A (shortest). In Congestion mode:
+1. Shuttle01 departs first, takes Route A (no congestion yet).
+2. Shuttle02 arrives at North, sees Route A has occupancy = 1, penalty = 120s. Route B's cost is now lower → reroutes to Route B.
+3. Shuttle03 arrives, Route B now has occupancy = 1 too, but Route A still has 1 → stays on Route A (or whichever is cheaper).
+
+The result is **automatic load balancing**: trains distribute across available corridors proportional to capacity, without any central scheduler.
+
+#### Performance characteristics
+
+On a dense network like ParisMetro (20 nodes, 25 segments, 8 trains), the guards above reduce the number of Dijkstra calls from O(trains × segments × ticks) to a small fraction, keeping congestion mode within ~2× of the performance of Distance mode.
+
+| Guard | What it prevents |
+|---|---|
+| Tick-level cache | Redundant occupancy rebuilds (was O(trains) per transition) |
+| Cooldown (3 segs) | Path oscillation between cooperating trains |
+| Ahead-check | Dijkstra on already-uncongested paths |
+| Would-be-blocked | Rerouting when no actual blocking would occur (same-speed trains) |
+| Cost-margin (10 %) | Cascading reroutes onto an already-saturated alternative corridor |
+| Diff-check | Unnecessary path object mutations |
+
+#### Design rationale
+
+**Why 120 seconds (`CONGESTION_PENALTY`)?**
+The penalty must be large enough to push trains onto an alternative route, but small enough that a mildly congested short path can still beat a much longer empty path. On a typical segment (say 50 km at 200 km/h → 15 min travel time), one extra train adds 120 s ≈ 2 min of virtual cost — roughly a 13 % surcharge. Two trains add 4 min (~27 %). This is in the same order of magnitude as **real-world operational delays caused by headway constraints** on shared track (trains must keep 2–3 min separation in practice, and each following train incurs signalling-imposed slowdowns). The constant is deliberately conservative: it biases towards keeping the fast route unless congestion is significant. A value too low (e.g., 30 s) would make rerouting almost never trigger; a value too high (e.g., 600 s) would scatter trains onto poor routes at the slightest sharing.
+
+**Why decentralised (no central coordinator)?**
+A central scheduler (e.g., a conflict-free timetable planner or slot-allocation system) would be more "optimal" in a global sense, but it contradicts the simulator's core design: trains are independent agents that depart at scheduled times and react to local conditions. The decentralised approach mirrors **real-world dispatcher-less signalling** where each train's on-board system picks routes based on current track occupancy (similar to ETCS Level 3 concepts). It is also simpler to implement, test, and reason about — each train independently asks "is my remaining path congested?" and, if so, runs Dijkstra with penalties. No global lock, no train-to-train communication, no second pass. The emergent behaviour (load balancing) arises from each train independently penalising the same congested segments.
+
+**Why a cooldown of 3 segments?**
+Without a cooldown, two trains departing 1 minute apart can enter an infinite reroute loop:
+1. Train A takes Route 1, Train B sees congestion on Route 1 → switches to Route 2.
+2. Next segment, Train A sees Route 2 is now congested (Train B is there) → switches to Route 2 as well.
+3. Train B sees Route 2 has 2 trains → switches back to Route 1. Repeat forever.
+
+A cooldown of 3 segments means a train must commit to its chosen corridor for at least 3 hops before reconsidering. On most networks, 3 segments is enough to clear the overlap zone of a fork, so by the time the cooldown expires the train has "passed through" the shared area and won't flip back. The value 3 was chosen empirically: 1 is too short (oscillation still occurs on tight meshes), 5+ is too long (trains miss valid reroute opportunities on networks with many short segments). Three provides a good balance for the test networks ranging from 3-node minimal to 20-node ParisMetro.
 
 ### 4. Physics-Based Travel Time
 
