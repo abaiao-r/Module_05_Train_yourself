@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 19:45:36 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/02 00:51:30 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,7 @@
 #include <limits>
 #include <utility>
 
+#include "DijkstraPathfinding.hpp"
 #include "Node.hpp"
 
 /* ---- Constructor / Destructor ---- */
@@ -495,7 +496,6 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 										 const std::vector<TrainState> &states,
 										 const SegmentOccupancy &tickOccupancy)
 {
-	(void)states; // occupancy is now pre-built per tick
 	auto &path = s.train->getPath();
 	if (path.size() < 2)
 		return;
@@ -569,7 +569,8 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 		s.segsSinceReroute++;
 		if (_weightMode == PathWeightMode::Congestion
 			&& s.segsSinceReroute >= REROUTE_COOLDOWN
-			&& hasCongestedSegmentAhead(s, tickOccupancy))
+			&& hasCongestedSegmentAhead(s, tickOccupancy)
+			&& wouldBeBlocked(s, states))
 		{
 			rerouteFromNode(s, tickOccupancy);
 		}
@@ -616,6 +617,70 @@ bool Simulation::hasCongestedSegmentAhead(
 	return false;
 }
 
+/* ---- Would this train actually be blocked by a slower train ahead? ---- */
+bool Simulation::wouldBeBlocked(
+	const TrainState &s, const std::vector<TrainState> &states) const
+{
+	const auto &path = s.train->getPath();
+	if (path.size() < 2 || s.segmentIndex + 1 >= path.size())
+		return false;
+
+	double myAccel = s.train->getAccelRate();
+
+	/* Scan upcoming segments for a train that would block us */
+	for (size_t seg = s.segmentIndex; seg + 1 < path.size(); seg++)
+	{
+		const std::string &segFrom = path[seg]->getName();
+		const std::string &segTo = path[seg + 1]->getName();
+
+		for (const auto &other : states)
+		{
+			if (other.train == s.train || other.arrived || !other.departed)
+				continue;
+			const auto &op = other.train->getPath();
+			if (op.size() < 2 || other.segmentIndex + 1 >= op.size())
+				continue;
+			if (op[other.segmentIndex]->getName() != segFrom
+				|| op[other.segmentIndex + 1]->getName() != segTo)
+				continue;
+
+			/* Another train is on this segment. It blocks us if:
+			   - it is ahead AND currently slower (blocking right now), OR
+			   - it has a lower accel rate (will be slower after stops) */
+			double otherAccel = other.train->getAccelRate();
+			if (other.posOnSegment_m >= s.posOnSegment_m
+				&& (other.speed_ms < s.speed_ms - 0.5
+					|| otherAccel < myAccel * 0.95))
+				return true;
+		}
+	}
+	return false;
+}
+
+/* ---- Compute congestion-weighted cost for a (sub)path ---- */
+double Simulation::computePathCost(
+	const std::vector<std::shared_ptr<Node>> &path,
+	size_t startIdx,
+	const SegmentOccupancy &occupancy) const
+{
+	double cost = 0.0;
+	for (size_t i = startIdx; i + 1 < path.size(); i++)
+	{
+		const std::string &from = path[i]->getName();
+		const std::string &to = path[i + 1]->getName();
+		for (const auto &edge : _network.getNeighbours(from))
+		{
+			if (edge.destination->getName() == to)
+			{
+				cost += DijkstraPathfinding::edgeWeight(
+					edge, _weightMode, from, occupancy);
+				break;
+			}
+		}
+	}
+	return cost;
+}
+
 /* ---- Re-route a train from its current node using occupancy data ---- */
 void Simulation::rerouteFromNode(TrainState &s,
 								 const SegmentOccupancy &occupancy)
@@ -657,6 +722,16 @@ void Simulation::rerouteFromNode(TrainState &s,
 		}
 	}
 	if (same)
+		return;
+
+	/* Cost-margin guard: only reroute if the new path is meaningfully
+	   cheaper in congestion-weighted terms.  This prevents marginal
+	   reroutes where the alt corridor has become almost as congested
+	   as the main one (e.g. FastF after FastB and FastD already moved). */
+	static constexpr double REROUTE_MARGIN = 0.10; // 10 % improvement needed
+	double oldCost = computePathCost(path, s.segmentIndex, occupancy);
+	double newCost = computePathCost(newTail, 0, occupancy);
+	if (newCost >= oldCost * (1.0 - REROUTE_MARGIN))
 		return;
 
 	/* Build the full path: segments already traversed + new tail */

@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 19:20:41 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/01 23:34:02 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -104,6 +104,7 @@ class Simulation
 
   private:
 	void computePaths();
+	void staticPreAssign();
 	double estimateTravelTime(const Train &train) const;
 	void getSegmentInfo(const std::string &from, const std::string &to,
 						double &length_m, double &speedLimit_ms) const;
@@ -118,6 +119,12 @@ class Simulation
 		size_t excludeIdx = SIZE_MAX) const;
 	bool hasCongestedSegmentAhead(const TrainState &s,
 								 const SegmentOccupancy &occupancy) const;
+	bool wouldBeBlocked(const TrainState &s,
+						const std::vector<TrainState> &states) const;
+	double computePathCost(
+		const std::vector<std::shared_ptr<Node>> &path,
+		size_t startIdx,
+		const SegmentOccupancy &occupancy) const;
 	void rerouteFromNode(TrainState &s,
 						 const SegmentOccupancy &occupancy);
 	std::vector<const Event *> getEventsAtNode(
