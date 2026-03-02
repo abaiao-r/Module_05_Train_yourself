@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 18:28:59 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/03/02 00:34:58 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <cmath>
+#include <climits>
 #include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
@@ -456,7 +457,7 @@ void MainWindow::buildToolbar()
 	tb->addWidget(runsCaption);
 
 	_runsSpinBox = new QSpinBox;
-	_runsSpinBox->setRange(1, 100);
+	_runsSpinBox->setRange(1, INT_MAX);
 	_runsSpinBox->setValue(1);
 	_runsSpinBox->setToolTip("Number of simulation runs (multi-run Monte Carlo)");
 	_runsSpinBox->setFixedWidth(60);
