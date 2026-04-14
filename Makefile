@@ -6,7 +6,7 @@
 #    By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/28 20:50:03 by ctw03933          #+#    #+#              #
-#    Updated: 2026/03/01 15:45:29 by ctw03933         ###   ########.fr        #
+#    Updated: 2026/04/14 09:38:40 by ctw03933         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -328,6 +328,7 @@ bonus:
 	fi
 	@echo "\nBuilding Qt GUI bonus..."
 	@mkdir -p objs/gui/moc
+	@rm -f bonus/gui/.qmake.stash bonus/gui/Makefile
 	@cd bonus/gui && $(QMAKE) bonus.pro && $(MAKE) -j4
 	@echo "\nTrainGUI built successfully ✓  →  bin/TrainGUI\n"
 
