@@ -158,7 +158,12 @@ try_install_qt() {
                 echo -e "$(install_hint_qt)\n"
                 return 1
             fi
-            brew install qt ;;
+            if brew list qt &>/dev/null; then
+                info "Qt already installed — upgrading to latest..."
+                brew upgrade qt || true
+            else
+                brew install qt
+            fi ;;
         *)
             case "$DISTRO" in
                 debian)
