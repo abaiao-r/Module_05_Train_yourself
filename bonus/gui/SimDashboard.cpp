@@ -305,7 +305,7 @@ void SimDashboard::update(double simTime,
 
 			/* Elapsed */
 			html += boxRow(
-				QString("    <span style='color:%1;'>Time:</span> %2")
+					QString("    <span style='color:%1;'>Time:</span> %2")
 					.arg(C_DIM, fmtTime(s.timeSinceDepart)));
 		}
 

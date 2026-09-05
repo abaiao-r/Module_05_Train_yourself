@@ -14,11 +14,11 @@ A physics-based train simulation engine that models rail traffic across a config
 |---------|--------|
 | **Physics engine** | 1-second discrete timestep · acceleration = `(F_accel − μmg) / m` · braking distance = `v² / (2·decel)` |
 | **Concurrent simulation** | All trains run on a shared wall clock; overtaking caps a trailing train's speed |
-| **Pathfinding** | Dijkstra shortest-path (Strategy pattern) · distance or time weight mode (`--time` flag) |
+| **Pathfinding** | Dijkstra shortest-path (Strategy pattern) · distance, solo (`--solo`), or realistic traffic+event-aware (`--realistic`) weight modes |
 | **Per-train output** | `TrainName_HHhMM.result` file with header, estimated time, every-minute rail graph, events, actual time |
 | **Random events** | Probability-based disruptions at stations (riots, discomfort, …) inject delays |
 | **498 unit / integration tests** | Custom TestFramework, 13 suites covering nodes, networks, trains, events, pathfinding, I/O, factories, edge cases, combinations, end-to-end, input combos |
-| **3 design patterns + 6 principles** | Strategy, Factory, Observer · KISS, DRY, Encapsulation, SRP, Separation of Concerns, Interface Segregation |
+| **4 design patterns + 6 principles** | Strategy, Factory, Observer, Mediator · KISS, DRY, Encapsulation, SRP, Separation of Concerns, Interface Segregation |
 | **7 UML diagrams** | Class, 3 sequence, state machine, 2 activity — PlantUML sources + PNG + SVG |
 
 ### Bonus Features
@@ -58,8 +58,11 @@ make run            # run with sample data
 # Or supply your own files
 ./bin/train_yourself path/to/network.txt path/to/trains.txt
 
-# Optimise route by travel time instead of distance
-./bin/train_yourself path/to/network.txt path/to/trains.txt --time
+# Optimise route by travel time instead of distance, ignoring other trains
+./bin/train_yourself path/to/network.txt path/to/trains.txt --solo
+
+# Ultimate mode: fastest arrival accounting for live traffic AND random events
+./bin/train_yourself path/to/network.txt path/to/trains.txt --realistic
 
 # Terminal animation
 make run-animate
@@ -85,7 +88,12 @@ make run-gui        # build & launch
 Usage: ./train_yourself <network_file> <train_file> [options]
 
 Options:
-  --time              Optimise route by travel time instead of distance
+  --distance          Shortest distance (km). This is the default
+  --solo              Fastest way if this train were the only one on 
+                      the track (optimises by travel time, ignores traffic
+                      and events)
+  --realistic         The ultimate mode: fastest way accounting for real
+                      conditions — live traffic AND random events
   --graph <file.dot>  Export network + paths as Graphviz DOT file
   --animate           Show live terminal animation of the simulation
   --runs N            Run simulation N times and report average travel times
@@ -198,7 +206,7 @@ See [docs/TECHNICAL.md](docs/TECHNICAL.md) for the full documentation index, or 
 |----------|---------|
 | [Business Logic](docs/BUSINESS_LOGIC.md) | All 15 business rules (core + bonus) |
 | [Architecture](docs/ARCHITECTURE.md) | Layered design, folder structure, data flow |
-| [Design Patterns](docs/DESIGN_PATTERNS.md) | Strategy, Factory, Observer · DI · Class Relationships · 6 Design Principles |
+| [Design Patterns](docs/DESIGN_PATTERNS.md) | Strategy, Factory, Observer, Mediator · DI · Class Relationships · 6 Design Principles |
 | [Class Reference](docs/CLASS_REFERENCE.md) | Per-class API documentation |
 | [Diagrams](docs/DIAGRAMS.md) | 7 UML diagrams (class, state, sequence, activity) |
 | [Build & Testing](docs/BUILD_SYSTEM.md) | Makefile targets, 498 tests, CI pipeline |
@@ -208,6 +216,7 @@ See [docs/TECHNICAL.md](docs/TECHNICAL.md) for the full documentation index, or 
 - **Strategy** — `IPathfinding` → `DijkstraPathfinding` (swap algorithm without touching simulation)
 - **Factory** — `TrainFactory::createTrain()` validates all 9 fields before construction
 - **Observer** — `ISimulationObserver` → `FileOutputObserver` (decouple simulation from I/O)
+- **Mediator** — `Simulation` arbitrates all cross-train interaction (blocking, congestion rerouting); trains never reference each other directly
 
 ### Diagrams
 

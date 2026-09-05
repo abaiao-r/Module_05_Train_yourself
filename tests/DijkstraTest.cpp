@@ -113,7 +113,7 @@ int main()
 				  return true;
 			  });
 
-	/* ---- PathWeightMode::Time tests ---- */
+	/* ---- PathWeightMode::Solo tests ---- */
 
 	suite.run("time mode prefers faster route over shorter",
 			  [](std::string &msg) {
@@ -135,9 +135,9 @@ int main()
 				  ASSERT_STR_EQ(std::string("B"),
 								distPath[1]->getName(), msg);
 
-				  // Time mode: A->C direct (0.067h < 0.2h)
+				  // Solo mode: A->C direct (0.067h < 0.2h)
 				  auto timePath = dijk.findPath("A", "C", net,
-												PathWeightMode::Time);
+												PathWeightMode::Solo);
 				  ASSERT_EQ(2u, timePath.size(), msg);
 				  ASSERT_STR_EQ(std::string("A"),
 								timePath[0]->getName(), msg);
@@ -160,7 +160,7 @@ int main()
 				  auto distP = dijk.findPath("A", "C", net,
 											 PathWeightMode::Distance);
 				  auto timeP = dijk.findPath("A", "C", net,
-											 PathWeightMode::Time);
+											 PathWeightMode::Solo);
 				  ASSERT_EQ(distP.size(), timeP.size(), msg);
 				  return true;
 			  });
@@ -187,9 +187,9 @@ int main()
 				  ASSERT_STR_EQ(std::string("C"),
 								distP[1]->getName(), msg);
 
-				  // Time mode: A->B->D (0.1h < 0.2h)
+				  // Solo mode: A->B->D (0.1h < 0.2h)
 				  auto timeP = dijk.findPath("A", "D", net,
-											 PathWeightMode::Time);
+											 PathWeightMode::Solo);
 				  ASSERT_EQ(3u, timeP.size(), msg);
 				  ASSERT_STR_EQ(std::string("B"),
 								timeP[1]->getName(), msg);
