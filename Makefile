@@ -6,7 +6,7 @@
 #    By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/28 20:50:03 by abaiao-r          #+#    #+#              #
-#    Updated: 2026/09/05 14:09:06 by abaiao-r         ###   ########.fr        #
+#    Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -184,7 +184,8 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/CombinationTest \
 		$(BINDIR)/EndToEndTest \
 		$(BINDIR)/InputComboTest \
-		$(BINDIR)/LiveMutationTest
+		$(BINDIR)/LiveMutationTest \
+		$(BINDIR)/CongestionTest
 
 test: $(TESTS)
 	@echo ""
@@ -202,6 +203,7 @@ test: $(TESTS)
 	@./$(BINDIR)/EndToEndTest || exit 1
 	@./$(BINDIR)/InputComboTest || exit 1
 	@./$(BINDIR)/LiveMutationTest || exit 1
+	@./$(BINDIR)/CongestionTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -288,6 +290,12 @@ $(BINDIR)/InputComboTest: $(TESTDIR)/InputComboTest.cpp $(BINDIR)/$(NAME)
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(SANFLAGS) -I$(TESTDIR) $< -o $@
 
+$(BINDIR)/CongestionTest: $(TESTDIR)/CongestionTest.cpp \
+	$(OBJDIR)/DijkstraPathfinding/DijkstraPathfinding.o \
+	$(OBJDIR)/RailNetwork/RailNetwork.o $(OBJDIR)/Node/Node.o
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
 # ============================================================================ #
 #                                   UTILITY                                    #
 # ============================================================================ #
@@ -298,14 +306,17 @@ TRAINS	= input/trainPrintFolder/trainPrintGood.txt
 run: all
 	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS)
 
-run-time: all
-	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --time
+run-solo: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --solo
 
 run-graph: all
 	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --graph network.dot
 
-run-graph-time: all
-	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --time --graph network.dot
+run-graph-solo: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --solo --graph network.dot
+
+run-adaptive: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --adaptive
 
 # ============================================================================ #
 #                               DEPENDENCIES                                   #
@@ -356,6 +367,6 @@ run-gui: bonus
 		./$(BINDIR)/TrainGUI; \
 	fi
 
-.PHONY: all clean fclean re test run run-time run-graph run-graph-time \
-        setup \
+.PHONY: all clean fclean re test run run-solo run-graph run-graph-solo \
+        run-adaptive setup \
         bonus bonus-clean run-animate run-multi run-gui

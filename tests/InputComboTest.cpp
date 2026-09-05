@@ -75,10 +75,10 @@ int main()
 								  "trainPrintGood.txt", "", m);
 			  });
 
-	suite.run("Good network + Good trains --time",
+	suite.run("Good network + Good trains --solo",
 			  [](std::string &m) {
 				  return expectOk("railNetworkPrintGood.txt",
-								  "trainPrintGood.txt", "--time", m);
+								  "trainPrintGood.txt", "--solo", m);
 			  });
 
 	suite.run("Minimal network + Single train",
@@ -151,22 +151,22 @@ int main()
 	/*  Valid pairs with flags                                             */
 	/* ------------------------------------------------------------------ */
 
-	suite.run("France --time",
+	suite.run("France --solo",
 			  [](std::string &m) {
 				  return expectOk("railNetworkFrance.txt",
-								  "trainPrintFrance.txt", "--time", m);
+								  "trainPrintFrance.txt", "--solo", m);
 			  });
 
-	suite.run("Portugal --time",
+	suite.run("Portugal --solo",
 			  [](std::string &m) {
 				  return expectOk("railNetworkPortugal.txt",
-								  "trainPrintPortugal.txt", "--time", m);
+								  "trainPrintPortugal.txt", "--solo", m);
 			  });
 
-	suite.run("Europe --time",
+	suite.run("Europe --solo",
 			  [](std::string &m) {
 				  return expectOk("railNetworkEurope.txt",
-								  "trainPrintEurope.txt", "--time", m);
+								  "trainPrintEurope.txt", "--solo", m);
 			  });
 
 	suite.run("Good --runs 3",
@@ -182,11 +182,11 @@ int main()
 								  "--graph /tmp/ci_combo_test.dot", m);
 			  });
 
-	suite.run("Portugal --time --graph",
+	suite.run("Portugal --solo --graph",
 			  [](std::string &m) {
 				  return expectOk("railNetworkPortugal.txt",
 								  "trainPrintPortugal.txt",
-								  "--time --graph /tmp/ci_combo_test2.dot",
+								  "--solo --graph /tmp/ci_combo_test2.dot",
 								  m);
 			  });
 

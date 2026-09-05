@@ -73,6 +73,30 @@ public:
 
 ---
 
+## Mediator — Train Coordination
+
+`Simulation` acts as the mediator between all `Train`/`TrainState` instances. Trains never reference or communicate with each other directly — every cross-train interaction (overtaking, congestion-aware rerouting) is arbitrated centrally, once per tick, from a single god's-eye-view of the whole network:
+
+```cpp
+void Simulation::run() {
+    // ... per-tick loop ...
+    for (auto &s : states)
+        updatePhysics(s);          // each train only knows its own state
+
+    applyBlocking(states);         // mediator: caps a trailing train's
+                                    // speed if it shares a segment with a
+                                    // slower train ahead
+}
+```
+
+Concretely, this shows up in two places:
+- **`applyBlocking()`** — same-direction collision avoidance: compares every pair of trains sharing a segment and caps the trailing train's speed.
+- **`buildOccupancy()` / `rerouteFromNode()`** (adaptive mode) — builds one shared occupancy snapshot per tick and uses it to decide whether a train should reroute around a congested segment.
+
+**Why Mediator?** — A `Train` has zero knowledge of any other train; it only exposes its own position/speed/path. This keeps `Train` simple and testable in isolation, while all the genuinely cross-cutting logic (who's blocking whom, where congestion is) lives in exactly one place (`Simulation`) instead of being duplicated or scattered across trains trying to negotiate with each other peer-to-peer.
+
+---
+
 ## Dependency Injection
 
 `Simulation` receives all its dependencies through the constructor — `RailNetwork`, `Train`s, `Event`s, and `IPathfinding` — enabling unit-testable design without globals or singletons.
@@ -116,10 +140,11 @@ All value-type classes implement the **canonical four** (Rule of Three + destruc
                 DijkstraPathfinding
                        │
     InputHandler ──► Simulation ──► ISimulationObserver (Observer)
-         │               │                    │
-    TrainFactory      RailNetwork      FileOutputObserver
-    (Factory)         Train[]
-                      Event[]
+         │               │  ▲                 │
+    TrainFactory      RailNetwork │     FileOutputObserver
+    (Factory)         Train[]    └── Mediator (arbitrates
+                      Event[]        Train ↔ Train via
+                                     applyBlocking / rerouteFromNode)
 ```
 
 ---

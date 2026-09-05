@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 14:43:40 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <cmath>
+#include <climits>
 #include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
@@ -194,7 +195,7 @@ QGraphicsView { border: 1px solid #334155; border-radius: 6px; }
 /* ================================================================== */
 
 MainWindow::MainWindow(QWidget *parent)
-	: QMainWindow(parent), _useTimeWeight(false), _simRunning(false),
+	: QMainWindow(parent), _weightMode(0), _simRunning(false),
 	  _view(nullptr),
 	  _scene(nullptr), _nodeList(nullptr), _edgeList(nullptr),
 	  _trainList(nullptr), _eventList(nullptr), _logView(nullptr),
@@ -464,7 +465,7 @@ void MainWindow::buildToolbar()
 	tb->addWidget(runsCaption);
 
 	_runsSpinBox = new QSpinBox;
-	_runsSpinBox->setRange(1, 100);
+	_runsSpinBox->setRange(1, INT_MAX);
 	_runsSpinBox->setValue(1);
 	_runsSpinBox->setToolTip("Number of simulation runs (multi-run Monte Carlo)");
 	_runsSpinBox->setFixedWidth(60);
@@ -499,12 +500,17 @@ void MainWindow::buildToolbar()
 
 	_pathWeightCombo = new QComboBox;
 	_pathWeightCombo->addItem("Distance");
-	_pathWeightCombo->addItem("Time");
+	_pathWeightCombo->addItem("Solo");
+	_pathWeightCombo->addItem("Adaptive");
 	_pathWeightCombo->setCurrentIndex(0);
 	_pathWeightCombo->setToolTip(
 		"Pathfinding weight:\n"
-		"  Distance — shortest path by km\n"
-		"  Time     — fastest path (accounts for speed limits)");
+		"  Distance   — shortest path by km\n"
+		"  Solo       — fastest path if this train were alone "
+		"(ignores traffic & events)\n"
+		"  Adaptive   — ultimate mode: reroutes around live traffic "
+		"AND avoids\n"
+		"               routes prone to costly random events");
 	_pathWeightCombo->setFixedWidth(100);
 	_pathWeightCombo->setStyleSheet(
 		"QComboBox { background: #1e293b; color: #e0e0e0; "
@@ -516,7 +522,7 @@ void MainWindow::buildToolbar()
 		"QComboBox QAbstractItemView { background: #1e293b; color: #e0e0e0; "
 		"selection-background-color: #533483; border: 1px solid #334155; }");
 	connect(_pathWeightCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-			this, [this](int idx) { _useTimeWeight = (idx == 1); });
+			this, [this](int idx) { _weightMode = idx; });
 	tb->addWidget(_pathWeightCombo);
 
 	tb->addSeparator();
@@ -2559,7 +2565,7 @@ void MainWindow::onRunSimulation()
 		QMetaObject::invokeMethod(
 			_worker, "runMulti", Qt::QueuedConnection,
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
-			Q_ARG(bool, _useTimeWeight),
+			Q_ARG(int, _weightMode),
 			Q_ARG(int, numRuns),
 			Q_ARG(bool, animate));
 	}
@@ -2570,7 +2576,7 @@ void MainWindow::onRunSimulation()
 		QMetaObject::invokeMethod(
 			_worker, "runSimulation", Qt::QueuedConnection,
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
-			Q_ARG(bool, _useTimeWeight));
+			Q_ARG(int, _weightMode));
 	}
 }
 

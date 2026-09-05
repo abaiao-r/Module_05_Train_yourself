@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 14:43:40 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:15:16 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,16 @@
 
 #include <map>
 #include <type_traits>
+
+static PathWeightMode intToWeightMode(int idx)
+{
+	switch (idx)
+	{
+	case 1:  return PathWeightMode::Solo;
+	case 2:  return PathWeightMode::Adaptive;
+	default: return PathWeightMode::Distance;
+	}
+}
 
 SimulationWorker::SimulationWorker(QObject *parent)
 	: QObject(parent) {}
@@ -119,7 +129,7 @@ struct SimulationStopException : std::exception
 
 void SimulationWorker::runSimulation(const QString &networkFile,
 									 const QString &trainFile,
-									 bool useTimeWeight)
+									 int weightMode)
 {
 	_stopRequested.store(false, std::memory_order_relaxed);
 
@@ -139,8 +149,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		auto data = InputHandler::loadData(networkFile.toStdString(),
 										   trainFile.toStdString());
 		auto pathfinder = std::make_unique<DijkstraPathfinding>();
-		PathWeightMode mode = useTimeWeight ? PathWeightMode::Time
-											: PathWeightMode::Distance;
+		PathWeightMode mode = intToWeightMode(weightMode);
 
 		Simulation sim(std::move(data.network), std::move(data.trains),
 					   std::move(data.events), std::move(pathfinder),
@@ -285,7 +294,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 
 void SimulationWorker::runMulti(const QString &networkFile,
 								const QString &trainFile,
-								bool useTimeWeight,
+								int weightMode,
 								int numRuns,
 								bool animateFirst)
 {
@@ -302,8 +311,7 @@ void SimulationWorker::runMulti(const QString &networkFile,
 		QDir::setCurrent(projectRoot.absolutePath());
 		QDir().mkpath("output/results");
 
-		PathWeightMode mode = useTimeWeight ? PathWeightMode::Time
-											: PathWeightMode::Distance;
+		PathWeightMode mode = intToWeightMode(weightMode);
 
 		/* Stats accumulators: key = trainName */
 		std::map<std::string, std::vector<double>> statActual;

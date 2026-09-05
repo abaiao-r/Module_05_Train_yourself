@@ -33,7 +33,7 @@ jobs:
     - name: Smoke-run binary
       run: |
         ./bin/train_yourself input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
-        ./bin/train_yourself input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --time
+        ./bin/train_yourself input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --solo
         ./bin/train_yourself input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --graph output/graphs/ci_test.dot
 
     - name: Verify clean/fclean/re
