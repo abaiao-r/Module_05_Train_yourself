@@ -118,12 +118,26 @@ class NetworkScene : public QGraphicsScene
 		QGraphicsTextItem *label;
 		QPointF prevPos;
 		bool hasPrev;
+		QString prevFrom;
+		QString prevTo;
+		double prevFrac = 0.0;
+	};
+	/* Trail breadcrumbs are stored as (edge, fraction) at each endpoint,
+	   not raw coordinates, so they can be recomputed when a node moves
+	   instead of being left behind at its old position. */
+	struct TrailSeg
+	{
+		QGraphicsLineItem *line;
+		QString fromA, toA;
+		double fracA;
+		QString fromB, toB;
+		double fracB;
 	};
 
 	QMap<QString, NodeVis> _nodes;
 	QVector<EdgeVis> _edges;
 	QMap<QString, TrainVis> _trains;
-	QVector<QGraphicsLineItem *> _trailLines;
+	QVector<TrailSeg> _trailLines;
 
 	void layoutForceDirected();
 	void repositionEdge(EdgeVis &e);

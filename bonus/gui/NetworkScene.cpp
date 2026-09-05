@@ -275,18 +275,15 @@ void NetworkScene::nodeMoved(const QString &name, const QPointF &newPos)
 			repositionEdge(e);
 	}
 
-	/* Trail breadcrumbs are baked as fixed-coordinate line segments with
-	   no link back to the nodes they were drawn between, so they can't be
-	   repositioned — drop them rather than leave stale trails floating
-	   at the node's old position. A fresh trail rebuilds on the next
-	   tick if a simulation is running. */
-	for (auto *seg : _trailLines)
+	/* Trail breadcrumbs are anchored to (edge, fraction) rather than raw
+	   coordinates, so they can be recomputed against the node's new
+	   position instead of being left behind or discarded. */
+	for (auto &seg : _trailLines)
 	{
-		if (seg->scene() == this)
-			removeItem(seg);
-		delete seg;
+		QPointF a = edgePosition(seg.fromA, seg.toA, seg.fracA);
+		QPointF b = edgePosition(seg.fromB, seg.toB, seg.fracB);
+		seg.line->setLine(a.x(), a.y(), b.x(), b.y());
 	}
-	_trailLines.clear();
 }
 
 void NetworkScene::repositionEdge(EdgeVis &e)
@@ -428,6 +425,8 @@ void NetworkScene::updateTrains(double /*simTime*/,
 		QColor col = PALETTE[i % PALETTE_SIZE];
 
 		QPointF pos(0, 0);
+		QString curFrom, curTo;
+		double curFrac = 0.0;
 		if (s.departed && !s.arrived && !s.from.isEmpty()
 			&& !s.to.isEmpty())
 		{
@@ -451,12 +450,21 @@ void NetworkScene::updateTrains(double /*simTime*/,
 				if (frac > 1.0) frac = 1.0;
 				if (frac < 0.0) frac = 0.0;
 				pos = p1 + (p2 - p1) * frac;
+				curFrom = s.from;
+				curTo = s.to;
+				curFrac = frac;
 			}
 		}
 		else if (s.arrived && _nodes.contains(s.arrival))
+		{
 			pos = _nodes[s.arrival].pos;
+			curFrom = curTo = s.arrival;
+		}
 		else if (!s.departed && _nodes.contains(s.departure))
+		{
 			pos = _nodes[s.departure].pos;
+			curFrom = curTo = s.departure;
+		}
 
 		if (!_trains.contains(key))
 		{
@@ -467,7 +475,7 @@ void NetworkScene::updateTrains(double /*simTime*/,
 			auto *label = addText(s.name, QFont("Segoe UI", 8, QFont::Bold));
 			label->setDefaultTextColor(col);
 			label->setZValue(21);
-			_trains[key] = {dot, label, pos, false};
+			_trains[key] = {dot, label, pos, false, curFrom, curTo, curFrac};
 		}
 		auto &vis = _trains[key];
 
@@ -485,11 +493,16 @@ void NetworkScene::updateTrains(double /*simTime*/,
 					pos.x(), pos.y(),
 					QPen(trailCol, 3.5, Qt::SolidLine, Qt::RoundCap));
 				seg->setZValue(5);
-				_trailLines.push_back(seg);
+				_trailLines.push_back({seg, vis.prevFrom, vis.prevTo,
+									   vis.prevFrac, curFrom, curTo,
+									   curFrac});
 			}
 		}
 		vis.prevPos = pos;
 		vis.hasPrev = s.departed;
+		vis.prevFrom = curFrom;
+		vis.prevTo = curTo;
+		vis.prevFrac = curFrac;
 
 		vis.dot->setPos(pos);
 		vis.label->setPos(pos.x() + 12, pos.y() - 16);
@@ -499,11 +512,11 @@ void NetworkScene::updateTrains(double /*simTime*/,
 
 void NetworkScene::clearTrains()
 {
-	for (auto *seg : _trailLines)
+	for (auto &seg : _trailLines)
 	{
-		if (seg->scene() == this)
-			removeItem(seg);
-		delete seg;
+		if (seg.line->scene() == this)
+			removeItem(seg.line);
+		delete seg.line;
 	}
 	_trailLines.clear();
 
