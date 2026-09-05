@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   SimulationWorker.hpp                               :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
+/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 23:25:46 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/09/05 14:43:40 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -87,6 +87,25 @@ class SimulationWorker : public QObject
 	void requestStop();
 	bool isStopRequested() const;
 
+	/**
+	 * Thread-safe: queue an addition into the currently-running
+	 * simulation. Returns false (no-op) if no simulation is running.
+	 * Applied at the start of the next physics tick; rejections are
+	 * reported asynchronously via mutationRejected().
+	 */
+	bool enqueueAddNode(const QString &name);
+	bool enqueueAddRail(const QString &from, const QString &to,
+						double distanceKm, double speedLimitKmh);
+	bool enqueueAddEvent(const QString &name, double probability,
+						 double durationSeconds, const QString &node1,
+						 const QString &node2);
+	bool enqueueAddTrain(const QString &name, double weightTons,
+						 double friction, double maxAccelKn,
+						 double maxBrakeKn, const QString &from,
+						 const QString &to, double departureTime,
+						 double stopDuration);
+	bool isSimulationLive() const;
+
   public slots:
 	void runSimulation(const QString &networkFile,
 					   const QString &trainFile,
@@ -106,10 +125,19 @@ class SimulationWorker : public QObject
 	void error(const QString &message);
 	void runProgress(int currentRun, int totalRuns);
 	void multiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
+	/** A live-added node/rail was accepted — the GUI should draw it. */
+	void nodeAdded(QString name);
+	void railAdded(QString from, QString to, double distanceKm,
+				   double speedLimitKmh);
+	/** A live-added event/train was accepted (no visual element to draw;
+		trains appear automatically via tick() once they depart). */
+	void mutationApplied(QString description);
+	void mutationRejected(QString reason);
 
   private:
 	std::atomic<double> _speedMult{1.0};
 	std::atomic<bool> _stopRequested{false};
+	std::atomic<Simulation *> _liveSim{nullptr};
 };
 
 #endif

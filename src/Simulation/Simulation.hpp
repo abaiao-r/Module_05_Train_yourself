@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 14:43:40 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,8 +15,10 @@
 
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <random>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "Event.hpp"
@@ -26,6 +28,48 @@
 #include "OutputManager.hpp"
 #include "RailNetwork.hpp"
 #include "Train.hpp"
+
+/**
+ * Live-mutation commands, safe to enqueue from another thread while
+ * Simulation::run() is executing. Applied at the start of the next tick.
+ */
+struct AddNodeCommand
+{
+	std::string name;
+};
+
+struct AddRailCommand
+{
+	std::string from;
+	std::string to;
+	double distanceKm;
+	double speedLimitKmh;
+};
+
+struct AddEventCommand
+{
+	std::string name;
+	double probability;
+	double durationSeconds;
+	std::string node1;
+	std::string node2;  // empty → station event
+};
+
+struct AddTrainCommand
+{
+	std::string name;
+	double weightTons;
+	double friction;
+	double maxAccelKn;
+	double maxBrakeKn;
+	std::string from;
+	std::string to;
+	double departureTime;  // seconds from midnight
+	double stopDuration;   // seconds
+};
+
+using LiveMutation = std::variant<AddNodeCommand, AddRailCommand,
+								  AddEventCommand, AddTrainCommand>;
 
 /**
  * Per-train runtime state used during the discrete simulation.
@@ -100,7 +144,43 @@ class Simulation
 	/** Suppress stdout output (useful for multi-run). */
 	void setQuiet(bool q);
 
+	/**
+	 * Thread-safe: queue a mutation to be validated and applied at the
+	 * start of the next tick. Safe to call from another thread while
+	 * run() is executing (e.g. the GUI thread while the worker thread
+	 * runs the physics loop).
+	 */
+	void enqueueMutation(LiveMutation mutation);
+
+	/** Invoked (from the simulation thread) after a mutation is applied.
+		Receives the mutation itself so callers can extract structured
+		fields (e.g. to draw the new node/rail), plus a human-readable
+		description for logging. */
+	using MutationAppliedCallback =
+		std::function<void(const LiveMutation &mutation,
+						   const std::string &description)>;
+	/** Invoked (from the simulation thread) when a mutation fails validation. */
+	using MutationRejectedCallback = std::function<void(const std::string &reason)>;
+	void setMutationCallbacks(MutationAppliedCallback onApplied,
+							  MutationRejectedCallback onRejected);
+
   private:
+	std::mutex _mutationMutex;
+	std::vector<LiveMutation> _pendingMutations;
+	MutationAppliedCallback _onMutationApplied;
+	MutationRejectedCallback _onMutationRejected;
+
+	std::vector<LiveMutation> drainMutations();
+	/* States/observers live in run()'s stack frame; passed by reference
+	   so AddTrainCommand can append a new TrainState/observer mid-run. */
+	void applyMutation(const LiveMutation &mutation,
+					   std::vector<TrainState> &states, double simTime);
+	void applyAddNode(const AddNodeCommand &c);
+	void applyAddRail(const AddRailCommand &c);
+	void applyAddEvent(const AddEventCommand &c);
+	void applyAddTrain(const AddTrainCommand &c,
+					   std::vector<TrainState> &states, double simTime);
+
 	void computePaths();
 	double estimateTravelTime(const Train &train) const;
 	void getSegmentInfo(const std::string &from, const std::string &to,

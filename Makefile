@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+         #
+#    By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2026/02/28 20:50:03 by ctw03933          #+#    #+#              #
-#    Updated: 2026/04/14 09:38:40 by ctw03933         ###   ########.fr        #
+#    Created: 2026/02/28 20:50:03 by abaiao-r          #+#    #+#              #
+#    Updated: 2026/09/05 14:09:06 by abaiao-r         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -183,7 +183,8 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/EdgeCaseTest \
 		$(BINDIR)/CombinationTest \
 		$(BINDIR)/EndToEndTest \
-		$(BINDIR)/InputComboTest
+		$(BINDIR)/InputComboTest \
+		$(BINDIR)/LiveMutationTest
 
 test: $(TESTS)
 	@echo ""
@@ -200,6 +201,7 @@ test: $(TESTS)
 	@./$(BINDIR)/CombinationTest || exit 1
 	@./$(BINDIR)/EndToEndTest || exit 1
 	@./$(BINDIR)/InputComboTest || exit 1
+	@./$(BINDIR)/LiveMutationTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -271,6 +273,10 @@ $(BINDIR)/EdgeCaseTest: $(TESTDIR)/EdgeCaseTest.cpp $(LIB_OBJS)
 $(BINDIR)/CombinationTest: $(TESTDIR)/CombinationTest.cpp $(LIB_OBJS)
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+$(BINDIR)/LiveMutationTest: $(TESTDIR)/LiveMutationTest.cpp $(LIB_OBJS)
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) -pthread $^ -o $@ -pthread
 
 # E2E test only needs TestFramework.hpp — runs ./bin/train_yourself as subprocess
 $(BINDIR)/EndToEndTest: $(TESTDIR)/EndToEndTest.cpp $(BINDIR)/$(NAME)

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   MainWindow.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
+/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 16:19:44 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/09/05 14:43:40 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -89,6 +89,11 @@ class MainWindow : public QMainWindow
 	void onFitGraph();
 	void onRunProgress(int currentRun, int totalRuns);
 	void onMultiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
+	void onMutationApplied(QString description);
+	void onMutationRejected(QString reason);
+	void onLiveNodeAdded(QString name);
+	void onLiveRailAdded(QString from, QString to, double distanceKm,
+						 double speedLimitKmh);
 
   private:
 	void buildMenus();
@@ -118,6 +123,7 @@ class MainWindow : public QMainWindow
 	QString _trainFilePath;
 	bool _useTimeWeight;
 	bool _simRunning;
+	double _lastSimTime = 0.0;  // seconds from midnight, updated on each tick
 
 	/* ─── Widgets ───────────────────────────────────────────────────── */
 	QSplitter *_hSplit;
