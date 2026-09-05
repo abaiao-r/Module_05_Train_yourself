@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 18:47:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -259,7 +259,7 @@ void Simulation::run()
 		for (const auto &mutation : drainMutations())
 			applyMutation(mutation, states, simTime);
 
-		/* Build occupancy snapshot once per tick (realistic mode only).
+		/* Build occupancy snapshot once per tick (adaptive mode only).
 		   Both maps are mutated in place as trains reroute within this
 		   tick, so later trains in the same tick see earlier trains'
 		   just-made choices instead of a stale tick-start snapshot
@@ -269,7 +269,7 @@ void Simulation::run()
 		SegmentOccupancy tickOccupancy;
 		SegmentClearTimes tickClearTimes;
 		SegmentEventRisk tickEventRisk;
-		if (_weightMode == PathWeightMode::Realistic)
+		if (_weightMode == PathWeightMode::Adaptive)
 		{
 			tickOccupancy = buildOccupancy(states);
 			tickClearTimes = buildClearTimes(states);
@@ -452,11 +452,11 @@ void Simulation::computePaths()
 	if (!_quiet)
 		std::cout << "=== Paths ===" << std::endl;
 
-	/* Event risk is static (independent of current traffic), so Realistic
+	/* Event risk is static (independent of current traffic), so Adaptive
 	   mode avoids event-prone routes from the very first path assignment,
 	   not just later reroutes. */
 	SegmentEventRisk eventRisk;
-	if (_weightMode == PathWeightMode::Realistic)
+	if (_weightMode == PathWeightMode::Adaptive)
 		eventRisk = buildEventRisk();
 
 	for (auto &train : _trains)
@@ -464,7 +464,7 @@ void Simulation::computePaths()
 		std::vector<std::shared_ptr<Node>> path;
 		try
 		{
-			if (_weightMode == PathWeightMode::Realistic)
+			if (_weightMode == PathWeightMode::Adaptive)
 				path = _pathfinder->findPath(train->getDepartureStation(),
 											 train->getArrivalStation(),
 											 _network, _weightMode,
@@ -728,14 +728,14 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 		/* Apply stop duration at intermediate stations */
 		s.stopTimer = s.train->getStopDuration();
 
-		/* Realistic-aware re-routing from the new current node.
+		/* Adaptive-aware re-routing from the new current node.
 		   Note: tickOccupancy was built at tick start (before transitions),
 		   so this train is counted on its OLD segment, not its new one.
 		   No self-exclusion is needed. Both maps are updated in place by
 		   rerouteFromNode() when it succeeds, so later trains processed
 		   in this same tick see this train's new choice. */
 		s.segsSinceReroute++;
-		if (_weightMode == PathWeightMode::Realistic
+		if (_weightMode == PathWeightMode::Adaptive
 			&& s.segsSinceReroute >= REROUTE_COOLDOWN
 			&& hasCongestedSegmentAhead(s, tickOccupancy)
 			&& wouldBeBlocked(s, states))

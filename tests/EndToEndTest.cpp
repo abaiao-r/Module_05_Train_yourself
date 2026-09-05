@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/23 13:00:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 18:47:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -98,7 +98,7 @@ int main()
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Options:"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--solo"), msg);
-				  ASSERT_TRUE(outputContains(r.output, "--realistic"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "--adaptive"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--graph"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--animate"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--runs"), msg);
@@ -246,14 +246,14 @@ int main()
 			  });
 
 	/* ------------------------------------------------------------------ */
-	/*  --realistic mode                                                  */
+	/*  --adaptive mode                                                   */
 	/* ------------------------------------------------------------------ */
 
-	suite.run("--realistic mode -> exit 0 + trains arrive",
+	suite.run("--adaptive mode -> exit 0 + trains arrive",
 			  [](std::string &msg) {
 				  cleanupE2E();
 				  auto r = runCmd(BIN + " " + NET + " " + TRN
-								  + " --realistic");
+								  + " --adaptive");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
 				  return true;
@@ -360,11 +360,11 @@ int main()
 				  return true;
 			  });
 
-	suite.run("--realistic --runs 2 combined -> exit 0 + stats",
+	suite.run("--adaptive --runs 2 combined -> exit 0 + stats",
 			  [](std::string &msg) {
 				  cleanupE2E();
 				  auto r = runCmd(BIN + " " + NET + " " + TRN
-								  + " --realistic --runs 2");
+								  + " --adaptive --runs 2");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(
 					  outputContains(r.output, "Multi-Run Statistics"),
@@ -372,30 +372,30 @@ int main()
 				  return true;
 			  });
 
-	suite.run("--realistic --graph combined -> exit 0",
+	suite.run("--adaptive --graph combined -> exit 0",
 			  [](std::string &msg) {
 				  cleanupE2E();
 				  auto r = runCmd(BIN + " " + NET + " " + TRN
-								  + " --realistic --graph output/graphs/e2e_cong.dot");
+								  + " --adaptive --graph output/graphs/e2e_cong.dot");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
 				  return true;
 			  });
 
-	suite.run("--solo --realistic -> exit 1 (mutually exclusive)",
+	suite.run("--solo --adaptive -> exit 1 (mutually exclusive)",
 			  [](std::string &msg) {
 				  auto r = runCmd(BIN + " " + NET + " " + TRN
-								  + " --solo --realistic");
+								  + " --solo --adaptive");
 				  ASSERT_EQ(1, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "mutually exclusive"),
 							  msg);
 				  return true;
 			  });
 
-	suite.run("--realistic --solo -> exit 1 (mutually exclusive)",
+	suite.run("--adaptive --solo -> exit 1 (mutually exclusive)",
 			  [](std::string &msg) {
 				  auto r = runCmd(BIN + " " + NET + " " + TRN
-								  + " --realistic --solo");
+								  + " --adaptive --solo");
 				  ASSERT_EQ(1, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "mutually exclusive"),
 							  msg);

@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 18:47:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,15 +33,15 @@ static void printHelp()
 	std::cout
 		<< "Usage: ./train_yourself <network_file> <train_file> [options]\n\n"
 		<< "Options:\n"
-		<< "  --distance          Shortest distance (km). This is the "
-		<< "default.\n"
+		<< "  --distance          Shortest distance (km)\n"
 		<< "  --solo              Fastest way if this train were the "
 		<< "only one on\n"
 		<< "                      the track — optimises by travel time, "
 		<< "ignoring\n"
 		<< "                      every other train and every random "
-		<< "event\n"
-		<< "  --realistic         The ultimate mode: fastest way "
+		<< "event. This is\n"
+		<< "                      the default.\n"
+		<< "  --adaptive          The ultimate mode: fastest way "
 		<< "accounting for real\n"
 		<< "                      conditions — reacts to live traffic "
 		<< "(dynamically\n"
@@ -50,7 +50,7 @@ static void printHelp()
 		<< "                      prone to costly random events. Goal: "
 		<< "every train\n"
 		<< "                      arrives as fast as possible.\n"
-		<< "                      (--distance, --solo and --realistic "
+		<< "                      (--distance, --solo and --adaptive "
 		<< "are\n"
 		<< "                      mutually exclusive — pick one)\n"
 		<< "  --graph <file.dot>  Export network + paths as "
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 	if (argc < 3 || argc > 10)
 	{
 		std::cerr << "Usage: " << argv[0]
-				  << " <network_file> <train_file> [--distance|--solo|--realistic] "
+				  << " <network_file> <train_file> [--distance|--solo|--adaptive] "
 				     "[--graph file.dot] [--animate] [--runs N]"
 				  << std::endl;
 		std::cerr << "Use --help for detailed format information."
@@ -188,7 +188,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Parse optional flags */
-	PathWeightMode weightMode = PathWeightMode::Distance;
+	PathWeightMode weightMode = PathWeightMode::Solo;
 	bool weightModeSet = false;
 	std::string graphFile;
 	bool animate = false;
@@ -199,7 +199,7 @@ int main(int argc, char **argv)
 		{
 			if (weightModeSet)
 			{
-				std::cerr << "Error: --distance, --solo and --realistic are "
+				std::cerr << "Error: --distance, --solo and --adaptive are "
 							  "mutually exclusive" << std::endl;
 				return EXIT_FAILURE;
 			}
@@ -210,22 +210,22 @@ int main(int argc, char **argv)
 		{
 			if (weightModeSet)
 			{
-				std::cerr << "Error: --distance, --solo and --realistic are "
+				std::cerr << "Error: --distance, --solo and --adaptive are "
 							  "mutually exclusive" << std::endl;
 				return EXIT_FAILURE;
 			}
 			weightMode = PathWeightMode::Solo;
 			weightModeSet = true;
 		}
-		else if (std::strcmp(argv[i], "--realistic") == 0)
+		else if (std::strcmp(argv[i], "--adaptive") == 0)
 		{
 			if (weightModeSet)
 			{
-				std::cerr << "Error: --distance, --solo and --realistic are "
+				std::cerr << "Error: --distance, --solo and --adaptive are "
 							  "mutually exclusive" << std::endl;
 				return EXIT_FAILURE;
 			}
-			weightMode = PathWeightMode::Realistic;
+			weightMode = PathWeightMode::Adaptive;
 			weightModeSet = true;
 		}
 		else if (std::strcmp(argv[i], "--animate") == 0)

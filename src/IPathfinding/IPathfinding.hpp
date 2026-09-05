@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 17:55:55 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:15:16 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,13 +25,13 @@ class RailNetwork;
  * How edge weights are computed during pathfinding.
  *   Distance   — minimise total kilometres
  *   Solo       — minimise total travel time (distance / speed_limit)
- *   Realistic — minimise time + penalty for occupied segments
+ *   Adaptive — minimise time + penalty for occupied segments
  */
 enum class PathWeightMode
 {
 	Distance,
 	Solo,
-	Realistic
+	Adaptive
 };
 
 /**
@@ -69,8 +69,8 @@ class IPathfinding
 		PathWeightMode mode = PathWeightMode::Distance) const = 0;
 
 	/**
-	 * Realistic-aware overload.  Falls back to the base overload
-	 * when mode != Realistic or both occupancy and eventRisk are empty.
+	 * Adaptive-aware overload.  Falls back to the base overload
+	 * when mode != Adaptive or both occupancy and eventRisk are empty.
 	 */
 	virtual std::vector<std::shared_ptr<Node>> findPath(
 		const std::string &start, const std::string &end,

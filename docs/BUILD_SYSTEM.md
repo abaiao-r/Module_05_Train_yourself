@@ -27,7 +27,7 @@ Plain `Makefile` with:
 | `make run-multi` | Run 1000 simulations with statistics |
 | `make run-graph` | Export Graphviz DOT + render |
 | `make run-graph-solo` | Export graph with solo routing |
-| `make run-realistic` | Run with realistic (traffic + event aware) routing |
+| `make run-adaptive` | Run with adaptive (traffic + event aware) routing |
 | `make bonus` | Build the Qt GUI (checks Qt 6 first) |
 | `make run-gui` | Build & launch the GUI |
 | `make setup` | Check & install all dependencies (compiler + Qt) |

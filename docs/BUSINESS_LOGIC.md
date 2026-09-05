@@ -41,13 +41,13 @@ Before simulation begins, each train is assigned an **optimal route** through th
 
 - **Distance** (default) — minimises total kilometres: edge weight = `distance`
 - **Solo** — fastest route if this train were the only one on the track: edge weight = `distance / speedLimit`, ignores other trains and random events
-- **Realistic** — the ultimate mode: builds on Solo's time weighting, plus dynamically re-routes around occupied segments and avoids routes prone to costly random events (see §3a)
+- **Adaptive** — the ultimate mode: builds on Solo's time weighting, plus dynamically re-routes around occupied segments and avoids routes prone to costly random events (see §3a)
 
-Pass `--distance`, `--solo`, or `--realistic` on the command line (mutually exclusive; `--distance` is the default with no flag). If no route exists, the train is skipped with a warning.
+Pass `--distance`, `--solo`, or `--adaptive` on the command line (mutually exclusive; `--solo` is the default with no flag). If no route exists, the train is skipped with a warning.
 
-### 3a. Realistic Mode: Congestion + Event-Aware Routing
+### 3a. Adaptive Mode: Congestion + Event-Aware Routing
 
-When `--realistic` is active, the simulator **dynamically re-routes trains at runtime** to spread traffic across parallel corridors, avoid crowded segments, and steer away from routes prone to costly random events. This contrasts with Distance and Solo modes, where every train's path is fixed before the simulation starts and never changes.
+When `--adaptive` is active, the simulator **dynamically re-routes trains at runtime** to spread traffic across parallel corridors, avoid crowded segments, and steer away from routes prone to costly random events. This contrasts with Distance and Solo modes, where every train's path is fixed before the simulation starts and never changes.
 
 #### How it works — step by step
 
@@ -91,7 +91,7 @@ Consider 6 trains all going North→South with two parallel routes:
 - **Route A**: North → MainA → MainB → South (shorter)
 - **Route B**: North → AltA → AltB → South (slightly longer)
 
-In Distance or Solo mode, all 6 take Route A (shortest). In Realistic mode:
+In Distance or Solo mode, all 6 take Route A (shortest). In Adaptive mode:
 1. Shuttle01 departs first, takes Route A (no congestion yet).
 2. Shuttle02 arrives at North, sees Route A has occupancy = 1, penalty = 120s. Route B's cost is now lower → reroutes to Route B.
 3. Shuttle03 arrives, Route B now has occupancy = 1 too, but Route A still has 1 → stays on Route A (or whichever is cheaper).
@@ -100,7 +100,7 @@ The result is **automatic load balancing**: trains distribute across available c
 
 #### Performance characteristics
 
-On a dense network like ParisMetro (20 nodes, 25 segments, 8 trains), the guards above reduce the number of Dijkstra calls from O(trains × segments × ticks) to a small fraction, keeping realistic mode within ~2× of the performance of Distance mode.
+On a dense network like ParisMetro (20 nodes, 25 segments, 8 trains), the guards above reduce the number of Dijkstra calls from O(trains × segments × ticks) to a small fraction, keeping adaptive mode within ~2× of the performance of Distance mode.
 
 | Guard | What it prevents |
 |---|---|

@@ -6,7 +6,7 @@
 #    By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/28 20:50:03 by abaiao-r          #+#    #+#              #
-#    Updated: 2026/09/05 18:47:00 by abaiao-r         ###   ########.fr        #
+#    Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -315,8 +315,8 @@ run-graph: all
 run-graph-solo: all
 	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --solo --graph network.dot
 
-run-realistic: all
-	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --realistic
+run-adaptive: all
+	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS) --adaptive
 
 # ============================================================================ #
 #                               DEPENDENCIES                                   #
@@ -368,5 +368,5 @@ run-gui: bonus
 	fi
 
 .PHONY: all clean fclean re test run run-solo run-graph run-graph-solo \
-        run-realistic setup \
+        run-adaptive setup \
         bonus bonus-clean run-animate run-multi run-gui

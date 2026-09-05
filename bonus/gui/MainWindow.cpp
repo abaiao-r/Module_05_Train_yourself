@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 18:47:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -501,14 +501,14 @@ void MainWindow::buildToolbar()
 	_pathWeightCombo = new QComboBox;
 	_pathWeightCombo->addItem("Distance");
 	_pathWeightCombo->addItem("Solo");
-	_pathWeightCombo->addItem("Realistic");
+	_pathWeightCombo->addItem("Adaptive");
 	_pathWeightCombo->setCurrentIndex(0);
 	_pathWeightCombo->setToolTip(
 		"Pathfinding weight:\n"
 		"  Distance   — shortest path by km\n"
 		"  Solo       — fastest path if this train were alone "
 		"(ignores traffic & events)\n"
-		"  Realistic  — ultimate mode: reroutes around live traffic "
+		"  Adaptive   — ultimate mode: reroutes around live traffic "
 		"AND avoids\n"
 		"               routes prone to costly random events");
 	_pathWeightCombo->setFixedWidth(100);

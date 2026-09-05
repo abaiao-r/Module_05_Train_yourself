@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 17:55:55 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:15:16 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,7 @@ class DijkstraPathfinding : public IPathfinding
 		const RailNetwork &network,
 		PathWeightMode mode = PathWeightMode::Distance) const override;
 
-	/** Realistic-aware pathfinding — adds penalty for occupied segments
+	/** Adaptive-aware pathfinding — adds penalty for occupied segments
 		and for segments/nodes prone to costly random events. */
 	std::vector<std::shared_ptr<Node>> findPath(
 		const std::string &start, const std::string &end,
@@ -39,7 +39,7 @@ class DijkstraPathfinding : public IPathfinding
 		const SegmentClearTimes &clearTimes = {},
 		const SegmentEventRisk &eventRisk = {}) const override;
 
-	/** Realistic penalty multiplier (seconds per train on segment).
+	/** Adaptive penalty multiplier (seconds per train on segment).
 		Fallback used when no clear-time estimate is available for a
 		segment; otherwise the real estimated clear time is used. */
 	static constexpr double CONGESTION_PENALTY = 120.0;

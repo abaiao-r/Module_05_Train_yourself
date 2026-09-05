@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 17:55:55 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:15:16 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,7 +37,7 @@ DijkstraPathfinding::~DijkstraPathfinding() {}
 double DijkstraPathfinding::edgeWeight(const Edge &edge,
 									   PathWeightMode mode)
 {
-	if (mode == PathWeightMode::Solo || mode == PathWeightMode::Realistic)
+	if (mode == PathWeightMode::Solo || mode == PathWeightMode::Adaptive)
 		return edge.distance / edge.speedLimit; // hours
 	return edge.distance;                       // km
 }
@@ -51,7 +51,7 @@ double DijkstraPathfinding::edgeWeight(const Edge &edge,
 									   const SegmentEventRisk &eventRisk)
 {
 	double base = edgeWeight(edge, mode);
-	if (mode == PathWeightMode::Realistic)
+	if (mode == PathWeightMode::Adaptive)
 	{
 		std::string key = from + "->" + edge.destination->getName();
 		auto it = occupancy.find(key);
@@ -141,7 +141,7 @@ std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 	return path;
 }
 
-/* ---- Realistic-aware pathfinding ---- */
+/* ---- Adaptive-aware pathfinding ---- */
 std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 	const std::string &start, const std::string &end,
 	const RailNetwork &network, PathWeightMode mode,
@@ -152,7 +152,7 @@ std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 	/* Event risk is static (present even before any train has departed),
 	   so don't bail out to the plain overload just because occupancy is
 	   still empty — only skip if there's truly nothing to weigh. */
-	if (mode != PathWeightMode::Realistic
+	if (mode != PathWeightMode::Adaptive
 		|| (occupancy.empty() && eventRisk.empty()))
 		return findPath(start, end, network, mode);
 

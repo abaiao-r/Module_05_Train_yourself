@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 10:00:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 17:55:55 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,7 +33,7 @@
  * B-D 10 km 100 km/h   C-D 10 km 100 km/h
  *
  * In Solo mode both paths are equal (0.1 h each segment).
- * In Realistic mode, occupying A->B should make A-C-D preferred.
+ * In Adaptive mode, occupying A->B should make A-C-D preferred.
  */
 static RailNetwork makeDiamond()
 {
@@ -93,18 +93,18 @@ static std::string pathStr(const std::vector<std::shared_ptr<Node>> &path)
 
 int main()
 {
-	Test::TestSuite suite("Realistic");
+	Test::TestSuite suite("Adaptive");
 
 	/* ── enum value exists ────────────────────────────────── */
-	suite.run("PathWeightMode::Realistic exists", [](std::string &msg) {
-		PathWeightMode m = PathWeightMode::Realistic;
+	suite.run("PathWeightMode::Adaptive exists", [](std::string &msg) {
+		PathWeightMode m = PathWeightMode::Adaptive;
 		ASSERT_TRUE(m != PathWeightMode::Distance, msg);
 		ASSERT_TRUE(m != PathWeightMode::Solo, msg);
 		return true;
 	});
 
 	/* ── edgeWeight base cost matches Solo mode ──────────── */
-	suite.run("Realistic base cost equals Solo cost", [](std::string &msg) {
+	suite.run("Adaptive base cost equals Solo cost", [](std::string &msg) {
 		RailNetwork net = makeDiamond();
 		const auto &edges = net.getNeighbours("A");
 		const auto &edge = edges[0]; // A->B or A->C
@@ -112,7 +112,7 @@ int main()
 		double timeCost = DijkstraPathfinding::edgeWeight(
 			edge, PathWeightMode::Solo);
 		double congBase = DijkstraPathfinding::edgeWeight(
-			edge, PathWeightMode::Realistic);
+			edge, PathWeightMode::Adaptive);
 		ASSERT_NEAR(timeCost, congBase, 1e-9, msg);
 		return true;
 	});
@@ -127,7 +127,7 @@ int main()
 		auto timePath = dijk.findPath("A", "D", net,
 									  PathWeightMode::Solo);
 		auto congPath = dijk.findPath("A", "D", net,
-									  PathWeightMode::Realistic, empty);
+									  PathWeightMode::Adaptive, empty);
 		ASSERT_STR_EQ(pathStr(timePath), pathStr(congPath), msg);
 		return true;
 	});
@@ -148,7 +148,7 @@ int main()
 		occ["A->" + baseVia] = 3; // heavy congestion on the default route
 
 		auto congPath = dijk.findPath("A", "D", net,
-									  PathWeightMode::Realistic, occ);
+									  PathWeightMode::Adaptive, occ);
 		ASSERT_EQ(3u, congPath.size(), msg);
 		/* Via the OTHER intermediate node */
 		std::string congVia = congPath[1]->getName();
@@ -180,11 +180,11 @@ int main()
 		occ2["A->B"] = 5;
 
 		double cost1 = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic, "A", occ1);
+			*abEdge, PathWeightMode::Adaptive, "A", occ1);
 		double cost2 = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic, "A", occ2);
+			*abEdge, PathWeightMode::Adaptive, "A", occ2);
 		double base = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic);
+			*abEdge, PathWeightMode::Adaptive);
 
 		ASSERT_TRUE(cost1 > base, msg);
 		ASSERT_TRUE(cost2 > cost1, msg);
@@ -212,9 +212,9 @@ int main()
 		occ["A->B"] = 5; // only A->B is occupied
 
 		double base = DijkstraPathfinding::edgeWeight(
-			*acEdge, PathWeightMode::Realistic);
+			*acEdge, PathWeightMode::Adaptive);
 		double withOcc = DijkstraPathfinding::edgeWeight(
-			*acEdge, PathWeightMode::Realistic, "A", occ);
+			*acEdge, PathWeightMode::Adaptive, "A", occ);
 		ASSERT_NEAR(base, withOcc, 1e-9, msg);
 		return true;
 	});
@@ -231,7 +231,7 @@ int main()
 		occ["A->D"] = 5;
 
 		auto path = dijk.findPath("A", "E", net,
-								  PathWeightMode::Realistic, occ);
+								  PathWeightMode::Adaptive, occ);
 		ASSERT_EQ(3u, path.size(), msg);
 		ASSERT_STR_EQ(std::string("C"), path[1]->getName(), msg);
 		return true;
@@ -246,7 +246,7 @@ int main()
 		occ["A->B"] = 3;
 
 		auto path = dijk.findPath("A", "A", net,
-								  PathWeightMode::Realistic, occ);
+								  PathWeightMode::Adaptive, occ);
 		ASSERT_EQ(1u, path.size(), msg);
 		ASSERT_STR_EQ(std::string("A"), path[0]->getName(), msg);
 		return true;
@@ -262,7 +262,7 @@ int main()
 		SegmentOccupancy occ;
 
 		auto path = dijk.findPath("X", "Y", net,
-								  PathWeightMode::Realistic, occ);
+								  PathWeightMode::Adaptive, occ);
 		ASSERT_TRUE(path.empty(), msg);
 		return true;
 	});
@@ -275,7 +275,7 @@ int main()
 		return true;
 	});
 
-	/* ── Non-Realistic mode ignores occupancy ───────────── */
+	/* ── Non-Adaptive mode ignores occupancy ───────────── */
 	suite.run("Distance mode ignores occupancy overload",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -315,9 +315,9 @@ int main()
 
 		/* A->B should NOT be penalised */
 		double base = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic);
+			*abEdge, PathWeightMode::Adaptive);
 		double withOcc = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic, "A", occ);
+			*abEdge, PathWeightMode::Adaptive, "A", occ);
 		ASSERT_NEAR(base, withOcc, 1e-9, msg);
 		return true;
 	});
@@ -344,11 +344,11 @@ int main()
 		ct["A->B"] = 500.0; // much bigger than the 120s flat constant
 
 		double base = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic);
+			*abEdge, PathWeightMode::Adaptive);
 		double flatOnly = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic, "A", occ);
+			*abEdge, PathWeightMode::Adaptive, "A", occ);
 		double withClearTime = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic, "A", occ, ct);
+			*abEdge, PathWeightMode::Adaptive, "A", occ, ct);
 
 		ASSERT_NEAR(flatOnly - base,
 					DijkstraPathfinding::CONGESTION_PENALTY / 3600.0,
@@ -380,9 +380,9 @@ int main()
 		ct["A->B"] = 1.0; // nearly cleared — should still cost >= floor
 
 		double base = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic);
+			*abEdge, PathWeightMode::Adaptive);
 		double withClearTime = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic, "A", occ, ct);
+			*abEdge, PathWeightMode::Adaptive, "A", occ, ct);
 
 		ASSERT_NEAR(withClearTime - base,
 					DijkstraPathfinding::MIN_CONGESTION_PENALTY / 3600.0,
@@ -411,9 +411,9 @@ int main()
 		SegmentClearTimes ct; // empty — no estimate for A->B
 
 		double flatOnly = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic, "A", occ);
+			*abEdge, PathWeightMode::Adaptive, "A", occ);
 		double withEmptyClearTimes = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic, "A", occ, ct);
+			*abEdge, PathWeightMode::Adaptive, "A", occ, ct);
 
 		ASSERT_NEAR(flatOnly, withEmptyClearTimes, 1e-9, msg);
 		return true;
@@ -441,9 +441,9 @@ int main()
 		risk["A->B"] = 1800.0; // 30 minutes expected delay
 
 		double base = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic);
+			*abEdge, PathWeightMode::Adaptive);
 		double withRisk = DijkstraPathfinding::edgeWeight(
-			*abEdge, PathWeightMode::Realistic, "A", occ, ct, risk);
+			*abEdge, PathWeightMode::Adaptive, "A", occ, ct, risk);
 
 		ASSERT_NEAR(withRisk - base, 1800.0 / 3600.0, 1e-9, msg);
 		return true;
@@ -464,14 +464,14 @@ int main()
 		SegmentEventRisk risk;
 		risk["A->" + baseVia] = 3600.0; // huge risk on the default route
 
-		auto realisticPath = dijk.findPath("A", "D", net,
-										   PathWeightMode::Realistic, occ,
-										   ct, risk);
-		ASSERT_EQ(3u, realisticPath.size(), msg);
-		std::string realisticVia = realisticPath[1]->getName();
-		ASSERT_TRUE(realisticVia != baseVia,
+		auto adaptivePath = dijk.findPath("A", "D", net,
+									   PathWeightMode::Adaptive, occ,
+									   ct, risk);
+		ASSERT_EQ(3u, adaptivePath.size(), msg);
+		std::string adaptiveVia = adaptivePath[1]->getName();
+		ASSERT_TRUE(adaptiveVia != baseVia,
 					msg + " expected reroute from " + baseVia
-						+ " but got " + realisticVia);
+						+ " but got " + adaptiveVia);
 		return true;
 	});
 
@@ -497,9 +497,9 @@ int main()
 		risk["A->B"] = 3600.0; // only A->B carries risk
 
 		double base = DijkstraPathfinding::edgeWeight(
-			*acEdge, PathWeightMode::Realistic);
+			*acEdge, PathWeightMode::Adaptive);
 		double withRisk = DijkstraPathfinding::edgeWeight(
-			*acEdge, PathWeightMode::Realistic, "A", occ, ct, risk);
+			*acEdge, PathWeightMode::Adaptive, "A", occ, ct, risk);
 
 		ASSERT_NEAR(base, withRisk, 1e-9, msg);
 		return true;

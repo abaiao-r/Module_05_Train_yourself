@@ -14,7 +14,7 @@ A physics-based train simulation engine that models rail traffic across a config
 |---------|--------|
 | **Physics engine** | 1-second discrete timestep · acceleration = `(F_accel − μmg) / m` · braking distance = `v² / (2·decel)` |
 | **Concurrent simulation** | All trains run on a shared wall clock; overtaking caps a trailing train's speed |
-| **Pathfinding** | Dijkstra shortest-path (Strategy pattern) · distance, solo (`--solo`), or realistic traffic+event-aware (`--realistic`) weight modes |
+| **Pathfinding** | Dijkstra shortest-path (Strategy pattern) · distance, solo (`--solo`), or adaptive traffic+event-aware (`--adaptive`) weight modes |
 | **Per-train output** | `TrainName_HHhMM.result` file with header, estimated time, every-minute rail graph, events, actual time |
 | **Random events** | Probability-based disruptions at stations (riots, discomfort, …) inject delays |
 | **498 unit / integration tests** | Custom TestFramework, 13 suites covering nodes, networks, trains, events, pathfinding, I/O, factories, edge cases, combinations, end-to-end, input combos |
@@ -62,7 +62,7 @@ make run            # run with sample data
 ./bin/train_yourself path/to/network.txt path/to/trains.txt --solo
 
 # Ultimate mode: fastest arrival accounting for live traffic AND random events
-./bin/train_yourself path/to/network.txt path/to/trains.txt --realistic
+./bin/train_yourself path/to/network.txt path/to/trains.txt --adaptive
 
 # Terminal animation
 make run-animate
@@ -92,7 +92,7 @@ Options:
   --solo              Fastest way if this train were the only one on 
                       the track (optimises by travel time, ignores traffic
                       and events)
-  --realistic         The ultimate mode: fastest way accounting for real
+  --adaptive          The ultimate mode: fastest way accounting for real
                       conditions — live traffic AND random events
   --graph <file.dot>  Export network + paths as Graphviz DOT file
   --animate           Show live terminal animation of the simulation

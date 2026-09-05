@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 18:47:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:15:16 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,7 @@ static PathWeightMode intToWeightMode(int idx)
 	switch (idx)
 	{
 	case 1:  return PathWeightMode::Solo;
-	case 2:  return PathWeightMode::Realistic;
+	case 2:  return PathWeightMode::Adaptive;
 	default: return PathWeightMode::Distance;
 	}
 }

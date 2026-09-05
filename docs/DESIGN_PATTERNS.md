@@ -91,7 +91,7 @@ void Simulation::run() {
 
 Concretely, this shows up in two places:
 - **`applyBlocking()`** — same-direction collision avoidance: compares every pair of trains sharing a segment and caps the trailing train's speed.
-- **`buildOccupancy()` / `rerouteFromNode()`** (realistic mode) — builds one shared occupancy snapshot per tick and uses it to decide whether a train should reroute around a congested segment.
+- **`buildOccupancy()` / `rerouteFromNode()`** (adaptive mode) — builds one shared occupancy snapshot per tick and uses it to decide whether a train should reroute around a congested segment.
 
 **Why Mediator?** — A `Train` has zero knowledge of any other train; it only exposes its own position/speed/path. This keeps `Train` simple and testable in isolation, while all the genuinely cross-cutting logic (who's blocking whom, where congestion is) lives in exactly one place (`Simulation`) instead of being duplicated or scattered across trains trying to negotiate with each other peer-to-peer.
 
