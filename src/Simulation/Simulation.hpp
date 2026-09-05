@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Simulation.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 14:09:05 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -152,8 +152,13 @@ class Simulation
 	 */
 	void enqueueMutation(LiveMutation mutation);
 
-	/** Invoked (from the simulation thread) after a mutation is applied. */
-	using MutationAppliedCallback = std::function<void(const std::string &description)>;
+	/** Invoked (from the simulation thread) after a mutation is applied.
+		Receives the mutation itself so callers can extract structured
+		fields (e.g. to draw the new node/rail), plus a human-readable
+		description for logging. */
+	using MutationAppliedCallback =
+		std::function<void(const LiveMutation &mutation,
+						   const std::string &description)>;
 	/** Invoked (from the simulation thread) when a mutation fails validation. */
 	using MutationRejectedCallback = std::function<void(const std::string &reason)>;
 	void setMutationCallbacks(MutationAppliedCallback onApplied,

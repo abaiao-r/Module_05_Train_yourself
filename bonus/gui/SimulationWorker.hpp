@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 23:25:46 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/09/05 14:09:06 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -125,6 +125,12 @@ class SimulationWorker : public QObject
 	void error(const QString &message);
 	void runProgress(int currentRun, int totalRuns);
 	void multiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
+	/** A live-added node/rail was accepted — the GUI should draw it. */
+	void nodeAdded(QString name);
+	void railAdded(QString from, QString to, double distanceKm,
+				   double speedLimitKmh);
+	/** A live-added event/train was accepted (no visual element to draw;
+		trains appear automatically via tick() once they depart). */
 	void mutationApplied(QString description);
 	void mutationRejected(QString reason);
 

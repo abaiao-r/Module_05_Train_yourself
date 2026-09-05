@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 23:25:46 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/09/05 14:09:06 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,6 +24,7 @@
 #include "TrainFactory.hpp"
 
 #include <map>
+#include <type_traits>
 
 SimulationWorker::SimulationWorker(QObject *parent)
 	: QObject(parent) {}
@@ -157,7 +158,20 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		} liveSimGuard{_liveSim};
 
 		sim.setMutationCallbacks(
-			[this](const std::string &desc) {
+			[this](const LiveMutation &mutation, const std::string &desc) {
+				std::visit(
+					[this](const auto &cmd) {
+						using T = std::decay_t<decltype(cmd)>;
+						if constexpr (std::is_same_v<T, AddNodeCommand>)
+							emit nodeAdded(
+								QString::fromStdString(cmd.name));
+						else if constexpr (std::is_same_v<T, AddRailCommand>)
+							emit railAdded(
+								QString::fromStdString(cmd.from),
+								QString::fromStdString(cmd.to),
+								cmd.distanceKm, cmd.speedLimitKmh);
+					},
+					mutation);
 				emit mutationApplied(QString::fromStdString(desc));
 			},
 			[this](const std::string &reason) {

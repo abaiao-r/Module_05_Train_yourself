@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Simulation.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 10:21:12 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 14:09:06 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -94,26 +94,26 @@ void Simulation::applyMutation(const LiveMutation &mutation,
 				{
 					applyAddNode(cmd);
 					if (_onMutationApplied)
-						_onMutationApplied("Added node: " + cmd.name);
+						_onMutationApplied(mutation, "Added node: " + cmd.name);
 				}
 				else if constexpr (std::is_same_v<T, AddRailCommand>)
 				{
 					applyAddRail(cmd);
 					if (_onMutationApplied)
-						_onMutationApplied("Added rail: " + cmd.from
+						_onMutationApplied(mutation, "Added rail: " + cmd.from
 											+ " <-> " + cmd.to);
 				}
 				else if constexpr (std::is_same_v<T, AddEventCommand>)
 				{
 					applyAddEvent(cmd);
 					if (_onMutationApplied)
-						_onMutationApplied("Added event: " + cmd.name);
+						_onMutationApplied(mutation, "Added event: " + cmd.name);
 				}
 				else if constexpr (std::is_same_v<T, AddTrainCommand>)
 				{
 					applyAddTrain(cmd, states, simTime);
 					if (_onMutationApplied)
-						_onMutationApplied("Added train: " + cmd.name);
+						_onMutationApplied(mutation, "Added train: " + cmd.name);
 				}
 			},
 			mutation);

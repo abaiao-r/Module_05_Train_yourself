@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 16:19:44 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/09/05 14:09:06 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -235,6 +235,10 @@ MainWindow::MainWindow(QWidget *parent)
 			this, &MainWindow::onMutationApplied);
 	connect(_worker, &SimulationWorker::mutationRejected,
 			this, &MainWindow::onMutationRejected);
+	connect(_worker, &SimulationWorker::nodeAdded,
+			this, &MainWindow::onLiveNodeAdded);
+	connect(_worker, &SimulationWorker::railAdded,
+			this, &MainWindow::onLiveRailAdded);
 	_simThread.start();
 
 	/* ── Sensible initial window size ── */
@@ -2663,6 +2667,44 @@ void MainWindow::onMutationApplied(QString description)
 void MainWindow::onMutationRejected(QString reason)
 {
 	logError("Live edit rejected: " + reason);
+}
+
+void MainWindow::onLiveNodeAdded(QString name)
+{
+	/* Mirror the confirmed live change into the editor's own network too,
+	   so the canvas reflects it immediately and it survives into the
+	   next run if the user stops and restarts. */
+	if (_scene->hasNode(name))
+		return;
+	try
+	{
+		_network.addNode(name.toStdString());
+	}
+	catch (const std::exception &)
+	{
+		return;  // already present in the editor's copy — nothing to draw
+	}
+	_scene->addNode(name, QPointF(std::rand() % 400 - 200,
+								  std::rand() % 400 - 200));
+	refreshLists();
+}
+
+void MainWindow::onLiveRailAdded(QString from, QString to,
+								 double distanceKm, double speedLimitKmh)
+{
+	if (!_scene->hasNode(from) || !_scene->hasNode(to))
+		return;  // endpoint only exists in the live sim, nothing to draw
+	try
+	{
+		_network.addConnection(from.toStdString(), to.toStdString(),
+							   distanceKm, speedLimitKmh);
+	}
+	catch (const std::exception &)
+	{
+		return;  // already present in the editor's copy
+	}
+	_scene->addEdge(from, to, distanceKm, speedLimitKmh);
+	refreshLists();
 }
 
 void MainWindow::onMultiRunFinished(QVector<TrainStatRow> stats,

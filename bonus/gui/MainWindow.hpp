@@ -6,7 +6,7 @@
 /*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 16:19:44 by ctw03933         ###   ########.fr       */
+/*   Updated: 2026/09/05 14:09:06 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -91,6 +91,9 @@ class MainWindow : public QMainWindow
 	void onMultiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
 	void onMutationApplied(QString description);
 	void onMutationRejected(QString reason);
+	void onLiveNodeAdded(QString name);
+	void onLiveRailAdded(QString from, QString to, double distanceKm,
+						 double speedLimitKmh);
 
   private:
 	void buildMenus();

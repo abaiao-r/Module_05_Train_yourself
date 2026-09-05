@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   LiveMutationTest.cpp                               :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/09/05 00:00:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 00:00:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 14:09:06 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -109,7 +109,9 @@ int main()
 				  bool enqueued = false;
 				  bool applied = false;
 				  sim.setMutationCallbacks(
-					  [&](const std::string &) { applied = true; },
+					  [&](const LiveMutation &, const std::string &) {
+						  applied = true;
+					  },
 					  [](const std::string &) {});
 				  size_t trainsBefore = sim.getTrains().size();
 				  sim.setAnimCallback(
@@ -147,7 +149,7 @@ int main()
 				  bool rejected = false;
 				  std::string reason;
 				  sim.setMutationCallbacks(
-					  [](const std::string &) {},
+					  [](const LiveMutation &, const std::string &) {},
 					  [&](const std::string &r) {
 						  rejected = true;
 						  reason = r;
@@ -183,7 +185,7 @@ int main()
 				  bool enqueued = false;
 				  bool rejected = false;
 				  sim.setMutationCallbacks(
-					  [](const std::string &) {},
+					  [](const LiveMutation &, const std::string &) {},
 					  [&](const std::string &) { rejected = true; });
 				  sim.setAnimCallback(
 					  [&](double, const std::vector<TrainState> &) {
@@ -208,7 +210,7 @@ int main()
 				  bool enqueued = false;
 				  bool rejected = false;
 				  sim.setMutationCallbacks(
-					  [](const std::string &) {},
+					  [](const LiveMutation &, const std::string &) {},
 					  [&](const std::string &) { rejected = true; });
 				  sim.setAnimCallback(
 					  [&](double, const std::vector<TrainState> &) {
@@ -233,7 +235,7 @@ int main()
 				  bool enqueued = false;
 				  bool rejected = false;
 				  sim.setMutationCallbacks(
-					  [](const std::string &) {},
+					  [](const LiveMutation &, const std::string &) {},
 					  [&](const std::string &) { rejected = true; });
 				  sim.setAnimCallback(
 					  [&](double, const std::vector<TrainState> &) {
@@ -258,7 +260,9 @@ int main()
 				  bool enqueued = false;
 				  bool applied = false;
 				  sim.setMutationCallbacks(
-					  [&](const std::string &) { applied = true; },
+					  [&](const LiveMutation &, const std::string &) {
+						  applied = true;
+					  },
 					  [](const std::string &) {});
 				  sim.setAnimCallback(
 					  [&](double, const std::vector<TrainState> &) {
@@ -282,7 +286,9 @@ int main()
 				  sim.setQuiet(true);
 				  std::atomic<int> applied{0};
 				  sim.setMutationCallbacks(
-					  [&](const std::string &) { applied++; },
+					  [&](const LiveMutation &, const std::string &) {
+						  applied++;
+					  },
 					  [](const std::string &) {});
 
 				  /* Spawn a producer thread that races against the
