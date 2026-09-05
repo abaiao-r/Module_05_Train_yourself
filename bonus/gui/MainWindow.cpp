@@ -231,6 +231,10 @@ MainWindow::MainWindow(QWidget *parent)
 			this, &MainWindow::onRunProgress);
 	connect(_worker, &SimulationWorker::multiRunFinished,
 			this, &MainWindow::onMultiRunFinished);
+	connect(_worker, &SimulationWorker::mutationApplied,
+			this, &MainWindow::onMutationApplied);
+	connect(_worker, &SimulationWorker::mutationRejected,
+			this, &MainWindow::onMutationRejected);
 	_simThread.start();
 
 	/* ── Sensible initial window size ── */
@@ -1302,9 +1306,6 @@ void MainWindow::onExportDot()
 
 void MainWindow::onAddNode()
 {
-	if (guardSimRunning("add a node"))
-		return;
-
 	bool ok;
 	QString name = QInputDialog::getText(
 		this, "Add Node", "Enter node name (city / station):\n"
@@ -1319,6 +1320,19 @@ void MainWindow::onAddNode()
 	{
 		logError(nameError);
 		QMessageBox::warning(this, "Invalid Node Name", nameError);
+		return;
+	}
+
+	if (_simRunning)
+	{
+		/* Live edit: only affects the running simulation, not this
+		   editor's network — add it again after stopping if you want
+		   it to persist for the next run. */
+		if (_worker->enqueueAddNode(name))
+			logInfo("Queued live add of node '" + name
+					+ "' (applies on the next tick).");
+		else
+			logError("Cannot queue node: no simulation is running.");
 		return;
 	}
 
@@ -1347,9 +1361,6 @@ void MainWindow::onAddNode()
 
 void MainWindow::onAddEdge()
 {
-	if (guardSimRunning("add an edge"))
-		return;
-
 	QStringList names = _scene->nodeNames();
 	if (names.size() < 2)
 	{
@@ -1409,6 +1420,18 @@ void MainWindow::onAddEdge()
 		return;
 	}
 
+	if (_simRunning)
+	{
+		if (_worker->enqueueAddRail(from, to, distSpin->value(),
+									speedSpin->value()))
+			logInfo(QString("Queued live add of edge: %1 <-> %2 "
+							"(applies on the next tick).")
+						.arg(from, to));
+		else
+			logError("Cannot queue edge: no simulation is running.");
+		return;
+	}
+
 	/* Check for duplicate edge */
 	for (int i = 0; i < _edgeList->count(); ++i)
 	{
@@ -1447,9 +1470,6 @@ void MainWindow::onAddEdge()
 
 void MainWindow::onAddTrain()
 {
-	if (guardSimRunning("add a train"))
-		return;
-
 	QStringList names = _scene->nodeNames();
 	if (names.size() < 2)
 	{
@@ -1490,10 +1510,21 @@ void MainWindow::onAddTrain()
 		toBox->setCurrentIndex(1);
 	auto *hourSpin = new QSpinBox;
 	hourSpin->setRange(0, 23);
-	hourSpin->setValue(14);
 	auto *minSpin = new QSpinBox;
 	minSpin->setRange(0, 59);
-	minSpin->setValue(10);
+	if (_simRunning)
+	{
+		/* Default to a couple of minutes after the current sim clock so
+		   the departure isn't immediately rejected as already passed. */
+		double suggested = _lastSimTime + 120.0;
+		hourSpin->setValue(static_cast<int>(suggested) / 3600 % 24);
+		minSpin->setValue((static_cast<int>(suggested) % 3600) / 60);
+	}
+	else
+	{
+		hourSpin->setValue(14);
+		minSpin->setValue(10);
+	}
 	auto *stopSpin = new QSpinBox;
 	stopSpin->setRange(0, 120);
 	stopSpin->setValue(10);
@@ -1550,6 +1581,24 @@ void MainWindow::onAddTrain()
 		return;
 	}
 
+	if (_simRunning)
+	{
+		double depTime = hourSpin->value() * 3600.0
+						+ minSpin->value() * 60.0;
+		double stopDur = stopSpin->value() * 60.0;
+		if (_worker->enqueueAddTrain(
+				trainName, weightSpin->value(), fricSpin->value(),
+				accelSpin->value(), brakeSpin->value(),
+				fromBox->currentText(), toBox->currentText(), depTime,
+				stopDur))
+			logInfo("Queued live add of train '" + trainName
+					+ "' (applies on the next tick; route and departure "
+					  "time are re-validated against the live network).");
+		else
+			logError("Cannot queue train: no simulation is running.");
+		return;
+	}
+
 	/* Check route reachability */
 	try
 	{
@@ -1596,9 +1645,6 @@ void MainWindow::onAddTrain()
 
 void MainWindow::onAddEvent()
 {
-	if (guardSimRunning("add an event"))
-		return;
-
 	QStringList names = _scene->nodeNames();
 	if (names.isEmpty())
 	{
@@ -1671,6 +1717,18 @@ void MainWindow::onAddEvent()
 				"different stations.");
 			return;
 		}
+	}
+
+	if (_simRunning)
+	{
+		if (_worker->enqueueAddEvent(
+				evName, probSpin->value(), durSpin->value() * 60.0,
+				QString::fromStdString(n1), QString::fromStdString(n2)))
+			logInfo("Queued live add of event '" + evName
+					+ "' (applies on the next tick).");
+		else
+			logError("Cannot queue event: no simulation is running.");
+		return;
 	}
 
 	_eventDefs.emplace_back(evName.toStdString(),
@@ -2515,6 +2573,7 @@ void MainWindow::onRunSimulation()
 void MainWindow::onSimTick(double simTime,
 						   QVector<TrainSnapshot> snapshots)
 {
+	_lastSimTime = simTime;
 	_scene->updateTrains(simTime, snapshots);
 	_dashboard->update(simTime, snapshots);
 
@@ -2594,6 +2653,16 @@ void MainWindow::onRunProgress(int currentRun, int totalRuns)
 	statusBar()->showMessage(
 		QString("Multi-run: completed %1 of %2 runs")
 			.arg(currentRun).arg(totalRuns));
+}
+
+void MainWindow::onMutationApplied(QString description)
+{
+	logSuccess("Live: " + description);
+}
+
+void MainWindow::onMutationRejected(QString reason)
+{
+	logError("Live edit rejected: " + reason);
 }
 
 void MainWindow::onMultiRunFinished(QVector<TrainStatRow> stats,

@@ -50,6 +50,66 @@ bool SimulationWorker::isStopRequested() const
 	return _stopRequested.load(std::memory_order_relaxed);
 }
 
+bool SimulationWorker::isSimulationLive() const
+{
+	return _liveSim.load(std::memory_order_acquire) != nullptr;
+}
+
+bool SimulationWorker::enqueueAddNode(const QString &name)
+{
+	Simulation *sim = _liveSim.load(std::memory_order_acquire);
+	if (!sim)
+		return false;
+	sim->enqueueMutation(AddNodeCommand{name.toStdString()});
+	return true;
+}
+
+bool SimulationWorker::enqueueAddRail(const QString &from, const QString &to,
+									  double distanceKm,
+									  double speedLimitKmh)
+{
+	Simulation *sim = _liveSim.load(std::memory_order_acquire);
+	if (!sim)
+		return false;
+	sim->enqueueMutation(AddRailCommand{from.toStdString(),
+									   to.toStdString(), distanceKm,
+									   speedLimitKmh});
+	return true;
+}
+
+bool SimulationWorker::enqueueAddEvent(const QString &name,
+									   double probability,
+									   double durationSeconds,
+									   const QString &node1,
+									   const QString &node2)
+{
+	Simulation *sim = _liveSim.load(std::memory_order_acquire);
+	if (!sim)
+		return false;
+	sim->enqueueMutation(AddEventCommand{
+		name.toStdString(), probability, durationSeconds,
+		node1.toStdString(), node2.toStdString()});
+	return true;
+}
+
+bool SimulationWorker::enqueueAddTrain(const QString &name,
+									   double weightTons, double friction,
+									   double maxAccelKn, double maxBrakeKn,
+									   const QString &from,
+									   const QString &to,
+									   double departureTime,
+									   double stopDuration)
+{
+	Simulation *sim = _liveSim.load(std::memory_order_acquire);
+	if (!sim)
+		return false;
+	sim->enqueueMutation(AddTrainCommand{
+		name.toStdString(), weightTons, friction, maxAccelKn, maxBrakeKn,
+		from.toStdString(), to.toStdString(), departureTime,
+		stopDuration});
+	return true;
+}
+
 /* Exception used to break out of the simulation loop cleanly. */
 struct SimulationStopException : std::exception
 {
@@ -85,6 +145,24 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 					   std::move(data.events), std::move(pathfinder),
 					   mode);
 		sim.setQuiet(true);
+
+		/* Expose this simulation to enqueueAddX() calls from the GUI
+		   thread for the duration of the run; the guard clears it on
+		   every exit path (normal, stopped, or exception). */
+		_liveSim.store(&sim, std::memory_order_release);
+		struct LiveSimGuard
+		{
+			std::atomic<Simulation *> &ref;
+			~LiveSimGuard() { ref.store(nullptr, std::memory_order_release); }
+		} liveSimGuard{_liveSim};
+
+		sim.setMutationCallbacks(
+			[this](const std::string &desc) {
+				emit mutationApplied(QString::fromStdString(desc));
+			},
+			[this](const std::string &reason) {
+				emit mutationRejected(QString::fromStdString(reason));
+			});
 
 		/* Install a per-tick callback that emits snapshots.
 		   Throttle to ~20 FPS real-time: emit every FRAME_INTERVAL

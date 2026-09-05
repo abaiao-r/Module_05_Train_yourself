@@ -183,7 +183,8 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/EdgeCaseTest \
 		$(BINDIR)/CombinationTest \
 		$(BINDIR)/EndToEndTest \
-		$(BINDIR)/InputComboTest
+		$(BINDIR)/InputComboTest \
+		$(BINDIR)/LiveMutationTest
 
 test: $(TESTS)
 	@echo ""
@@ -200,6 +201,7 @@ test: $(TESTS)
 	@./$(BINDIR)/CombinationTest || exit 1
 	@./$(BINDIR)/EndToEndTest || exit 1
 	@./$(BINDIR)/InputComboTest || exit 1
+	@./$(BINDIR)/LiveMutationTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -271,6 +273,10 @@ $(BINDIR)/EdgeCaseTest: $(TESTDIR)/EdgeCaseTest.cpp $(LIB_OBJS)
 $(BINDIR)/CombinationTest: $(TESTDIR)/CombinationTest.cpp $(LIB_OBJS)
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+$(BINDIR)/LiveMutationTest: $(TESTDIR)/LiveMutationTest.cpp $(LIB_OBJS)
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) -pthread $^ -o $@ -pthread
 
 # E2E test only needs TestFramework.hpp — runs ./bin/train_yourself as subprocess
 $(BINDIR)/EndToEndTest: $(TESTDIR)/EndToEndTest.cpp $(BINDIR)/$(NAME)

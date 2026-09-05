@@ -89,6 +89,8 @@ class MainWindow : public QMainWindow
 	void onFitGraph();
 	void onRunProgress(int currentRun, int totalRuns);
 	void onMultiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
+	void onMutationApplied(QString description);
+	void onMutationRejected(QString reason);
 
   private:
 	void buildMenus();
@@ -118,6 +120,7 @@ class MainWindow : public QMainWindow
 	QString _trainFilePath;
 	bool _useTimeWeight;
 	bool _simRunning;
+	double _lastSimTime = 0.0;  // seconds from midnight, updated on each tick
 
 	/* ─── Widgets ───────────────────────────────────────────────────── */
 	QSplitter *_hSplit;

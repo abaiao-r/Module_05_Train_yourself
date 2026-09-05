@@ -16,9 +16,11 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <type_traits>
 #include <utility>
 
 #include "Node.hpp"
+#include "TrainFactory.hpp"
 
 /* ---- Constructor / Destructor ---- */
 Simulation::Simulation(RailNetwork network,
@@ -56,6 +58,129 @@ void Simulation::setAnimCallback(AnimTickCallback cb)
 }
 
 void Simulation::setQuiet(bool q) { _quiet = q; }
+
+/* ---- Live mutation queue ---- */
+void Simulation::enqueueMutation(LiveMutation mutation)
+{
+	std::lock_guard<std::mutex> lock(_mutationMutex);
+	_pendingMutations.push_back(std::move(mutation));
+}
+
+void Simulation::setMutationCallbacks(MutationAppliedCallback onApplied,
+									  MutationRejectedCallback onRejected)
+{
+	_onMutationApplied = std::move(onApplied);
+	_onMutationRejected = std::move(onRejected);
+}
+
+std::vector<LiveMutation> Simulation::drainMutations()
+{
+	std::lock_guard<std::mutex> lock(_mutationMutex);
+	std::vector<LiveMutation> batch = std::move(_pendingMutations);
+	_pendingMutations.clear();
+	return batch;
+}
+
+void Simulation::applyMutation(const LiveMutation &mutation,
+							   std::vector<TrainState> &states,
+							   double simTime)
+{
+	try
+	{
+		std::visit(
+			[&](const auto &cmd) {
+				using T = std::decay_t<decltype(cmd)>;
+				if constexpr (std::is_same_v<T, AddNodeCommand>)
+				{
+					applyAddNode(cmd);
+					if (_onMutationApplied)
+						_onMutationApplied("Added node: " + cmd.name);
+				}
+				else if constexpr (std::is_same_v<T, AddRailCommand>)
+				{
+					applyAddRail(cmd);
+					if (_onMutationApplied)
+						_onMutationApplied("Added rail: " + cmd.from
+											+ " <-> " + cmd.to);
+				}
+				else if constexpr (std::is_same_v<T, AddEventCommand>)
+				{
+					applyAddEvent(cmd);
+					if (_onMutationApplied)
+						_onMutationApplied("Added event: " + cmd.name);
+				}
+				else if constexpr (std::is_same_v<T, AddTrainCommand>)
+				{
+					applyAddTrain(cmd, states, simTime);
+					if (_onMutationApplied)
+						_onMutationApplied("Added train: " + cmd.name);
+				}
+			},
+			mutation);
+	}
+	catch (const std::exception &e)
+	{
+		if (_onMutationRejected)
+			_onMutationRejected(e.what());
+	}
+}
+
+void Simulation::applyAddNode(const AddNodeCommand &c)
+{
+	_network.addNode(c.name);
+}
+
+void Simulation::applyAddRail(const AddRailCommand &c)
+{
+	_network.addConnection(c.from, c.to, c.distanceKm, c.speedLimitKmh);
+}
+
+void Simulation::applyAddEvent(const AddEventCommand &c)
+{
+	_network.findNode(c.node1);
+	if (!c.node2.empty())
+		_network.findNode(c.node2);
+	_events.emplace_back(c.name, c.probability, c.durationSeconds,
+						 c.node1, c.node2);
+}
+
+void Simulation::applyAddTrain(const AddTrainCommand &c,
+							   std::vector<TrainState> &states,
+							   double simTime)
+{
+	if (c.departureTime < simTime)
+		throw std::invalid_argument(
+			"Departure time has already passed (train '" + c.name + "')");
+
+	auto train = TrainFactory::createTrain(
+		c.name, c.weightTons, c.friction, c.maxAccelKn, c.maxBrakeKn,
+		c.from, c.to, c.departureTime, c.stopDuration);
+
+	auto path = _pathfinder->findPath(c.from, c.to, _network, _weightMode);
+	if (path.empty())
+		throw std::runtime_error("No route from " + c.from + " to " + c.to
+								 + " for train '" + c.name + "'");
+	train->setPath(path);
+
+	TrainState s{};
+	s.train = train.get();
+	s.segmentIndex = 0;
+	s.posOnSegment_m = 0.0;
+	s.speed_ms = 0.0;
+	s.timeSinceDepart = 0.0;
+	s.stopTimer = 0.0;
+	s.departed = false;
+	s.arrived = false;
+	states.push_back(s);
+
+	auto obs = std::make_unique<FileOutputObserver>(train->getName(),
+													train->getDepartureTime());
+	obs->onTrainStart(train->getName(), train->getId(),
+					  estimateTravelTime(*train));
+	_observers.push_back(std::move(obs));
+
+	_trains.push_back(std::move(train));
+}
 
 /* ---- Public ---- */
 void Simulation::run()
@@ -126,6 +251,11 @@ void Simulation::run()
 	while (anyActive())
 	{
 		simTime += DT;
+
+		/* Apply any live mutations queued from another thread (e.g. the
+		   GUI) before running physics for this tick. */
+		for (const auto &mutation : drainMutations())
+			applyMutation(mutation, states, simTime);
 
 		for (size_t i = 0; i < states.size(); i++)
 		{
@@ -265,6 +395,12 @@ void Simulation::run()
 		if (_animCallback)
 			_animCallback(simTime, states);
 	}
+
+	/* Drain any mutations queued right as the last train arrived, so a
+	   structural edit (e.g. AddNode) enqueued at the very last tick isn't
+	   silently dropped. New trains added here won't get physics ticks. */
+	for (const auto &mutation : drainMutations())
+		applyMutation(mutation, states, simTime);
 
 	/* Finalize observer files */
 	for (size_t i = 0; i < states.size(); i++)
