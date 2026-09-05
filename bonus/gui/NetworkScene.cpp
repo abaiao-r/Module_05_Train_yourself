@@ -274,6 +274,19 @@ void NetworkScene::nodeMoved(const QString &name, const QPointF &newPos)
 		if (e.from == name || e.to == name)
 			repositionEdge(e);
 	}
+
+	/* Trail breadcrumbs are baked as fixed-coordinate line segments with
+	   no link back to the nodes they were drawn between, so they can't be
+	   repositioned — drop them rather than leave stale trails floating
+	   at the node's old position. A fresh trail rebuilds on the next
+	   tick if a simulation is running. */
+	for (auto *seg : _trailLines)
+	{
+		if (seg->scene() == this)
+			removeItem(seg);
+		delete seg;
+	}
+	_trailLines.clear();
 }
 
 void NetworkScene::repositionEdge(EdgeVis &e)
