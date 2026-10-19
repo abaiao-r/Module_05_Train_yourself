@@ -26,6 +26,11 @@ std::unique_ptr<Train> TrainFactory::createTrain(
 {
 	if (name.empty())
 		throw std::invalid_argument("Train name cannot be empty");
+	if (name.find_first_of("/\\") != std::string::npos
+		|| name.find("..") != std::string::npos
+		|| name.find('\0') != std::string::npos)
+		throw std::invalid_argument("Train name '" + name
+			+ "' contains forbidden path characters (/, \\ or ..)");
 	if (weight <= 0.0)
 		throw std::invalid_argument("Weight must be positive");
 	if (friction < 0.0)
@@ -34,6 +39,9 @@ std::unique_ptr<Train> TrainFactory::createTrain(
 		throw std::invalid_argument("Acceleration force must be positive");
 	if (brakeForce <= 0.0)
 		throw std::invalid_argument("Braking force must be positive");
+	if (accelForce * 1000.0 <= friction * weight * 1000.0 * 9.81)
+		throw std::invalid_argument("Train '" + name
+			+ "' can never move: acceleration force does not exceed friction");
 	if (departure.empty() || arrival.empty())
 		throw std::invalid_argument("Station names cannot be empty");
 	if (departure == arrival)
