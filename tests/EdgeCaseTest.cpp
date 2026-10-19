@@ -104,7 +104,7 @@ int main()
 
 	/* ── Disconnected graph: train cannot reach destination ── */
 
-	suite.run("disconnected graph handles unreachable train",
+	suite.run("disconnected graph throws for unreachable train",
 			  [](std::string &msg) {
 				  cleanupResultFiles();
 				  auto data = InputHandler::loadData(
@@ -114,9 +114,7 @@ int main()
 					  std::move(data.network), std::move(data.trains),
 					  std::move(data.events),
 					  std::make_unique<DijkstraPathfinding>());
-				  /* Should not crash — just logs error */
-				  sim.run();
-				  ASSERT_TRUE(true, msg);
+				  ASSERT_THROWS(sim.run(), std::runtime_error, msg);
 				  return true;
 			  });
 

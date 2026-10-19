@@ -508,16 +508,15 @@ void Simulation::computePaths()
 		}
 		catch (const std::exception &e)
 		{
-			std::cerr << "No path for " << train->getName() << ": "
-					  << e.what() << std::endl;
-			continue;
+			throw std::runtime_error("No path found for "
+									 + train->getName() + ": " + e.what());
 		}
 		if (path.empty())
 		{
-			std::cerr << "No path found for " << train->getName() << " ("
-					  << train->getDepartureStation() << " -> "
-					  << train->getArrivalStation() << ")" << std::endl;
-			continue;
+			throw std::runtime_error("No path found for "
+									 + train->getName() + " ("
+									 + train->getDepartureStation() + " -> "
+									 + train->getArrivalStation() + ")");
 		}
 		train->setPath(path);
 		if (!_quiet)

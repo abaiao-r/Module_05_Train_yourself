@@ -426,7 +426,7 @@ int main()
 				  return true;
 			  });
 
-	suite.run("disconnected network + unreachable train -> warns no path",
+	suite.run("disconnected network + unreachable train -> error, exit 1",
 			  [](std::string &msg) {
 				  cleanupE2E();
 				  auto r = runCmd(
@@ -434,7 +434,7 @@ int main()
 					  + " input/railNetworkPrintFolder/"
 					    "railNetworkDisconnected.txt "
 					  + TRN);
-				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_EQ(1, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "No path found"),
 							  msg);
 				  return true;

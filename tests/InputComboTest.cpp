@@ -131,8 +131,8 @@ int main()
 
 	suite.run("Disconnected network + Unreachable trains",
 			  [](std::string &m) {
-				  return expectOk("railNetworkDisconnected.txt",
-								  "trainPrintUnreachable.txt", "", m);
+				  return expectFail("railNetworkDisconnected.txt",
+									"trainPrintUnreachable.txt", m);
 			  });
 
 	suite.run("Good network + Unreachable trains",
