@@ -171,6 +171,13 @@ void Simulation::applyAddTrain(const AddTrainCommand &c,
 		throw std::invalid_argument(
 			"Departure time has already passed (train '" + c.name + "')");
 
+	/* Result files are keyed by name + departure time. */
+	for (const auto &t : _trains)
+		if (t->getName() == c.name
+			&& std::fabs(t->getDepartureTime() - c.departureTime) < 1e-6)
+			throw std::invalid_argument(
+				"Duplicate train '" + c.name + "' with the same departure time");
+
 	auto train = TrainFactory::createTrain(
 		c.name, c.weightTons, c.friction, c.maxAccelKn, c.maxBrakeKn,
 		c.from, c.to, c.departureTime, c.stopDuration);
@@ -465,9 +472,19 @@ void Simulation::run()
 
 	/* Drain any mutations queued right as the last train arrived, so a
 	   structural edit (e.g. AddNode) enqueued at the very last tick isn't
-	   silently dropped. New trains added here won't get physics ticks. */
+	   silently dropped. Trains can't be added here: they would never
+	   be simulated. */
 	for (const auto &mutation : drainMutations())
+	{
+		if (std::holds_alternative<AddTrainCommand>(mutation))
+		{
+			if (_onMutationRejected)
+				_onMutationRejected("Simulation already completed; "
+									"train not added");
+			continue;
+		}
 		applyMutation(mutation, states, simTime);
+	}
 
 	/* Finalize observer files */
 	for (size_t i = 0; i < states.size(); i++)
@@ -768,7 +785,7 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
    stationary (and visible as an obstruction) while the clock advances. */
 void Simulation::holdTrain(TrainState &s, double delay, bool onSegment)
 {
-	if (onSegment)
+	if (onSegment && delay > 0.0)
 		s.heldBySegmentEvent = true;
 	s.train->recordDelay(delay);
 	s.stopTimer += delay;

@@ -213,6 +213,78 @@ int main()
 				  return true;
 			  });
 
+	suite.run("AddTrain with duplicate name and departure is rejected",
+			  [](std::string &msg) {
+				  cleanupResults({"TrainAB_14h10", "TrainAC_14h20",
+								  "TrainBA_14h24", "DupTrain_14h10"});
+				  Simulation sim = buildSim();
+				  sim.setQuiet(true);
+				  bool enqueued = false;
+				  int rejected = 0;
+				  std::string reason;
+				  sim.setMutationCallbacks(
+					  [](const LiveMutation &, const std::string &) {},
+					  [&](const std::string &r) {
+						  rejected++;
+						  reason = r;
+					  });
+				  size_t trainsBefore = sim.getTrains().size();
+				  sim.setAnimCallback(
+					  [&](double simTime,
+						  const std::vector<TrainState> &) {
+						  if (!enqueued)
+						  {
+							  for (int i = 0; i < 2; i++)
+								  sim.enqueueMutation(AddTrainCommand{
+									  "DupTrain", 50.0, 0.05, 300.0,
+									  30.0, "CityA", "CityC",
+									  simTime + 30.0, 60.0});
+							  enqueued = true;
+						  }
+					  });
+				  sim.run();
+				  ASSERT_EQ(1, rejected, msg);
+				  ASSERT_TRUE(reason.find("Duplicate")
+									!= std::string::npos,
+							  msg);
+				  ASSERT_EQ(trainsBefore + 1, sim.getTrains().size(), msg);
+				  return true;
+			  });
+
+	suite.run("AddTrain queued after the last arrival is rejected",
+			  [](std::string &msg) {
+				  cleanupResults({"TrainAB_14h10", "TrainAC_14h20",
+								  "TrainBA_14h24"});
+				  Simulation sim = buildSim();
+				  sim.setQuiet(true);
+				  bool enqueued = false;
+				  bool rejected = false;
+				  sim.setMutationCallbacks(
+					  [](const LiveMutation &, const std::string &) {},
+					  [&](const std::string &) { rejected = true; });
+				  size_t trainsBefore = sim.getTrains().size();
+				  sim.setAnimCallback(
+					  [&](double simTime,
+						  const std::vector<TrainState> &st) {
+						  bool all = true;
+						  for (const auto &s : st)
+							  all = all && s.arrived;
+						  if (all && !enqueued)
+						  {
+							  sim.enqueueMutation(AddTrainCommand{
+								  "LateTrain", 50.0, 0.05, 300.0, 30.0,
+								  "CityA", "CityC", simTime + 30.0,
+								  60.0});
+							  enqueued = true;
+						  }
+					  });
+				  sim.run();
+				  ASSERT_TRUE(enqueued, msg);
+				  ASSERT_TRUE(rejected, msg);
+				  ASSERT_EQ(trainsBefore, sim.getTrains().size(), msg);
+				  return true;
+			  });
+
 	suite.run("AddNode mutation rejects duplicate name",
 			  [](std::string &msg) {
 				  cleanupResults({"TrainAB_14h10", "TrainAC_14h20",
