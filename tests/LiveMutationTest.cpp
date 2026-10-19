@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
+#include <filesystem>
 #include <string>
 #include <thread>
 #include <vector>
@@ -136,6 +137,42 @@ int main()
 						  foundResult = true;
 				  }
 				  ASSERT_TRUE(foundResult, msg);
+				  return true;
+			  });
+
+	suite.run("AddTrain observer failure leaves the simulation consistent",
+			  [](std::string &msg) {
+				  cleanupResults({"TrainAB_14h10", "TrainAC_14h20",
+								  "TrainBA_14h24"});
+				  Simulation sim = buildSim();
+				  sim.setQuiet(true);
+				  bool enqueued = false;
+				  bool rejected = false;
+				  sim.setMutationCallbacks(
+					  [](const LiveMutation &, const std::string &) {},
+					  [&](const std::string &) { rejected = true; });
+				  size_t trainsBefore = sim.getTrains().size();
+				  const auto dir = std::filesystem::path("output/results");
+				  sim.setAnimCallback(
+					  [&](double simTime,
+						  const std::vector<TrainState> &) {
+						  if (!enqueued)
+						  {
+							  /* New result files cannot be created now */
+							  std::filesystem::permissions(
+								  dir, std::filesystem::perms::none);
+							  sim.enqueueMutation(AddTrainCommand{
+								  "NoFile", 50.0, 0.05, 300.0, 30.0,
+								  "CityA", "CityC", simTime + 30.0,
+								  60.0});
+							  enqueued = true;
+						  }
+					  });
+				  sim.run();
+				  std::filesystem::permissions(
+					  dir, std::filesystem::perms::owner_all);
+				  ASSERT_TRUE(rejected, msg);
+				  ASSERT_EQ(trainsBefore, sim.getTrains().size(), msg);
 				  return true;
 			  });
 

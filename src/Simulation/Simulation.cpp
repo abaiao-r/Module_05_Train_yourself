@@ -175,11 +175,29 @@ void Simulation::applyAddTrain(const AddTrainCommand &c,
 		c.name, c.weightTons, c.friction, c.maxAccelKn, c.maxBrakeKn,
 		c.from, c.to, c.departureTime, c.stopDuration);
 
-	auto path = _pathfinder->findPath(c.from, c.to, _network, _weightMode);
+	/* Same routing as the initial assignment: adaptive mode must see
+	   event risk for live-added trains too. */
+	std::vector<std::shared_ptr<Node>> path;
+	if (_weightMode == PathWeightMode::Adaptive)
+		path = _pathfinder->findPath(c.from, c.to, _network, _weightMode,
+									 SegmentOccupancy{}, {},
+									 cachedEventRisk());
+	else
+		path = _pathfinder->findPath(c.from, c.to, _network, _weightMode);
 	if (path.empty())
 		throw std::runtime_error("No route from " + c.from + " to " + c.to
 								 + " for train '" + c.name + "'");
 	train->setPath(path);
+
+	/* Everything that can throw runs before any container is touched, so
+	   a failure leaves states/_trains/_observers in step. */
+	auto obs = std::make_unique<FileOutputObserver>(train->getName(),
+													train->getDepartureTime());
+	obs->onTrainStart(train->getName(), train->getId(),
+					  estimateTravelTime(*train));
+	_observers.reserve(_observers.size() + 1);
+	_trains.reserve(_trains.size() + 1);
+	states.reserve(states.size() + 1);
 
 	TrainState s{};
 	s.train = train.get();
@@ -191,13 +209,7 @@ void Simulation::applyAddTrain(const AddTrainCommand &c,
 	s.departed = false;
 	s.arrived = false;
 	states.push_back(s);
-
-	auto obs = std::make_unique<FileOutputObserver>(train->getName(),
-													train->getDepartureTime());
-	obs->onTrainStart(train->getName(), train->getId(),
-					  estimateTravelTime(*train));
 	_observers.push_back(std::move(obs));
-
 	_trains.push_back(std::move(train));
 }
 
