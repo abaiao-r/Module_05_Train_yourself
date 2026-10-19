@@ -43,8 +43,8 @@ The multi-run logic lives entirely in `src/main.cpp`. There is no dedicated clas
 
 ```
 for run = 0 to N-1:
-    1. Re-create InputHandler::loadData()       ← fresh random seed each time
-    2. Re-create DijkstraPathfinding + Simulation
+    1. TrainFactory::resetIdCounter(); InputHandler::loadData()
+    2. Re-create DijkstraPathfinding + Simulation   ← ctor seeds mt19937(random_device{}())
     3. If run > 0: suppress console output (sim.setQuiet(true))
     4. sim.run()                                 ← events trigger randomly
     5. Collect per-train: actual time, total delay
@@ -62,6 +62,8 @@ After all runs:
 | `statActual` | `map<string, vector<double>>` | Per-train actual travel times across runs |
 | `statDelay` | `map<string, vector<double>>` | Per-train total delay per run |
 | `statEstimated` | `map<string, double>` | Per-train estimated (event-free) time (constant) |
+
+Keys are train names. Trains sharing a name (different departures) get separate rows in load order: `Name`, `Name #2`, `Name #3`, ...
 
 ### Statistics Computed
 
@@ -91,7 +93,7 @@ The first run (run 0) behaves exactly like a normal single run:
 
 ### Subsequent Runs
 
-Runs 1 through N-1 are **silent** — no console output, no file writes. Only statistics are collected.
+Runs 1 through N-1 are **silent** on the console only (`setQuiet(true)`). `.result` files are still rewritten every run, so the files on disk are from the last run. Statistics are collected each run.
 
 ### Statistics Table
 
@@ -104,6 +106,7 @@ Train         Estimated     Avg Actual    Min Actual    Max Actual    Avg Delay
 ------------------------------------------------------------------------
 TrainAB       01h02m30s     01h15m42s     01h05m10s     01h30m03s     00h13m12s
 TrainCD       00h45m00s     00h52m18s     00h45m00s     01h12m45s     00h07m18s
+TrainCD #2    00h45m00s     00h48m02s     00h45m00s     01h01m10s     00h03m02s
 ------------------------------------------------------------------------
 ```
 

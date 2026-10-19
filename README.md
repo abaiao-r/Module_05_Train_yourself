@@ -14,11 +14,12 @@ A physics-based train simulation engine that models rail traffic across a config
 |---------|--------|
 | **Physics engine** | 1-second discrete timestep · acceleration = `(F_accel − μmg) / m` · braking distance = `v² / (2·decel)` |
 | **Concurrent simulation** | All trains run on a shared wall clock; overtaking caps a trailing train's speed |
-| **Pathfinding** | Dijkstra shortest-path (Strategy pattern) · distance, solo (`--solo`), or adaptive traffic+event-aware (`--adaptive`) weight modes |
+| **Pathfinding** | Dijkstra shortest-path (Strategy pattern) · solo (default, `--solo`), distance (`--distance`), or adaptive traffic+event-aware (`--adaptive`) weight modes |
 | **Per-train output** | `TrainName_HHhMM.result` file with header, estimated time, every-minute rail graph, events, actual time |
+| **Strict input validation** | Trailing content, unknown keywords and partly-numeric values rejected with `file:line:` errors · finite-number checks · duplicate (name, departure) trains rejected · cross-file checks (events/rails/stations must exist) |
 | **Random events** | Probability-based disruptions at stations (riots, discomfort, …) inject delays |
-| **498 unit / integration tests** | Custom TestFramework, 13 suites covering nodes, networks, trains, events, pathfinding, I/O, factories, edge cases, combinations, end-to-end, input combos |
-| **4 design patterns + 6 principles** | Strategy, Factory, Observer, Mediator · KISS, DRY, Encapsulation, SRP, Separation of Concerns, Interface Segregation |
+| **555 unit / integration tests** | Custom TestFramework, 16 suites covering nodes, networks, trains, events, pathfinding, I/O, factories, edge cases, combinations, end-to-end, input combos |
+| **5 design patterns + 6 principles** | Strategy, Factory, Observer, Mediator, Dependency Injection · KISS, DRY, Encapsulation, SRP, Separation of Concerns, Interface Segregation |
 | **7 UML diagrams** | Class, 3 sequence, state machine, 2 activity — PlantUML sources + PNG + SVG |
 
 ### Bonus Features
@@ -58,7 +59,7 @@ make run            # run with sample data
 # Or supply your own files
 ./bin/train_yourself path/to/network.txt path/to/trains.txt
 
-# Optimise route by travel time instead of distance, ignoring other trains
+# Optimise route by travel time ignoring other trains (this is the default)
 ./bin/train_yourself path/to/network.txt path/to/trains.txt --solo
 
 # Ultimate mode: fastest arrival accounting for live traffic AND random events
@@ -88,10 +89,10 @@ make run-gui        # build & launch
 Usage: ./train_yourself <network_file> <train_file> [options]
 
 Options:
-  --distance          Shortest distance (km). This is the default
+  --distance          Shortest distance (km)
   --solo              Fastest way if this train were the only one on 
                       the track (optimises by travel time, ignores traffic
-                      and events)
+                      and events). This is the default
   --adaptive          The ultimate mode: fastest way accounting for real
                       conditions — live traffic AND random events
   --graph <file.dot>  Export network + paths as Graphviz DOT file
@@ -130,13 +131,13 @@ The `--graph` flag exports the rail network and all computed train paths as a **
 ### Run Tests
 
 ```bash
-make test     # 498 tests across 13 suites
+make test     # 555 tests across 16 suites
 ```
 
 ### Clean
 
 ```bash
-make clean       # remove object files
+make clean       # remove object files and output/
 make fclean      # remove object files and binaries
 make bonus-clean # remove GUI build artifacts
 make re          # full rebuild
@@ -177,15 +178,15 @@ TrainAB 80 0.05 356.0 30.0 CityA CityB 14h10 00h10
 | 5 | Max brake force | kN |
 | 6 | Departure station | — |
 | 7 | Arrival station | — |
-| 8 | Departure time | `HHhMM` |
-| 9 | Stop duration at stations | `HHhMM` |
+| 8 | Departure time | `14h` or `HHhMM` (h 0-23, m 0-59) |
+| 9 | Stop duration at stations | `14h` or `HHhMM` |
 
 ## Output
 
 Each train produces a `.result` file:
 
 ```
-Train : TrainAB
+Train : TrainAB1
 Final travel time : 00h32m
 
 [00h00] - [    CityA][RailNodeA] - [53.00km] - [Speed up] - [x][ ][ ] ... [ ][ ]
@@ -209,13 +210,14 @@ See [docs/TECHNICAL.md](docs/TECHNICAL.md) for the full documentation index, or 
 | [Design Patterns](docs/DESIGN_PATTERNS.md) | Strategy, Factory, Observer, Mediator · DI · Class Relationships · 6 Design Principles |
 | [Class Reference](docs/CLASS_REFERENCE.md) | Per-class API documentation |
 | [Diagrams](docs/DIAGRAMS.md) | 7 UML diagrams (class, state, sequence, activity) |
-| [Build & Testing](docs/BUILD_SYSTEM.md) | Makefile targets, 498 tests, CI pipeline |
+| [Build & Testing](docs/BUILD_SYSTEM.md) | Makefile targets, 555 tests, CI pipeline |
 
 ### Design Patterns
 
 - **Strategy** — `IPathfinding` → `DijkstraPathfinding` (swap algorithm without touching simulation)
 - **Factory** — `TrainFactory::createTrain()` validates all 9 fields before construction
 - **Observer** — `ISimulationObserver` → `FileOutputObserver` (decouple simulation from I/O)
+- **Dependency Injection** — pathfinder and observers are passed into `Simulation`, never constructed inside it
 - **Mediator** — `Simulation` arbitrates all cross-train interaction (blocking, congestion rerouting); trains never reference each other directly
 
 ### Diagrams

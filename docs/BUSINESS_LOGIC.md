@@ -33,7 +33,7 @@ Each train has:
 - A **departure time** (e.g., 14h10 = 2:10 PM)
 - A **stop duration** at each intermediate station (e.g., 00h10 = 10 minutes)
 
-Input format: `name weight friction accelForce brakeForce from to time stopDuration`
+Input format: `name weight friction accelForce brakeForce from to time stopDuration` (times are `14h` or `HHhMM`, hours 0-23, minutes 0-59). A train whose acceleration force does not exceed rolling friction can never move and is rejected. See §11a for all input validation.
 
 ### 3. Route Selection
 
@@ -43,7 +43,7 @@ Before simulation begins, each train is assigned an **optimal route** through th
 - **Solo** — fastest route if this train were the only one on the track: edge weight = `distance / speedLimit`, ignores other trains and random events
 - **Adaptive** — the ultimate mode: builds on Solo's time weighting, plus dynamically re-routes around occupied segments and avoids routes prone to costly random events (see §3a)
 
-Pass `--distance`, `--solo`, or `--adaptive` on the command line (mutually exclusive; `--solo` is the default with no flag). If no route exists, the train is skipped with a warning.
+Pass `--distance`, `--solo`, or `--adaptive` on the command line (mutually exclusive; `--solo` is the default with no flag). If no route exists for a train, the simulation aborts with a `runtime_error` naming that train (`No path found for <train> (A -> B)`); trains are never silently skipped.
 
 ### 3a. Adaptive Mode: Congestion + Event-Aware Routing
 
@@ -84,14 +84,14 @@ Each train keeps an `etaProfile` (free-flow predicted arrival at each remaining 
 
 #### Design rationale
 
-**Why 120 seconds (`CONGESTION_PENALTY`)?**
-The penalty must be large enough to push trains onto an alternative route, but small enough that a mildly congested short path can still beat a much longer empty path. On a typical segment (say 50 km at 200 km/h → 15 min travel time), one extra train adds 120 s ≈ 2 min of virtual cost — roughly a 13 % surcharge. Two trains add 4 min (~27 %). This is in the same order of magnitude as **real-world operational delays caused by headway constraints** on shared track (trains must keep 2–3 min separation in practice, and each following train incurs signalling-imposed slowdowns). The constant is deliberately conservative: it biases towards keeping the fast route unless congestion is significant. A value too low (e.g., 30 s) would make rerouting almost never trigger; a value too high (e.g., 600 s) would scatter trains onto poor routes at the slightest sharing.
+**What do the penalty constants mean?**
+`DijkstraPathfinding::CONGESTION_PENALTY = 120` s per occupant is only a **fallback** used by the Adaptive edge weight when no clear-time estimate exists for an occupied segment. When one does, the weight uses the estimated clear time, floored at `MIN_CONGESTION_PENALTY = 10` s so an almost-clear segment is not treated as free. These weights only steer the *candidate* search; the reroute decision itself is made by `replayEta` and requires a gain of `MIN_GAIN_SEC = 30` s (`detourETA + 30 s < stayETA`), so the constants never trigger a reroute on their own.
 
 **Why decentralised (no central coordinator)?**
-A central scheduler (e.g., a conflict-free timetable planner or slot-allocation system) would be more "optimal" in a global sense, but it contradicts the simulator's core design: trains are independent agents that depart at scheduled times and react to local conditions. The decentralised approach mirrors **real-world dispatcher-less signalling** where each train's on-board system picks routes based on current track occupancy (similar to ETCS Level 3 concepts). It is also simpler to implement, test, and reason about — each train independently asks "is my remaining path congested?" and, if so, runs Dijkstra with penalties. No global lock, no train-to-train communication, no second pass. The emergent behaviour (load balancing) arises from each train independently penalising the same congested segments.
+A central scheduler (e.g., a conflict-free timetable planner or slot-allocation system) would be more "optimal" in a global sense, but it contradicts the simulator's core design: trains are independent agents that depart at scheduled times and react to local conditions. The decentralised approach mirrors **real-world dispatcher-less signalling** where each train's on-board system picks routes based on current track occupancy (similar to ETCS Level 3 concepts). It is also simpler to implement, test, and reason about — each train independently asks "am I stuck behind a slower leader, and does a detour pay?" and, if so, searches a constrained detour and judges it by replay. No global lock, no train-to-train communication, no second pass. Load balancing emerges from each train making this local decision.
 
 **Why a cooldown of 3 segments?**
-Without a cooldown, two trains departing 1 minute apart can enter an infinite reroute loop:
+The primary cost control is the per-segment evaluation budget (entry, one event-triggered, one pre-pivot). `REROUTE_COOLDOWN = 3` is the secondary anti-churn guard. Without a cooldown, two trains departing 1 minute apart can enter an infinite reroute loop:
 1. Train A takes Route 1, Train B sees congestion on Route 1 → switches to Route 2.
 2. Next segment, Train A sees Route 2 is now congested (Train B is there) → switches to Route 2 as well.
 3. Train B sees Route 2 has 2 trains → switches back to Route 1. Repeat forever.
@@ -121,7 +121,7 @@ Speed is capped at the segment's speed limit. Position advances by $v \cdot \Del
 
 ### 5. Station Stops
 
-When a train reaches an intermediate node (not the final destination), it stops for the configured **stop duration**. During stops, the train remains at position 0 on the next segment with speed 0. Output lines during stops show action `Stopped`.
+When a train reaches an intermediate node (not the final destination), it stops for the configured **stop duration**. During stops, the train remains at position 0 on the next segment with speed 0. Output lines during stops show action `Stopped`. A dwelling train is **not** a blocker for trains behind it; when its dwell ends it re-queues (its right-of-way entry time is reset), so a train that overtook it during the dwell is now ahead.
 
 ### 6. Concurrent Multi-Train Simulation
 
@@ -142,14 +142,16 @@ Events can occur at **specific stations** (node events) or on **rail segments** 
 - Node event: `Event <name> <probability> <duration> <node_name>`
 - Rail event: `Event <name> <probability> <duration> <node_name1> <node_name2>`
 
-When triggered, the train's clock advances by the event's duration, and the delay is accumulated.
+When triggered, the event **physically halts the train** (`holdTrain`): its stop timer keeps it stationary at speed 0 while the clock advances, and the delay is accumulated.
 
-Note: a train that finishes a station stop is re-queued behind any train that overtook it during the stop, so it never drags a faster train backwards.
+- **Rail-event hold:** sets `heldBySegmentEvent`. The held train stays an obstruction **and keeps its queue position**, so followers on that segment remain capped behind it (a normal station dwell, by contrast, is not a blocker and re-queues when it ends).
+- **Final-node event:** the train has already arrived, so it only adds delay to travel time (no hold).
+- `Delayed` status is **not** set by events (see §10).
 
 ### 9. Per-Train Output Files (Observer Pattern)
 
 Each train produces a result file named `TrainName_DepartureTime.result` containing:
-- **Header**: train name + ID + estimated travel time
+- **Header**: `Train : <name><id>` (ID appended to the name) and `Final travel time : HHhMMm` (the estimate, from `onTrainStart`)
 - **Timestep lines** (every 60 seconds): `[time] - [from][to] - [dist remaining] - [action] - [rail graph]`
 - **Rail graph**: 1 cell per km — `[x]` = this train's position, `[O]` = blocking train, `[ ]` = empty
 - **Event notifications** when triggered
@@ -161,7 +163,7 @@ Each train produces a result file named `TrainName_DepartureTime.result` contain
 |---|---|
 | **Waiting** | Created, not yet departed |
 | **Running** | Departed, travelling along route |
-| **Delayed** | An event added delay to this train |
+| **Delayed** | Capped behind a leader by `applyBlocking`; recomputed every tick and cleared when no longer capped (events do not set it) |
 | **Arrived** | Reached the arrival station |
 
 ### 11. Console Output
@@ -177,6 +179,28 @@ The simulator also produces console output:
 - Both input files **must** have a `.txt` extension. The program exits with an error if this check fails.
 - The `--help` flag may appear at **any argument position** and prints a full usage guide covering network file format, train file format, all CLI flags, and output structure.
 - Unknown CLI options cause an immediate error.
+
+#### Strict parsing
+
+- **Trailing content is rejected**: extra tokens after the expected fields of a `Node`, `Event`, `Rail` or train line are an error (`Unexpected trailing content`).
+- **Unknown keywords are rejected** in the network file (only `Node`, `Event`, `Rail`).
+- **Times and durations must be fully consumed**: `14h1x`, `30mm` etc. fail; time is `14h` or `HHhMM` (h 0-23, m 0-59), duration is a number plus `m`, `h` or `d`.
+- Parse errors carry a **`file:line:`** prefix.
+
+#### Finite-number and name validation
+
+- `TrainFactory`, `RailNetwork::addConnection` and `Event` reject `NaN`/`inf` (`must be finite`).
+- Train names containing `/`, `\`, `..` or NUL are rejected (names become result filenames).
+- A train that can never move (accel force ≤ friction × weight × g) is rejected.
+
+#### Duplicates
+
+- A second train with the same **(name, departure time)** is rejected, since result files are keyed by name + `HHhMM`. Same name with different departures is allowed.
+- Duplicate nodes and duplicate connections are rejected by `RailNetwork`.
+
+#### Cross-file validation (`validateData`)
+
+After both files are parsed: the network must have nodes and at least one rail; every event must reference existing nodes, and a **rail event must reference an existing rail**; every train's departure and arrival stations must exist.
 
 ---
 
@@ -198,9 +222,10 @@ Generates a **Graphviz DOT** file visualising the rail network with computed pat
 ### 13. Multi-Run Statistical Analysis (`--runs N`)
 
 Extends the single-run simulation into a **Monte Carlo analysis**:
-- Re-creates the full simulation pipeline N times, each with a **fresh random seed** (different `mt19937` state)
+- Re-creates the full simulation pipeline N times, each with a **fresh random seed** (`Simulation`'s constructor seeds `mt19937(random_device{}())`); `main` calls `TrainFactory::resetIdCounter()` each run so IDs repeat
 - Events trigger independently each run — same probabilities, different outcomes
-- Run 0 produces normal output (files, console, animation); runs 1..N-1 are **silent** (only stats collected)
+- Run 0 produces normal output (files, console, animation); runs 1..N-1 are **silent** (suppresses console output only: `.result` files are still rewritten every run, so the last run wins; `--graph` is exported on run 0 only)
+- Same-named trains (different departures) get separate rows: `Name`, `Name #2`, ...
 - Per-train statistics computed: **average**, **min**, **max** actual travel time + **average delay**
 - Transforms the simulator from a single-point estimate into a probabilistic analysis tool
 
@@ -210,7 +235,7 @@ Real-time visualisation of the simulation in the terminal:
 - The `Simulation` engine accepts an **animation callback** via `setAnimCallback()` — called every physics tick with `(simTime, trainStates)`
 - `TerminalAnimDisplay` renders each frame using **ANSI escape codes** (colours, cursor movement) and **Unicode box-drawing** characters
 - **In-place rendering**: cursor moves to HOME position each frame — no scrolling, no flicker
-- Frame rate: ~20 FPS (`usleep(50000)` per frame)
+- Frame rate: ~20 FPS (`std::this_thread::sleep_for(50ms)` per frame)
 - Fully decoupled: `TerminalAnimDisplay` has zero dependency on `Simulation` — it only consumes a `vector<TrainState>` snapshot
 
 ### 15. GUI Interactive Simulation

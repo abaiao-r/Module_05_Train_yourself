@@ -59,16 +59,21 @@ scripts/
 tests/
 ├── TestFramework.hpp                     Custom assertion macros + test runner
 ├── NodeTest.cpp                          5 tests
-├── RailNetworkTest.cpp                   14 tests
-├── TrainTest.cpp                         14 tests (including physics)
-├── EventTest.cpp                         13 tests
+├── RailNetworkTest.cpp                   15 tests
+├── TrainTest.cpp                         16 tests (including physics)
+├── EventTest.cpp                         14 tests
 ├── DijkstraTest.cpp                      11 tests
-├── InputHandlerTest.cpp                  28 tests (including validation & rail events)
-├── TrainFactoryTest.cpp                  11 tests (including weight/friction/stop/ID validation)
+├── InputHandlerTest.cpp                  32 tests (including validation & rail events)
+├── TrainFactoryTest.cpp                  16 tests (including weight/friction/stop/ID validation)
 ├── OutputManagerTest.cpp                 5 tests
 ├── IntegrationTest.cpp                   7 tests  (end-to-end with .result file checks)
 ├── EdgeCaseTest.cpp                      9 tests  (boundary values & error handling)
-└── CombinationTest.cpp                   198 tests (exhaustive parameter combinations)
+├── CombinationTest.cpp                   315 tests (exhaustive parameter combinations)
+├── EndToEndTest.cpp                      33 tests (subprocess binary, exit codes)
+├── InputComboTest.cpp                    36 tests (all input file pairs, ASan)
+├── LiveMutationTest.cpp                  14 tests (live Add* mutations)
+├── CongestionTest.cpp                    18 tests (congestion / adaptive)
+└── AdaptiveRerouteTest.cpp               9 tests  (replay-ETA rerouting)
 ```
 
 **Runtime output directories** (created automatically):
