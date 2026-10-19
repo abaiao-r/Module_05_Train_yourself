@@ -303,11 +303,17 @@ int main(int argc, char **argv)
 				animDisplay.cleanup();
 
 			/* Collect results */
+			/* Same-named trains (different departures) get separate rows:
+			   results keep load order, so the Nth duplicate is stable. */
+			std::map<std::string, int> seen;
 			for (const auto &r : sim.getResults())
 			{
-				statActual[r.name].push_back(r.actualTime);
-				statDelay[r.name].push_back(r.totalDelay);
-				statEstimated[r.name] = r.estimatedTime;
+				int n = seen[r.name]++;
+				std::string key = n ? r.name + " #" + std::to_string(n + 1)
+									: r.name;
+				statActual[key].push_back(r.actualTime);
+				statDelay[key].push_back(r.totalDelay);
+				statEstimated[key] = r.estimatedTime;
 			}
 
 			/* Export graph only on first run */

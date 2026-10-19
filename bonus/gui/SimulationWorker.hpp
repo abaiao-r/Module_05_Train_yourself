@@ -19,6 +19,7 @@
 #include <QStringList>
 #include <QVector>
 #include <atomic>
+#include <mutex>
 #include <memory>
 #include <string>
 #include <vector>
@@ -180,7 +181,8 @@ class SimulationWorker : public QObject
   private:
 	std::atomic<double> _speedMult{1.0};
 	std::atomic<bool> _stopRequested{false};
-	std::atomic<Simulation *> _liveSim{nullptr};
+	mutable std::mutex _liveSimMutex;
+	Simulation *_liveSim = nullptr;
 };
 
 #endif
