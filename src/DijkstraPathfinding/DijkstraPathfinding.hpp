@@ -39,6 +39,12 @@ class DijkstraPathfinding : public IPathfinding
 		const SegmentClearTimes &clearTimes = {},
 		const SegmentEventRisk &eventRisk = {}) const override;
 
+	std::vector<std::shared_ptr<Node>> findConstrainedPath(
+		const std::string &start, const std::string &end,
+		const RailNetwork &network, const ForbiddenEdges &forbidden,
+		const SegmentEventRisk &eventRisk = {},
+		double intermediateDwellSeconds = 0.0) const override;
+
 	/** Adaptive penalty multiplier (seconds per train on segment).
 		Fallback used when no clear-time estimate is available for a
 		segment; otherwise the real estimated clear time is used. */

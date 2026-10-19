@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   MainWindow.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/06 12:55:36 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -78,6 +78,29 @@ public:
 		setResizeAnchor(QGraphicsView::AnchorUnderMouse);
 		setDragMode(QGraphicsView::ScrollHandDrag);
 		setInteractive(true);
+
+		/* Legend as a fixed viewport overlay (not a scene item) so it
+		   stays put in a corner regardless of the graph's layout, pan,
+		   or zoom, instead of floating wherever scene coordinates
+		   happen to land. */
+		_legend = new QLabel(this);
+		_legend->setTextFormat(Qt::RichText);
+		_legend->setStyleSheet(
+			"QLabel { background: rgba(15, 23, 42, 210); color: #e0e0e0;"
+			" border: 1px solid #334155; border-radius: 6px;"
+			" padding: 6px 10px; font-size: 11px; }");
+		_legend->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_legend->setText(
+			"<span style='color:#f1c40f;'>&#9888;</span> event risk"
+			" (see Events list in dashboard)<br>"
+			"<span style='color:#e74c3c;'>&#9679;</span> red flash ="
+			" event triggered<br>"
+			"<span style='color:#3498db;'>&#9679;</span> blue flash ="
+			" train rerouted here<br>"
+			"<span style='color:#e74c3c;'>&#9679;</span> red ring ="
+			" train currently blocked");
+		_legend->adjustSize();
+		_legend->move(10, 10);
 	}
 
 protected:
@@ -114,6 +137,9 @@ protected:
 		QGraphicsView::mouseReleaseEvent(event);
 		setDragMode(QGraphicsView::ScrollHandDrag);
 	}
+
+private:
+	QLabel *_legend;
 };
 
 /* ================================================================== */
@@ -220,6 +246,7 @@ MainWindow::MainWindow(QWidget *parent)
 	_worker->moveToThread(&_simThread);
 	qRegisterMetaType<QVector<TrainSnapshot>>("QVector<TrainSnapshot>");
 	qRegisterMetaType<QVector<TrainStatRow>>("QVector<TrainStatRow>");
+	qRegisterMetaType<QVector<EventInfo>>("QVector<EventInfo>");
 
 	connect(&_simThread, &QThread::finished, _worker, &QObject::deleteLater);
 	connect(_worker, &SimulationWorker::tick,
@@ -240,6 +267,26 @@ MainWindow::MainWindow(QWidget *parent)
 			this, &MainWindow::onLiveNodeAdded);
 	connect(_worker, &SimulationWorker::railAdded,
 			this, &MainWindow::onLiveRailAdded);
+	connect(_worker, &SimulationWorker::eventsAvailable, this,
+			[this](QVector<EventInfo> events) {
+				_scene->setEventInfo(events);
+				_dashboard->setEventInfo(events);
+			});
+	connect(_worker, &SimulationWorker::eventTriggered, this,
+			[this](QString trainName, QString eventName, QString location,
+				  double delaySec) {
+				Q_UNUSED(location);
+				_scene->flashEvent(eventName, trainName);
+				logInfo(QString("Event \"%1\" delayed %2 by %3 min")
+							.arg(eventName, trainName)
+							.arg(delaySec / 60.0, 0, 'f', 1));
+			});
+	connect(_worker, &SimulationWorker::rerouteOccurred, this,
+			[this](QString trainName, QString fromNode, QString newRoute) {
+				_scene->markReroute(fromNode, trainName);
+				logInfo(QString("%1 rerouted at %2: %3")
+							.arg(trainName, fromNode, newRoute));
+			});
 	_simThread.start();
 
 	/* ── Sensible initial window size ── */

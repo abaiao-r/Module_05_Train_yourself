@@ -214,3 +214,75 @@ std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 	std::reverse(path.begin(), path.end());
 	return path;
 }
+
+/* ---- Constrained static search (forbidden edges + intermediate dwell) ---- */
+std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findConstrainedPath(
+	const std::string &start, const std::string &end,
+	const RailNetwork &network, const ForbiddenEdges &forbidden,
+	const SegmentEventRisk &eventRisk, double intermediateDwellSeconds) const
+{
+	network.findNode(start);
+	network.findNode(end);
+
+	if (start == end)
+		return {network.findNode(start)};
+
+	using Pair = std::pair<double, std::string>;
+	std::priority_queue<Pair, std::vector<Pair>, std::greater<Pair>> pq;
+
+	std::unordered_map<std::string, double> dist;
+	std::unordered_map<std::string, std::string> prev;
+	const double INF = std::numeric_limits<double>::infinity();
+
+	for (const auto &name : network.getNodeNames())
+		dist[name] = INF;
+
+	dist[start] = 0.0;
+	pq.push({0.0, start});
+
+	while (!pq.empty())
+	{
+		auto [d, u] = pq.top();
+		pq.pop();
+
+		if (d > dist[u])
+			continue;
+		if (u == end)
+			break;
+
+		for (const auto &edge : network.getNeighbours(u))
+		{
+			const std::string &v = edge.destination->getName();
+			std::string key = u + "->" + v;
+			if (forbidden.count(key))
+				continue;
+			double w = edgeWeight(edge, PathWeightMode::Solo);
+			auto er = eventRisk.find(key);
+			if (er != eventRisk.end())
+				w += er->second / 3600.0;
+			if (v != end)
+				w += intermediateDwellSeconds / 3600.0;
+			double newDist = dist[u] + w;
+			if (newDist < dist[v])
+			{
+				dist[v] = newDist;
+				prev[v] = u;
+				pq.push({newDist, v});
+			}
+		}
+	}
+
+	std::vector<std::shared_ptr<Node>> path;
+	if (dist[end] == INF)
+		return path;
+
+	std::string current = end;
+	while (current != start)
+	{
+		path.push_back(network.findNode(current));
+		current = prev[current];
+	}
+	path.push_back(network.findNode(start));
+	std::reverse(path.begin(), path.end());
+	return path;
+}

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   SimulationWorker.hpp                               :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 18:47:00 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/06 12:30:48 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,7 @@
 #include <QObject>
 #include <QMutex>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 #include <atomic>
 #include <memory>
@@ -45,9 +46,42 @@ struct TrainSnapshot
 	size_t segmentIndex;
 	size_t pathSize;
 	double segmentLength_m;
+	/* Full route (node names in order), so displays can look ahead for
+	   risk/congestion beyond just the current segment - "from"/"to"
+	   alone only cover where the train is right now. */
+	QStringList path;
+	/* Status/blocking/reroute info, invisible in the raw physics data
+	   above but useful for a user trying to understand WHY a train is
+	   behaving a certain way. */
+	QString status;          // "Waiting"/"Running"/"Delayed"/"Arrived"
+	QString blockedByName;   // empty if not currently blocked
+	int rerouteCount;
+	QString lastRerouteReason; // empty if never rerouted
+	/* Train physics, otherwise only visible in the input file. */
+	double weightTons;
+	double frictionCoeff;
+	double maxAccelKn;
+	double maxBrakeKn;
+	double accelRate_ms2;  // derived: (accelForce - friction) / mass
+	double decelRate_ms2;  // derived: (brakeForce + friction) / mass
 };
 
 Q_DECLARE_METATYPE(QVector<TrainSnapshot>)
+
+/**
+ * Static event info (name/probability/duration/location), for displays
+ * that want to show event risk on the graph before it materializes.
+ */
+struct EventInfo
+{
+	QString name;
+	double probability;
+	double durationSec;
+	QString node1;
+	QString node2; // empty → station event, not a rail-segment event
+};
+
+Q_DECLARE_METATYPE(QVector<EventInfo>)
 
 /**
  * Aggregated statistics for one train across multiple simulation runs.
@@ -133,6 +167,15 @@ class SimulationWorker : public QObject
 		trains appear automatically via tick() once they depart). */
 	void mutationApplied(QString description);
 	void mutationRejected(QString reason);
+	/** Static event list, emitted once near the start of a run so the
+		GUI can draw risk markers before anything actually triggers. */
+	void eventsAvailable(QVector<EventInfo> events);
+	/** A random event actually triggered on a train this tick. */
+	void eventTriggered(QString trainName, QString eventName,
+					   QString location, double delaySec);
+	/** A train's path was changed by the adaptive reroute logic. */
+	void rerouteOccurred(QString trainName, QString fromNode,
+						QString newRoute);
 
   private:
 	std::atomic<double> _speedMult{1.0};

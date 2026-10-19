@@ -49,67 +49,38 @@ Pass `--distance`, `--solo`, or `--adaptive` on the command line (mutually exclu
 
 When `--adaptive` is active, the simulator **dynamically re-routes trains at runtime** to spread traffic across parallel corridors, avoid crowded segments, and steer away from routes prone to costly random events. This contrasts with Distance and Solo modes, where every train's path is fixed before the simulation starts and never changes.
 
-#### How it works — step by step
+#### The rule: "am I stuck, and does a detour pay?"
 
-**Initial paths** are computed identically to Solo mode (minimise `distance / speedLimit`), plus each segment's expected event delay. No congestion penalty applies yet because no trains have departed.
+A train asks four questions, in order. The first "no" means **stay put** (no pathfinding, no cost):
 
-**During simulation**, a **segment occupancy map** is maintained — a snapshot that counts how many trains are currently travelling on each directed segment (e.g., `"Paris->Lyon" : 3` means three trains occupy the Paris→Lyon track right now).
+1. Is another train on **my current segment**?
+2. Is it **ahead of me** (it entered the segment before me; ties broken by train id)?
+3. Am I **faster** than it (my free ETA to the segment end is shorter)?
+4. Does the leader keep blocking me **after the next node** (shared stretch > 0), and is the best detour from that node at least `MIN_GAIN_SEC` (30 s) quicker than staying?
 
-**At every node transition** (when a train arrives at an intermediate station), the simulator evaluates whether the train should switch to a different route:
+A train cannot turn around mid-segment, so the earliest switch point is the **next node** (the pivot). If the leader leaves the shared route at the pivot, nothing is gained and no search is done.
 
-1. **[Guard] Cooldown check** — at least 3 segments must have elapsed since the last reroute for this train. This prevents *path oscillation*, where two trains keep swapping routes every segment.
+#### How the two options are compared
 
-2. **[Guard] Congestion-ahead check** — the engine scans every remaining segment on the train's current path. If none of them appear in the occupancy map (i.e., no other train shares any upcoming segment), no Dijkstra call is made — the current path is already uncongested.
+- **Stay ETA** and **detour ETA** both come from `replayEta`, a non-mutating replay of the real physics (acceleration, braking, node speed carry-over, dwell at intermediate stops, following distance behind the leader).
+- The detour candidate is found with `findConstrainedPath`: Dijkstra from the pivot with the shared directed segments **forbidden during the search**, using static weights (`distance / speedLimit`, plus expected event delay, plus the train's stop duration at intermediate nodes).
+- Dijkstra only **proposes** a candidate; `replayEta` **judges** it. Reroute iff `detourETA + 30 s < stayETA`.
+- Random events are not replayed; their expected delay is added per remaining segment to both options.
+- **Event risk = probability × duration** (the average delay per pass, in the same units as travel time). Example: a 40 % × 20 min event costs 8 min on average, so a route that is 5 min longer but avoids it wins; at 5 % the cost is 1 min and the shorter route wins. Break-even here is 25 %. This minimises the *average* delay of the train itself; it ignores variance and knock-on delay to following trains. The map is cached and rebuilt only when events or topology change live.
 
-3. **[Guard] Would-be-blocked check** — rerouting only triggers if this train would actually be **blocked** by a slower train ahead on a shared segment. The check compares: (a) the current speed of the train ahead vs this train's speed, and (b) the acceleration rates of both trains. If the train ahead has the same or higher acceleration capability and isn't currently slower, no reroute occurs — there is no benefit to taking a longer detour when the train behind isn't gaining. This prevents the scenario where same-speed trains needlessly reroute onto longer paths that arrive later.
+#### When it is evaluated (cost control)
 
-4. **Congestion-aware Dijkstra** — a modified Dijkstra's algorithm runs from the train's current node to its destination. The edge weight formula is:
+The cheap checks (1-3 and shared-stretch) are pure arithmetic every tick. The expensive part (constrained Dijkstra + two replays) runs only on triggers, at most 3 times per train per segment: on **segment entry**, on **leader change / leader reroute / leader starts dwelling / topology or event change**, and once when the train is within `PRE_PIVOT_HORIZON_SEC` (60 s) of the pivot. Candidate paths are cached per (pivot, destination, forbidden set, dwell) and cleared when topology or events change; the decision itself is never cached. A 3-segment cooldown remains as secondary anti-churn.
 
-$$w(e) = \frac{\text{distance}(e)}{\text{speedLimit}(e)} + \frac{120 \times n_e}{3600}$$
+A dwelling train does not block. Directional tracks: `A->B` and `B->A` are independent (head-on conflicts are out of scope).
 
-where $n_e$ is the number of trains currently on segment $e$ (from the occupancy map), and 120 seconds is the `CONGESTION_PENALTY` constant. Every additional train on a segment adds the equivalent of a 2-minute delay to that edge's cost.
+#### Per-train ETA profile
 
-5. **[Guard] Diff check** — the new route is compared against the remaining portion of the current path. If they are identical, no change is applied (avoids unnecessary state mutations).
+Each train keeps an `etaProfile` (free-flow predicted arrival at each remaining node), rebuilt on route change, segment entry, dwell end and (rate-limited to once per 10 s) when blocking deviates the train. It is for display (GUI) only, not a decision input.
 
-6. **[Guard] Cost-margin check** — the congestion-weighted cost of the new route is compared to the cost of the current remaining path (using the same occupancy snapshot). Only if the new path is **at least 10 % cheaper** (`REROUTE_MARGIN = 0.10`) is the reroute applied. This prevents cascading reroutes where the alternative corridor has already become almost as congested as the main one (e.g., if earlier trains already rerouted there, a late train would gain nothing by following them).
+#### Demo scenarios
 
-7. **Apply reroute** — the path segments already traversed are preserved; only the "tail" (from current node onward) is replaced. The cooldown counter resets to 0, and a `>> REROUTE` log line is printed.
-
-#### Segment occupancy semantics
-
-| Key | Value | Example |
-|---|---|---|
-| `"from->to"` | Number of trains on that directed segment | `"Paris->Lyon" : 2` |
-
-- Built **once per tick** from all active trains (tick-level caching).
-- **Directional**: `"A->B"` and `"B->A"` are separate entries — a train going A→B does not congest B→A.
-- The snapshot is taken at tick start, before any transitions happen this tick. A train that just arrived at a node is still counted on its *previous* segment in this tick's snapshot, so no self-exclusion is needed.
-
-#### Why trains spread across corridors
-
-Consider 6 trains all going North→South with two parallel routes:
-- **Route A**: North → MainA → MainB → South (shorter)
-- **Route B**: North → AltA → AltB → South (slightly longer)
-
-In Distance or Solo mode, all 6 take Route A (shortest). In Adaptive mode:
-1. Shuttle01 departs first, takes Route A (no congestion yet).
-2. Shuttle02 arrives at North, sees Route A has occupancy = 1, penalty = 120s. Route B's cost is now lower → reroutes to Route B.
-3. Shuttle03 arrives, Route B now has occupancy = 1 too, but Route A still has 1 → stays on Route A (or whichever is cheaper).
-
-The result is **automatic load balancing**: trains distribute across available corridors proportional to capacity, without any central scheduler.
-
-#### Performance characteristics
-
-On a dense network like ParisMetro (20 nodes, 25 segments, 8 trains), the guards above reduce the number of Dijkstra calls from O(trains × segments × ticks) to a small fraction, keeping adaptive mode within ~2× of the performance of Distance mode.
-
-| Guard | What it prevents |
-|---|---|
-| Tick-level cache | Redundant occupancy rebuilds (was O(trains) per transition) |
-| Cooldown (3 segs) | Path oscillation between cooperating trains |
-| Ahead-check | Dijkstra on already-uncongested paths |
-| Would-be-blocked | Rerouting when no actual blocking would occur (same-speed trains) |
-| Cost-margin (10 %) | Cascading reroutes onto an already-saturated alternative corridor |
-| Diff-check | Unnecessary path object mutations |
+`input/*/railNetworkScenarioN*.txt` + `trainPrintScenarioN*.txt`: 1 Baseline, 2 BlockReroutePays, 3 BlockStayBetter, 4 MultiTrainCongestion, 5 EventRisk, 6 Combined, 7 LeaderDiverges, 8 SkipDivergingLeader (the nearest leader that keeps sharing the route after the pivot is used, not just the train directly ahead). Run e.g. `./bin/train_yourself <network> <train> --adaptive` or load them in the GUI. Tests: `tests/AdaptiveRerouteTest.cpp`.
 
 #### Design rationale
 
@@ -166,12 +137,14 @@ Events can occur at **specific stations** (node events) or on **rail segments** 
 - A **probability** (0.0 to 1.0) of triggering
 - A **duration** (the delay in seconds if triggered)
 
-**Node events** trigger when a train arrives at the bound station. **Rail events** trigger when a train enters the bound segment (bidirectional match). Input format:
+**Node events** trigger when a train arrives at the bound station. **Rail events** trigger when a train enters the bound segment (bidirectional match), including its first segment at departure. Input format:
 
 - Node event: `Event <name> <probability> <duration> <node_name>`
 - Rail event: `Event <name> <probability> <duration> <node_name1> <node_name2>`
 
 When triggered, the train's clock advances by the event's duration, and the delay is accumulated.
+
+Note: a train that finishes a station stop is re-queued behind any train that overtook it during the stop, so it never drags a faster train backwards.
 
 ### 9. Per-Train Output Files (Observer Pattern)
 

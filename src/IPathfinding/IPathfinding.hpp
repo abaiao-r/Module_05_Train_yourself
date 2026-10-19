@@ -16,6 +16,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class Node;
@@ -58,10 +59,39 @@ using SegmentClearTimes = std::unordered_map<std::string, double>;
  */
 using SegmentEventRisk = std::unordered_map<std::string, double>;
 
+/**
+ * Directed segments a search must not use. Same "from->to" keys as
+ * SegmentOccupancy. Enforced during relaxation, never by post-filtering.
+ */
+using ForbiddenEdges = std::unordered_set<std::string>;
+
 class IPathfinding
 {
   public:
 	virtual ~IPathfinding() = default;
+
+	/**
+	 * Static-weight search that avoids `forbidden` directed segments.
+	 * Weight = distance/speedLimit + eventRisk, plus
+	 * `intermediateDwellSeconds` for every INTERMEDIATE node visited
+	 * (not the destination). No occupancy, so the result depends only on
+	 * topology/event state and can be cached. Returns an empty path when
+	 * no feasible route exists. Default: unsupported (empty).
+	 */
+	virtual std::vector<std::shared_ptr<Node>> findConstrainedPath(
+		const std::string &start, const std::string &end,
+		const RailNetwork &network, const ForbiddenEdges &forbidden,
+		const SegmentEventRisk &eventRisk = {},
+		double intermediateDwellSeconds = 0.0) const
+	{
+		(void)start;
+		(void)end;
+		(void)network;
+		(void)forbidden;
+		(void)eventRisk;
+		(void)intermediateDwellSeconds;
+		return {};
+	}
 
 	virtual std::vector<std::shared_ptr<Node>> findPath(
 		const std::string &start, const std::string &end,

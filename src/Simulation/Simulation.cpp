@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Simulation.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/06 12:18:34 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,9 +53,24 @@ const std::vector<TrainResult> &Simulation::getResults() const
 	return _results;
 }
 
+const std::vector<Event> &Simulation::getEvents() const
+{
+	return _events;
+}
+
 void Simulation::setAnimCallback(AnimTickCallback cb)
 {
 	_animCallback = std::move(cb);
+}
+
+void Simulation::setEventTriggerCallback(EventTriggerCallback cb)
+{
+	_eventTriggerCallback = std::move(cb);
+}
+
+void Simulation::setRerouteCallback(RerouteCallback cb)
+{
+	_rerouteCallback = std::move(cb);
 }
 
 void Simulation::setQuiet(bool q) { _quiet = q; }
@@ -129,11 +144,13 @@ void Simulation::applyMutation(const LiveMutation &mutation,
 void Simulation::applyAddNode(const AddNodeCommand &c)
 {
 	_network.addNode(c.name);
+	_topologyGen++;
 }
 
 void Simulation::applyAddRail(const AddRailCommand &c)
 {
 	_network.addConnection(c.from, c.to, c.distanceKm, c.speedLimitKmh);
+	_topologyGen++;
 }
 
 void Simulation::applyAddEvent(const AddEventCommand &c)
@@ -143,6 +160,7 @@ void Simulation::applyAddEvent(const AddEventCommand &c)
 		_network.findNode(c.node2);
 	_events.emplace_back(c.name, c.probability, c.durationSeconds,
 						 c.node1, c.node2);
+	_eventGen++;
 }
 
 void Simulation::applyAddTrain(const AddTrainCommand &c,
@@ -216,6 +234,7 @@ void Simulation::run()
 		s.departed = false;
 		s.arrived = false;
 		s.segsSinceReroute = REROUTE_COOLDOWN; // allow immediate first reroute
+		s.segmentEntryTime = train->getDepartureTime();
 		states.push_back(s);
 
 		auto obs = std::make_unique<FileOutputObserver>(
@@ -259,23 +278,6 @@ void Simulation::run()
 		for (const auto &mutation : drainMutations())
 			applyMutation(mutation, states, simTime);
 
-		/* Build occupancy snapshot once per tick (adaptive mode only).
-		   Both maps are mutated in place as trains reroute within this
-		   tick, so later trains in the same tick see earlier trains'
-		   just-made choices instead of a stale tick-start snapshot
-		   (avoids several trains piling onto the same "empty"
-		   alternate corridor at once). Event risk is static, but still
-		   rebuilt each tick so live-added events are picked up. */
-		SegmentOccupancy tickOccupancy;
-		SegmentClearTimes tickClearTimes;
-		SegmentEventRisk tickEventRisk;
-		if (_weightMode == PathWeightMode::Adaptive)
-		{
-			tickOccupancy = buildOccupancy(states);
-			tickClearTimes = buildClearTimes(states);
-			tickEventRisk = buildEventRisk();
-		}
-
 		for (size_t i = 0; i < states.size(); i++)
 		{
 			auto &s = states[i];
@@ -288,9 +290,12 @@ void Simulation::run()
 				if (simTime >= s.train->getDepartureTime())
 				{
 					s.departed = true;
+					s.segmentEntryTime = simTime;
+					s.profileDirty = true;
 					s.train->setStatus(TrainStatus::Running);
 					if (!_quiet)
 						_output.printDeparture(*s.train);
+					rollSegmentEvents(s, i);
 				}
 				continue;
 			}
@@ -301,7 +306,15 @@ void Simulation::run()
 			{
 				s.stopTimer -= DT;
 				if (s.stopTimer <= 0.0)
+				{
 					s.stopTimer = 0.0;
+					s.profileDirty = true;
+					/* Back in the queue: a train that overtook during
+					   the dwell is now ahead, not behind. */
+					s.segmentEntryTime = simTime;
+					s.evalEntryDone = s.evalEventDone
+						= s.evalPrePivotDone = false;
+				}
 				s.timeSinceDepart += DT;
 				s.train->setCurrentTime(s.train->getCurrentTime() + DT);
 				isStopped = true;
@@ -331,8 +344,7 @@ void Simulation::run()
 							   segLen_m, segSpd_ms);
 
 				if (s.posOnSegment_m >= segLen_m)
-					handleSegmentTransition(s, i, states, tickOccupancy,
-											tickClearTimes, tickEventRisk);
+					handleSegmentTransition(s, i, simTime);
 			}
 
 			/* Output at intervals */
@@ -408,8 +420,27 @@ void Simulation::run()
 			}
 		}
 
+		/* One snapshot of who is on which segment, shared by the
+		   reroute rule and the blocking rule. */
+		SegmentState segState = buildSegmentState(states);
+
+		if (_weightMode == PathWeightMode::Adaptive)
+		{
+			for (const auto &kv : segState)
+				for (size_t k = 1; k < kv.second.size(); k++)
+					considerReroute(states, kv.second[k], kv.second, k,
+									simTime);
+		}
+
 		/* Overtaking / blocking check */
-		applyBlocking(states);
+		applyBlocking(states, segState, simTime);
+
+		if (_animCallback)
+		{
+			for (auto &st : states)
+				if (st.profileDirty && st.departed && !st.arrived)
+					rebuildProfile(st, simTime);
+		}
 
 		/* Live animation callback */
 		if (_animCallback)
@@ -590,77 +621,66 @@ void Simulation::updatePhysics(TrainState &s)
 	auto &path = s.train->getPath();
 	if (path.size() < 2 || s.segmentIndex + 1 >= path.size())
 		return;
+	physicsStep(path, s.segmentIndex, s.posOnSegment_m, s.speed_ms,
+				s.train->getAccelRate(), s.train->getDecelRate());
+}
 
+void Simulation::physicsStep(const std::vector<std::shared_ptr<Node>> &path,
+							 size_t segIdx, double &pos, double &speed,
+							 double accel, double decel) const
+{
 	double segLen_m, speedLim_ms;
-	getSegmentInfo(path[s.segmentIndex]->getName(),
-				   path[s.segmentIndex + 1]->getName(), segLen_m,
-				   speedLim_ms);
+	getSegmentInfo(path[segIdx]->getName(), path[segIdx + 1]->getName(),
+				   segLen_m, speedLim_ms);
 
-	double accel = s.train->getAccelRate();
-	double decel = s.train->getDecelRate();
-	double distToEnd = segLen_m - s.posOnSegment_m;
+	double distToEnd = segLen_m - pos;
 
 	/* Determine target end speed: 0 at last segment, else next limit */
 	double targetEnd = 0.0;
-	bool isLast = (s.segmentIndex == path.size() - 2);
+	bool isLast = (segIdx == path.size() - 2);
 	if (!isLast)
 	{
 		double nLen, nSpd;
-		getSegmentInfo(path[s.segmentIndex + 1]->getName(),
-					   path[s.segmentIndex + 2]->getName(), nLen, nSpd);
+		getSegmentInfo(path[segIdx + 1]->getName(),
+					   path[segIdx + 2]->getName(), nLen, nSpd);
 		targetEnd = nSpd;
 		if (targetEnd > speedLim_ms)
 			targetEnd = speedLim_ms;
 	}
 
 	/* Braking distance needed to reach targetEnd */
-	double dv = s.speed_ms - targetEnd;
+	double dv = speed - targetEnd;
 	double brakeDist = 0.0;
 	if (dv > 0.0)
-		brakeDist = (s.speed_ms * s.speed_ms - targetEnd * targetEnd)
-					/ (2.0 * decel);
+		brakeDist = (speed * speed - targetEnd * targetEnd) / (2.0 * decel);
 
-	/* Decision */
-	double newSpeed = s.speed_ms;
-	if (distToEnd <= brakeDist + 2.0 && s.speed_ms > targetEnd + 0.1)
+	double newSpeed = speed;
+	if (distToEnd <= brakeDist + 2.0 && speed > targetEnd + 0.1)
 	{
-		/* Brake */
-		newSpeed = s.speed_ms - decel * DT;
+		newSpeed = speed - decel * DT;
 		if (newSpeed < targetEnd)
 			newSpeed = targetEnd;
 		if (newSpeed < 0.0)
 			newSpeed = 0.0;
 	}
-	else if (s.speed_ms < speedLim_ms - 0.1)
+	else if (speed < speedLim_ms - 0.1)
 	{
-		/* Accelerate */
-		newSpeed = s.speed_ms + accel * DT;
+		newSpeed = speed + accel * DT;
 		if (newSpeed > speedLim_ms)
 			newSpeed = speedLim_ms;
 	}
 	else
-	{
-		/* Maintain */
 		newSpeed = speedLim_ms;
-	}
 
-	/* Update position */
-	double avgSpeed = (s.speed_ms + newSpeed) / 2.0;
-	double dist = avgSpeed * DT;
-	s.posOnSegment_m += dist;
-	s.speed_ms = newSpeed;
-
-	/* Clamp */
-	if (s.posOnSegment_m > segLen_m)
-		s.posOnSegment_m = segLen_m;
+	pos += (speed + newSpeed) / 2.0 * DT;
+	speed = newSpeed;
+	if (pos > segLen_m)
+		pos = segLen_m;
 }
 
 /* ---- Segment transition ---- */
 void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
-										 const std::vector<TrainState> &states,
-										 SegmentOccupancy &tickOccupancy,
-										 SegmentClearTimes &tickClearTimes,
-										 const SegmentEventRisk &eventRisk)
+										 double simTime)
 {
 	auto &path = s.train->getPath();
 	if (path.size() < 2)
@@ -685,6 +705,9 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 				_output.printEvent(*event, *s.train);
 			_observers[trainIdx]->onTrainEvent(
 				event->getName(), event->getNodeName(), delay);
+			if (_eventTriggerCallback)
+				_eventTriggerCallback(s.train->getName(), event->getName(),
+									  event->getNodeName(), delay);
 		}
 	}
 
@@ -700,108 +723,53 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 		/* Move to next segment */
 		s.segmentIndex++;
 		s.posOnSegment_m = 0.0;
+		s.segmentEntryTime = simTime;
+		s.evalEntryDone = s.evalEventDone = s.evalPrePivotDone = false;
+		s.profileDirty = true;
 		s.train->setPathIndex(s.segmentIndex);
 
-		/* Trigger rail-segment events on the new segment */
-		if (s.segmentIndex + 1 < path.size())
-		{
-			std::string segFrom = path[s.segmentIndex]->getName();
-			std::string segTo = path[s.segmentIndex + 1]->getName();
-			auto railEvents = getEventsOnSegment(segFrom, segTo);
-			for (const auto *event : railEvents)
-			{
-				if (event->tryTrigger(_rng))
-				{
-					double delay = event->getDuration();
-					s.train->applyDelay(delay);
-					s.timeSinceDepart += delay;
-					if (!_quiet)
-						_output.printEvent(*event, *s.train);
-					std::string loc = event->getNodeName() + "-"
-									  + event->getNodeName2();
-					_observers[trainIdx]->onTrainEvent(
-						event->getName(), loc, delay);
-				}
-			}
-		}
+		rollSegmentEvents(s, trainIdx);
 
-		/* Apply stop duration at intermediate stations */
+		/* Apply stop duration at intermediate stations. The train is
+		   stationary during the dwell, so its speed must reflect that -
+		   otherwise it retains the previous segment's cruise speed and
+		   never registers as an obstruction for blocking/reroute checks. */
 		s.stopTimer = s.train->getStopDuration();
+		if (s.stopTimer > 0.0)
+			s.speed_ms = 0.0;
 
-		/* Adaptive-aware re-routing from the new current node.
-		   Note: tickOccupancy was built at tick start (before transitions),
-		   so this train is counted on its OLD segment, not its new one.
-		   No self-exclusion is needed. Both maps are updated in place by
-		   rerouteFromNode() when it succeeds, so later trains processed
-		   in this same tick see this train's new choice. */
+		/* Reroute cooldown bookkeeping. */
 		s.segsSinceReroute++;
-		if (_weightMode == PathWeightMode::Adaptive
-			&& s.segsSinceReroute >= REROUTE_COOLDOWN
-			&& hasCongestedSegmentAhead(s, tickOccupancy)
-			&& wouldBeBlocked(s, states))
+	}
+}
+
+
+/* Rail events on the segment the train is currently entering. */
+void Simulation::rollSegmentEvents(TrainState &s, size_t trainIdx)
+{
+	const auto &path = s.train->getPath();
+	if (s.segmentIndex + 1 >= path.size())
+		return;
+	std::string segFrom = path[s.segmentIndex]->getName();
+	std::string segTo = path[s.segmentIndex + 1]->getName();
+	for (const auto *event : getEventsOnSegment(segFrom, segTo))
+	{
+		if (event->tryTrigger(_rng))
 		{
-			rerouteFromNode(s, tickOccupancy, tickClearTimes, eventRisk);
+			double delay = event->getDuration();
+			s.train->applyDelay(delay);
+			s.timeSinceDepart += delay;
+			if (!_quiet)
+				_output.printEvent(*event, *s.train);
+			std::string loc = event->getNodeName() + "-"
+							  + event->getNodeName2();
+			_observers[trainIdx]->onTrainEvent(
+				event->getName(), loc, delay);
+			if (_eventTriggerCallback)
+				_eventTriggerCallback(s.train->getName(),
+									  event->getName(), loc, delay);
 		}
 	}
-}
-
-/* ---- Build segment occupancy map ---- */
-SegmentOccupancy Simulation::buildOccupancy(
-	const std::vector<TrainState> &states, size_t excludeIdx) const
-{
-	SegmentOccupancy occ;
-	for (size_t i = 0; i < states.size(); i++)
-	{
-		if (i == excludeIdx)
-			continue;
-		const auto &ts = states[i];
-		if (ts.arrived || !ts.departed)
-			continue;
-		const auto &p = ts.train->getPath();
-		if (p.size() < 2 || ts.segmentIndex + 1 >= p.size())
-			continue;
-		std::string key = p[ts.segmentIndex]->getName() + "->"
-						  + p[ts.segmentIndex + 1]->getName();
-		occ[key]++;
-	}
-	return occ;
-}
-
-/* ---- Build estimated clear-time map (time-aware congestion cost) ---- */
-SegmentClearTimes Simulation::buildClearTimes(
-	const std::vector<TrainState> &states, size_t excludeIdx) const
-{
-	SegmentClearTimes clearTimes;
-	for (size_t i = 0; i < states.size(); i++)
-	{
-		if (i == excludeIdx)
-			continue;
-		const auto &ts = states[i];
-		if (ts.arrived || !ts.departed)
-			continue;
-		const auto &p = ts.train->getPath();
-		if (p.size() < 2 || ts.segmentIndex + 1 >= p.size())
-			continue;
-
-		double segLen_m, segSpd_ms;
-		getSegmentInfo(p[ts.segmentIndex]->getName(),
-					   p[ts.segmentIndex + 1]->getName(),
-					   segLen_m, segSpd_ms);
-		double remaining_m = segLen_m - ts.posOnSegment_m;
-		if (remaining_m < 0.0)
-			remaining_m = 0.0;
-		double speed = std::max(ts.speed_ms, MIN_SPEED_FOR_ETA_MS);
-		double clearSec = remaining_m / speed;
-
-		std::string key = p[ts.segmentIndex]->getName() + "->"
-						  + p[ts.segmentIndex + 1]->getName();
-		/* Multiple occupants on one segment: a new entrant has to wait
-		   for the LAST one to clear, so keep the max. */
-		auto it = clearTimes.find(key);
-		if (it == clearTimes.end() || clearSec > it->second)
-			clearTimes[key] = clearSec;
-	}
-	return clearTimes;
 }
 
 /* ---- Build expected event-delay map (event-aware routing) ---- */
@@ -830,298 +798,438 @@ SegmentEventRisk Simulation::buildEventRisk() const
 	return risk;
 }
 
-/* ---- Check if any remaining segment on the path is congested ---- */
-bool Simulation::hasCongestedSegmentAhead(
-	const TrainState &s, const SegmentOccupancy &occupancy) const
+/* Risk only changes on live topology/event mutations, so reuse it. */
+const SegmentEventRisk &Simulation::cachedEventRisk() const
 {
-	if (occupancy.empty())
-		return false;
-	const auto &path = s.train->getPath();
-	for (size_t i = s.segmentIndex; i + 1 < path.size(); i++)
+	unsigned gen = _topologyGen * 65537u + _eventGen;
+	if (_riskCacheGen != gen)
 	{
-		std::string key = path[i]->getName() + "->"
-						  + path[i + 1]->getName();
-		auto it = occupancy.find(key);
-		if (it != occupancy.end() && it->second > 0)
-			return true;
+		_riskCache = buildEventRisk();
+		_riskCacheGen = gen;
 	}
-	return false;
+	return _riskCache;
 }
 
-/* ---- Would this train actually be blocked by a slower train ahead? ---- */
-bool Simulation::wouldBeBlocked(
-	const TrainState &s, const std::vector<TrainState> &states) const
+/* ---- Exact kinematic ETA - deterministic, not an approximation.
+   Uses the train's real accel capability, current speed and the
+   segment's speed limit to solve for how long it actually takes to
+   cover the remaining distance, whether or not it reaches cruise
+   speed within that distance. ---- */
+double Simulation::kinematicEta(double currentSpeed_ms, double accel_ms2,
+								double remainingDist_m,
+								double speedLimit_ms) const
 {
-	const auto &path = s.train->getPath();
-	if (path.size() < 2 || s.segmentIndex + 1 >= path.size())
-		return false;
+	if (remainingDist_m <= 0.0)
+		return 0.0;
+	if (currentSpeed_ms >= speedLimit_ms || accel_ms2 <= 0.0)
+		return remainingDist_m / std::max(speedLimit_ms, MIN_SPEED_FOR_ETA_MS);
 
-	double myAccel = s.train->getAccelRate();
+	double timeToLimit = (speedLimit_ms - currentSpeed_ms) / accel_ms2;
+	double distToLimit = currentSpeed_ms * timeToLimit
+		+ 0.5 * accel_ms2 * timeToLimit * timeToLimit;
 
-	/* ETA to reach the start of a future segment, used below to skip
-	   congestion that will have resolved before this train arrives.
-	   This function always runs right after a segment transition, so
-	   s.segmentIndex is the segment we just entered (posOnSegment_m
-	   == 0) — ETA to reach ITS start is 0 by definition. */
-	double etaAccum = 0.0;
-
-	/* Scan upcoming segments for a train that would block us */
-	for (size_t seg = s.segmentIndex; seg + 1 < path.size(); seg++)
+	if (distToLimit >= remainingDist_m)
 	{
-		const std::string &segFrom = path[seg]->getName();
-		const std::string &segTo = path[seg + 1]->getName();
+		/* Never reaches the limit within the remaining distance -
+		   solve remainingDist = v0*t + 0.5*a*t^2 for t directly. */
+		double a = 0.5 * accel_ms2;
+		double b = currentSpeed_ms;
+		double c = -remainingDist_m;
+		double disc = b * b - 4.0 * a * c;
+		if (disc < 0.0)
+			return remainingDist_m
+				/ std::max(currentSpeed_ms, MIN_SPEED_FOR_ETA_MS);
+		return (-b + std::sqrt(disc)) / (2.0 * a);
+	}
 
-		for (const auto &other : states)
+	double remainAfterLimit = remainingDist_m - distToLimit;
+	return timeToLimit + remainAfterLimit / speedLimit_ms;
+}
+
+/* ---- Virtual replay of the real physics (pure, non-mutating) ---- */
+Simulation::VTrain Simulation::makeVTrain(const TrainState &s,
+										  double simTime) const
+{
+	VTrain v;
+	v.path = &s.train->getPath();
+	v.seg = s.segmentIndex;
+	v.pos = s.posOnSegment_m;
+	v.speed = s.speed_ms;
+	v.stopTimer = s.stopTimer;
+	v.accel = s.train->getAccelRate();
+	v.decel = s.train->getDecelRate();
+	v.stopDur = s.train->getStopDuration();
+	v.entryT = s.segmentEntryTime - simTime;
+	v.done = s.arrived;
+	return v;
+}
+
+double Simulation::replayEta(VTrain me, const VTrain *leader,
+							 std::vector<double> *nodeTimes) const
+{
+	if (me.path->size() < 2 || me.done)
+		return 0.0;
+
+	VTrain lead{};
+	bool haveLeader = (leader != nullptr);
+	if (haveLeader)
+		lead = *leader;
+
+	/* One virtual tick: dwell countdown, else physics plus node
+	   transition (mirrors updatePhysics/handleSegmentTransition, minus
+	   random events, which are deliberately excluded from ETAs). */
+	auto advance = [this](VTrain &v, double now,
+						  std::vector<double> *times) {
+		if (v.done)
+			return;
+		if (v.stopTimer > 0.0)
 		{
-			if (other.train == s.train || other.arrived || !other.departed)
-				continue;
-			const auto &op = other.train->getPath();
-			if (op.size() < 2 || other.segmentIndex + 1 >= op.size())
-				continue;
-			if (op[other.segmentIndex]->getName() != segFrom
-				|| op[other.segmentIndex + 1]->getName() != segTo)
-				continue;
-
-			/* Predictive check: if this segment will already be clear
-			   by the time we'd actually reach it, don't treat it as
-			   blocking — avoids wasted reroutes for congestion several
-			   segments away that resolves long before we get there.
-			   (For seg == s.segmentIndex, etaAccum reflects "now", so
-			   an immediate real block is never suppressed here.) */
-			double otherSegLen_m, otherSegSpd_ms;
-			getSegmentInfo(segFrom, segTo, otherSegLen_m, otherSegSpd_ms);
-			double otherRemaining_m = otherSegLen_m - other.posOnSegment_m;
-			if (otherRemaining_m < 0.0)
-				otherRemaining_m = 0.0;
-			double otherClearSec = otherRemaining_m
-				/ std::max(other.speed_ms, MIN_SPEED_FOR_ETA_MS);
-			if (otherClearSec <= etaAccum)
-				continue; // will be gone before we arrive
-
-			/* Another train is on this segment. It blocks us if:
-			   - it is ahead AND currently slower (blocking right now), OR
-			   - it has a lower accel rate (will be slower after stops) */
-			double otherAccel = other.train->getAccelRate();
-			if (other.posOnSegment_m >= s.posOnSegment_m
-				&& (other.speed_ms < s.speed_ms - 0.5
-					|| otherAccel < myAccel * 0.95))
-				return true;
+			v.stopTimer = std::max(0.0, v.stopTimer - DT);
+			return;
 		}
+		physicsStep(*v.path, v.seg, v.pos, v.speed, v.accel, v.decel);
+		double len, spd;
+		getSegmentInfo((*v.path)[v.seg]->getName(),
+					   (*v.path)[v.seg + 1]->getName(), len, spd);
+		if (v.pos < len)
+			return;
+		if (times)
+			times->push_back(now);
+		if (v.seg + 2 >= v.path->size())
+		{
+			v.done = true;
+			v.speed = 0.0;
+			return;
+		}
+		v.seg++;
+		v.pos = 0.0;
+		v.entryT = now;
+		v.stopTimer = v.stopDur;
+		if (v.stopTimer > 0.0)
+			v.speed = 0.0;
+	};
 
-		/* Advance ETA by this segment's traversal time so the NEXT
-		   iteration's etaAccum reflects "time to reach the start of
-		   the following segment", not this one. Use our own current
-		   speed for the segment we're on now, and the segment's speed
-		   limit (optimistic cruise estimate) for segments further out. */
-		double segLen_m, segSpd_ms;
-		getSegmentInfo(segFrom, segTo, segLen_m, segSpd_ms);
-		double travelSpeed = (seg == s.segmentIndex)
-			? std::max(s.speed_ms, MIN_SPEED_FOR_ETA_MS)
-			: segSpd_ms;
-		etaAccum += segLen_m / travelSpeed;
+	double t = 0.0;
+	while (!me.done && t < REPLAY_MAX_SEC)
+	{
+		t += DT;
+		/* Same order as the real loop: everyone moves, then blocking. */
+		advance(me, t, nodeTimes);
+		if (haveLeader)
+			advance(lead, t, nullptr);
+
+		if (haveLeader && !lead.done && !me.done && lead.stopTimer <= 0.0
+			&& me.stopTimer <= 0.0
+			&& (*me.path)[me.seg] == (*lead.path)[lead.seg]
+			&& (*me.path)[me.seg + 1] == (*lead.path)[lead.seg + 1]
+			&& lead.entryT <= me.entryT)
+		{
+			if (me.speed > lead.speed)
+				me.speed = lead.speed;
+			double maxPos = lead.pos - MIN_SAFE_FOLLOWING_DISTANCE_M;
+			if (me.pos > maxPos)
+				me.pos = std::max(maxPos, 0.0);
+		}
 	}
-	return false;
+	return t;
 }
 
-/* ---- Compute congestion-weighted cost for a (sub)path ---- */
-double Simulation::computePathCost(
-	const std::vector<std::shared_ptr<Node>> &path,
-	size_t startIdx,
-	const SegmentOccupancy &occupancy,
-	const SegmentClearTimes &clearTimes,
-	const SegmentEventRisk &eventRisk) const
+/* ---- One fused pass: who is on which directed segment, in order ---- */
+Simulation::SegmentState Simulation::buildSegmentState(
+	const std::vector<TrainState> &states) const
 {
-	double cost = 0.0;
-	for (size_t i = startIdx; i + 1 < path.size(); i++)
+	SegmentState seg;
+	for (size_t i = 0; i < states.size(); i++)
 	{
-		const std::string &from = path[i]->getName();
-		const std::string &to = path[i + 1]->getName();
-		for (const auto &edge : _network.getNeighbours(from))
+		const auto &ts = states[i];
+		/* A train stopped at a node is not a blocker. */
+		if (ts.arrived || !ts.departed || ts.stopTimer > 0.0)
+			continue;
+		const auto &p = ts.train->getPath();
+		if (p.size() < 2 || ts.segmentIndex + 1 >= p.size())
+			continue;
+		seg[p[ts.segmentIndex]->getName() + "->"
+			+ p[ts.segmentIndex + 1]->getName()]
+			.push_back(i);
+	}
+	/* Right of way: earliest entry first, then stable index. The vector
+	   is already index-ordered, so a stable sort keeps the tie-break. */
+	for (auto &kv : seg)
+	{
+		std::stable_sort(kv.second.begin(), kv.second.end(),
+						 [&](size_t a, size_t b) {
+							 return states[a].segmentEntryTime
+									< states[b].segmentEntryTime;
+						 });
+	}
+	return seg;
+}
+
+/* ---- Profile: free-flow arrival time at each upcoming node ---- */
+void Simulation::rebuildProfile(TrainState &s, double simTime)
+{
+	s.etaProfile.clear();
+	s.profileDirty = false;
+	s.lastProfileTime = simTime;
+	if (s.arrived || !s.departed)
+		return;
+	const auto &p = s.train->getPath();
+	if (p.size() < 2 || s.segmentIndex + 1 >= p.size())
+		return;
+	std::vector<double> times;
+	replayEta(makeVTrain(s, simTime), nullptr, &times);
+	for (double t : times)
+		s.etaProfile.push_back(simTime + t);
+}
+
+/* ---- Cheap predicate every tick; expensive part only when triggered ----
+   Rule: another train is on MY segment, it is AHEAD of me, I am FASTER,
+   and its route keeps sharing my route after the next node. */
+void Simulation::considerReroute(std::vector<TrainState> &states, size_t idx,
+								 const std::vector<size_t> &group,
+								 size_t posInGroup, double simTime)
+{
+	TrainState &s = states[idx];
+	if (posInGroup == 0 || s.segsSinceReroute < REROUTE_COOLDOWN)
+		return;
+	const auto &path = s.train->getPath();
+	if (s.segmentIndex + 2 >= path.size())
+		return; // next node is the destination: no choice left
+
+	/* Nearest train ahead whose route keeps sharing mine after the pivot
+	   (a leader that diverges is skipped in favour of one further up). */
+	const TrainState *leaderPtr = nullptr;
+	size_t shared = 0;
+	for (size_t g = posInGroup; g-- > 0 && !leaderPtr;)
+	{
+		const TrainState &cand = states[group[g]];
+		const auto &lp = cand.train->getPath();
+		size_t n = 0;
+		for (size_t i = s.segmentIndex + 1, j = cand.segmentIndex + 1;
+			 i + 1 < path.size() && j + 1 < lp.size(); i++, j++)
 		{
-			if (edge.destination->getName() == to)
-			{
-				cost += DijkstraPathfinding::edgeWeight(
-					edge, _weightMode, from, occupancy, clearTimes, eventRisk);
+			if (path[i] != lp[j] || path[i + 1] != lp[j + 1])
 				break;
-			}
+			n++;
+		}
+		if (n > 0)
+		{
+			leaderPtr = &cand;
+			shared = n;
 		}
 	}
-	return cost;
+	if (!leaderPtr)
+		return; // nobody ahead keeps blocking after the pivot
+	const TrainState &leader = *leaderPtr;
+
+	/* Am I faster? Free ETA to the segment end, both from current state. */
+	double segLen_m, segSpd_ms;
+	getSegmentInfo(path[s.segmentIndex]->getName(),
+				   path[s.segmentIndex + 1]->getName(), segLen_m, segSpd_ms);
+	double myEta = kinematicEta(s.speed_ms, s.train->getAccelRate(),
+								segLen_m - s.posOnSegment_m, segSpd_ms);
+	double leaderEta = kinematicEta(
+		leader.speed_ms, leader.train->getAccelRate(),
+		segLen_m - leader.posOnSegment_m, segSpd_ms);
+	if (myEta >= leaderEta)
+		return;
+
+	/* Evaluation triggers, with a per-segment budget. */
+	unsigned gen = _topologyGen * 65537u + _eventGen;
+	bool leaderChanged = (s.lastLeader != leader.train
+						  || s.lastLeaderVersion != leader.routeVersion
+						  || s.lastGen != gen);
+	bool nearPivot = (myEta <= PRE_PIVOT_HORIZON_SEC);
+	bool run = false;
+	if (!s.evalEntryDone)
+	{
+		s.evalEntryDone = true;
+		if (nearPivot)
+			s.evalPrePivotDone = true;
+		run = true;
+	}
+	else if (leaderChanged && !s.evalEventDone)
+	{
+		s.evalEventDone = true;
+		run = true;
+	}
+	else if (nearPivot && !s.evalPrePivotDone)
+	{
+		s.evalPrePivotDone = true;
+		run = true;
+	}
+	if (!run)
+		return;
+
+	s.lastLeader = leader.train;
+	s.lastLeaderVersion = leader.routeVersion;
+	s.lastGen = gen;
+	evaluateDetour(s, leader, shared, simTime);
 }
 
-/* ---- Re-route a train from its current node using occupancy data ---- */
-void Simulation::rerouteFromNode(TrainState &s,
-								 SegmentOccupancy &occupancy,
-								 SegmentClearTimes &clearTimes,
-								 const SegmentEventRisk &eventRisk)
+bool Simulation::evaluateDetour(TrainState &s, const TrainState &leader,
+								size_t sharedLen, double simTime)
 {
 	const auto &path = s.train->getPath();
-	if (s.segmentIndex >= path.size())
-		return;
-
-	const std::string &currentNode = path[s.segmentIndex]->getName();
+	const std::string &pivot = path[s.segmentIndex + 1]->getName();
 	const std::string &dest = s.train->getArrivalStation();
-	if (currentNode == dest)
-		return;
 
-	std::vector<std::shared_ptr<Node>> newTail;
+	ForbiddenEdges forbidden;
+	std::string forbidKey;
+	for (size_t i = 0; i < sharedLen; i++)
+	{
+		std::string k = path[s.segmentIndex + 1 + i]->getName() + "->"
+						+ path[s.segmentIndex + 2 + i]->getName();
+		forbidden.insert(k);
+		forbidKey += k + ";";
+	}
+
+	/* Candidate-path cache: depends only on topology/events/dwell. */
+	unsigned gen = _topologyGen * 65537u + _eventGen;
+	if (_cacheGen != gen)
+	{
+		_candidateCache.clear();
+		_cacheGen = gen;
+	}
+	double dwell = s.train->getStopDuration();
+	std::string key = pivot + "|" + dest + "|" + forbidKey + "|"
+					  + std::to_string(dwell);
+	auto it = _candidateCache.find(key);
+	if (it == _candidateCache.end())
+	{
+		std::vector<std::string> names;
+		try
+		{
+			auto cand = _pathfinder->findConstrainedPath(
+				pivot, dest, _network, forbidden, cachedEventRisk(), dwell);
+			for (const auto &n : cand)
+				names.push_back(n->getName());
+		}
+		catch (...)
+		{
+			names.clear();
+		}
+		it = _candidateCache.emplace(key, std::move(names)).first;
+	}
+	const auto &tail = it->second;
+	if (tail.size() < 2)
+		return false;
+
+	/* Candidate identical to the current remainder: nothing to gain. */
+	bool same = (tail.size() == path.size() - (s.segmentIndex + 1));
+	for (size_t i = 0; same && i < tail.size(); i++)
+		same = (tail[i] == path[s.segmentIndex + 1 + i]->getName());
+	if (same)
+		return false;
+
+	std::vector<std::shared_ptr<Node>> newPath;
+	for (size_t i = 0; i <= s.segmentIndex + 1; i++)
+		newPath.push_back(path[i]);
 	try
 	{
-		newTail = _pathfinder->findPath(currentNode, dest, _network,
-										_weightMode, occupancy, clearTimes,
-										eventRisk);
+		for (size_t i = 1; i < tail.size(); i++)
+			newPath.push_back(_network.findNode(tail[i]));
 	}
 	catch (...)
 	{
-		return; // keep current path on failure
+		return false;
 	}
-	if (newTail.size() < 2)
-		return;
 
-	/* Only apply if the new tail differs from the current remaining path */
-	bool same = (newTail.size() == path.size() - s.segmentIndex);
-	if (same)
-	{
-		for (size_t i = 0; i < newTail.size(); i++)
+	/* The judge: identical replay for both options, leader included. */
+	VTrain lead = makeVTrain(leader, simTime);
+	VTrain stay = makeVTrain(s, simTime);
+	/* Random events are not replayed, so their expected delay is added
+	   per remaining segment to keep the two options comparable. */
+	const SegmentEventRisk &risk = cachedEventRisk();
+	auto riskOf = [&](const std::vector<std::shared_ptr<Node>> &p) {
+		double sum = 0.0;
+		for (size_t i = s.segmentIndex; i + 1 < p.size(); i++)
 		{
-			if (newTail[i]->getName()
-				!= path[s.segmentIndex + i]->getName())
-			{
-				same = false;
-				break;
-			}
+			auto r = risk.find(p[i]->getName() + "->" + p[i + 1]->getName());
+			if (r != risk.end())
+				sum += r->second;
 		}
+		return sum;
+	};
+	double etaStay = replayEta(stay, &lead) + riskOf(path);
+	VTrain det = stay;
+	det.path = &newPath;
+	double etaDetour = replayEta(det, &lead) + riskOf(newPath);
+	if (!(etaDetour + MIN_GAIN_SEC < etaStay))
+		return false;
+
+	std::string newRoute;
+	for (size_t i = s.segmentIndex; i < newPath.size(); i++)
+	{
+		if (i > s.segmentIndex)
+			newRoute += " -> ";
+		newRoute += newPath[i]->getName();
 	}
-	if (same)
-		return;
-
-	/* Cost-margin guard: only reroute if the new path is meaningfully
-	   cheaper in congestion-weighted terms.  This prevents marginal
-	   reroutes where the alt corridor has become almost as congested
-	   as the main one (e.g. FastF after FastB and FastD already moved). */
-	static constexpr double REROUTE_MARGIN = 0.10; // 10 % improvement needed
-	double oldCost = computePathCost(path, s.segmentIndex, occupancy,
-									 clearTimes, eventRisk);
-	double newCost = computePathCost(newTail, 0, occupancy, clearTimes,
-									  eventRisk);
-	if (newCost >= oldCost * (1.0 - REROUTE_MARGIN))
-		return;
-
-	/* Old next segment (the one this train would have taken) is no
-	   longer occupied by it — captured before the path is replaced. */
-	std::string oldKey;
-	if (s.segmentIndex + 1 < path.size())
-		oldKey = path[s.segmentIndex]->getName() + "->"
-				+ path[s.segmentIndex + 1]->getName();
-
-	/* Build the full path: segments already traversed + new tail */
-	std::vector<std::shared_ptr<Node>> newPath;
-	for (size_t i = 0; i < s.segmentIndex; i++)
-		newPath.push_back(path[i]);
-	for (auto &n : newTail)
-		newPath.push_back(n);
-
 	s.train->setPath(newPath);
-	s.segmentIndex = newPath.size() - newTail.size();
 	s.train->setPathIndex(s.segmentIndex);
 	s.segsSinceReroute = 0;
-
-	/* Update the shared tick-local occupancy/clear-time maps so any
-	   train evaluated later in this same tick sees this train's new
-	   choice, instead of a stale tick-start snapshot (avoids several
-	   trains piling onto the same "empty" alternate corridor at once). */
-	if (!oldKey.empty())
-	{
-		auto it = occupancy.find(oldKey);
-		if (it != occupancy.end())
-		{
-			it->second--;
-			if (it->second <= 0)
-			{
-				occupancy.erase(it);
-				clearTimes.erase(oldKey);
-			}
-		}
-	}
-	if (s.segmentIndex + 1 < newPath.size())
-	{
-		std::string newKey = newPath[s.segmentIndex]->getName() + "->"
-							 + newPath[s.segmentIndex + 1]->getName();
-		occupancy[newKey]++;
-		double segLen_m, segSpd_ms;
-		getSegmentInfo(newPath[s.segmentIndex]->getName(),
-					   newPath[s.segmentIndex + 1]->getName(),
-					   segLen_m, segSpd_ms);
-		double selfClearSec = segLen_m
-			/ std::max(s.speed_ms, MIN_SPEED_FOR_ETA_MS);
-		auto it = clearTimes.find(newKey);
-		if (it == clearTimes.end() || selfClearSec > it->second)
-			clearTimes[newKey] = selfClearSec;
-	}
-
-	/* Log the reroute */
+	s.routeVersion++;
+	s.profileDirty = true;
+	s.rerouteCount++;
+	s.lastRerouteReason = "stuck behind " + leader.train->getName()
+		+ " (stay ~" + std::to_string(static_cast<int>(etaStay))
+		+ "s vs detour ~" + std::to_string(static_cast<int>(etaDetour))
+		+ "s)";
 	if (!_quiet)
-	{
-		std::string newRoute;
-		for (size_t i = s.segmentIndex; i < newPath.size(); i++)
-		{
-			if (i > s.segmentIndex)
-				newRoute += " -> ";
-			newRoute += newPath[i]->getName();
-		}
 		_output.printReroute(*s.train, newRoute);
-	}
+	if (_rerouteCallback)
+		_rerouteCallback(s.train->getName(), pivot, newRoute);
+	return true;
 }
 
 /* ---- Overtaking / blocking between trains ---- */
-void Simulation::applyBlocking(std::vector<TrainState> &states)
+void Simulation::applyBlocking(std::vector<TrainState> &states,
+							   const SegmentState &segState, double simTime)
 {
-	/* For each pair of trains on the same segment, if one is behind
-	   and faster, cap its speed to the one ahead's speed. */
-	for (size_t i = 0; i < states.size(); i++)
+	/* Delayed is a per-tick fact, not a permanent one - clear it up
+	   front so a train that is no longer capped stops reporting it. */
+	for (auto &st : states)
 	{
-		if (states[i].arrived || !states[i].departed)
-			continue;
-		auto &pi = states[i].train->getPath();
-		if (pi.size() < 2 || states[i].segmentIndex + 1 >= pi.size())
-			continue;
+		if (!st.arrived && st.departed
+			&& st.train->getStatus() == TrainStatus::Delayed)
+			st.train->setStatus(TrainStatus::Running);
+		st.blockedByTrain = nullptr;
+	}
 
-		const std::string &fromI =
-			pi[states[i].segmentIndex]->getName();
-		const std::string &toI =
-			pi[states[i].segmentIndex + 1]->getName();
-
-		for (size_t j = i + 1; j < states.size(); j++)
+	/* Right-of-way is the group order (entry order, which never flips -
+	   raw position does not: a follower's own acceleration can drift it
+	   numerically past the leader). The follower is capped in speed and
+	   hard-clamped to a safe following distance behind each train ahead. */
+	for (const auto &kv : segState)
+	{
+		const auto &g = kv.second;
+		for (size_t a = 0; a < g.size(); a++)
 		{
-			if (states[j].arrived || !states[j].departed)
-				continue;
-			auto &pj = states[j].train->getPath();
-			if (pj.size() < 2 || states[j].segmentIndex + 1 >= pj.size())
-				continue;
-
-			const std::string &fromJ =
-				pj[states[j].segmentIndex]->getName();
-			const std::string &toJ =
-				pj[states[j].segmentIndex + 1]->getName();
-
-			/* Same segment? */
-			if (fromI != fromJ || toI != toJ)
-				continue;
-
-			/* Determine who is ahead / behind */
-			TrainState *ahead = &states[i];
-			TrainState *behind = &states[j];
-			if (states[j].posOnSegment_m > states[i].posOnSegment_m)
+			for (size_t b = a + 1; b < g.size(); b++)
 			{
-				ahead = &states[j];
-				behind = &states[i];
-			}
-
-			/* If behind is faster, cap its speed */
-			if (behind->speed_ms > ahead->speed_ms)
-			{
-				behind->speed_ms = ahead->speed_ms;
-				behind->train->setStatus(TrainStatus::Delayed);
+				TrainState *ahead = &states[g[a]];
+				TrainState *behind = &states[g[b]];
+				bool capped = false;
+				if (behind->speed_ms > ahead->speed_ms)
+				{
+					behind->speed_ms = ahead->speed_ms;
+					capped = true;
+				}
+				double maxBehindPos =
+					ahead->posOnSegment_m - MIN_SAFE_FOLLOWING_DISTANCE_M;
+				if (behind->posOnSegment_m > maxBehindPos)
+				{
+					behind->posOnSegment_m = std::max(maxBehindPos, 0.0);
+					capped = true;
+				}
+				if (capped)
+				{
+					behind->train->setStatus(TrainStatus::Delayed);
+					behind->blockedByTrain = ahead->train;
+					if (simTime - behind->lastProfileTime
+						>= PROFILE_REBUILD_MIN_SEC)
+						behind->profileDirty = true;
+				}
 			}
 		}
 	}

@@ -185,7 +185,8 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/EndToEndTest \
 		$(BINDIR)/InputComboTest \
 		$(BINDIR)/LiveMutationTest \
-		$(BINDIR)/CongestionTest
+		$(BINDIR)/CongestionTest \
+		$(BINDIR)/AdaptiveRerouteTest
 
 test: $(TESTS)
 	@echo ""
@@ -204,6 +205,7 @@ test: $(TESTS)
 	@./$(BINDIR)/InputComboTest || exit 1
 	@./$(BINDIR)/LiveMutationTest || exit 1
 	@./$(BINDIR)/CongestionTest || exit 1
+	@./$(BINDIR)/AdaptiveRerouteTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -293,6 +295,10 @@ $(BINDIR)/InputComboTest: $(TESTDIR)/InputComboTest.cpp $(BINDIR)/$(NAME)
 $(BINDIR)/CongestionTest: $(TESTDIR)/CongestionTest.cpp \
 	$(OBJDIR)/DijkstraPathfinding/DijkstraPathfinding.o \
 	$(OBJDIR)/RailNetwork/RailNetwork.o $(OBJDIR)/Node/Node.o
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+$(BINDIR)/AdaptiveRerouteTest: $(TESTDIR)/AdaptiveRerouteTest.cpp $(LIB_OBJS)
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
 

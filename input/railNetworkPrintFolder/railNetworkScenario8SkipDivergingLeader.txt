@@ -1,0 +1,12 @@
+Node Origin
+Node Fork
+Node MainA
+Node AltA
+Node SideB
+Node Dest
+Rail Origin Fork 3.0 200.0
+Rail Fork MainA 8.0 200.0
+Rail MainA Dest 3.0 200.0
+Rail Fork AltA 6.0 200.0
+Rail AltA Dest 6.0 200.0
+Rail Fork SideB 2.0 200.0

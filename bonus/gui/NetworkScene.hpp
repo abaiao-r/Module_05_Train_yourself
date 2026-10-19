@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   NetworkScene.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 14:43:40 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/06 12:55:36 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -89,6 +89,17 @@ class NetworkScene : public QGraphicsScene
 					  const QVector<TrainSnapshot> &snapshots);
 	void clearTrains();
 
+	/* ─── Events / reroutes ─────────────────────────────────────────── */
+	/** Mark every segment/node that has an event bound to it, by
+		appending a small risk indicator to its existing label and a
+		tooltip with the details - keeps it correctly positioned when
+		nodes are dragged, instead of a separate floating item. */
+	void setEventInfo(const QVector<EventInfo> &events);
+	/** Briefly flash the segment/node where this event just fired. */
+	void flashEvent(const QString &eventName, const QString &trainName);
+	/** Briefly mark the node where a train just switched paths. */
+	void markReroute(const QString &nodeName, const QString &trainName);
+
 	/* ─── Accessors ────────────────────────────────────────────────── */
 	QStringList nodeNames() const;
 	bool hasNode(const QString &name) const;
@@ -102,6 +113,9 @@ class NetworkScene : public QGraphicsScene
 		DraggableNode *dot;
 		QGraphicsTextItem *label;
 		QPointF pos;
+		/* Comma-joined names of events bound to this node, shown
+		   directly in the label - empty means no risk. */
+		QString riskNames;
 	};
 	struct EdgeVis
 	{
@@ -111,6 +125,7 @@ class NetworkScene : public QGraphicsScene
 		QString to;
 		double distKm;
 		double speedKmh;
+		QString riskNames;
 	};
 	struct TrainVis
 	{
@@ -138,6 +153,9 @@ class NetworkScene : public QGraphicsScene
 	QVector<EdgeVis> _edges;
 	QMap<QString, TrainVis> _trains;
 	QVector<TrailSeg> _trailLines;
+	QVector<EventInfo> _events;
+
+	void drawEventMarkers();
 
 	void layoutForceDirected();
 	void repositionEdge(EdgeVis &e);
