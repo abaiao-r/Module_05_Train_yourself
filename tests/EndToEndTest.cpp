@@ -84,6 +84,22 @@ int main()
 	/*  CLI argument validation                                           */
 	/* ------------------------------------------------------------------ */
 
+	suite.run("node event delay holds the train (arrival shifted >= delay)",
+			  [](std::string &msg) {
+				  std::ofstream("/tmp/e2e_hold_net.txt")
+					  << "Node A\nNode B\nNode C\nRail A B 10 100\n"
+						 "Rail B C 10 100\nEvent Fog 1.0 1h B\n";
+				  std::ofstream("/tmp/e2e_hold_trn.txt")
+					  << "T 80 0.05 356 30 A C 14h10 00h00\n";
+				  auto r = runCmd(BIN + " /tmp/e2e_hold_net.txt "
+										"/tmp/e2e_hold_trn.txt");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "Delay: 60 min"), msg);
+				  /* Held 60 min at B, then re-accelerates: arrival > 15:10 */
+				  ASSERT_TRUE(outputContains(r.output, "Arrival: 15:2"), msg);
+				  return true;
+			  });
+
 	suite.run("no arguments -> exit 1 + usage message",
 			  [](std::string &msg) {
 				  auto r = runCmd(BIN);

@@ -322,6 +322,7 @@ class Simulation
 	void rebuildProfile(TrainState &s, double simTime);
 
 	void rollSegmentEvents(TrainState &s, size_t trainIdx);
+	void holdTrain(TrainState &s, double delay);
 	void handleSegmentTransition(TrainState &s, size_t trainIdx,
 								 double simTime);
 	void applyBlocking(std::vector<TrainState> &states,

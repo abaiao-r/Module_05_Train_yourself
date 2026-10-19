@@ -97,6 +97,8 @@ void Train::applyDelay(double seconds)
 	_currentTime += seconds;
 }
 
+void Train::recordDelay(double seconds) { _totalDelay += seconds; }
+
 void Train::setStatus(TrainStatus status) { _status = status; }
 void Train::setCurrentSpeed(double speed) { _currentSpeed = speed; }
 void Train::setPosOnSegment(double pos) { _posOnSegment = pos; }
