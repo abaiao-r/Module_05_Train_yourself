@@ -14,9 +14,10 @@ participant "Node" as N
 Sim -> Dijk : findPath("CityA", "CityB", network, mode)
 
 note over Sim
-    **PathWeightMode** (set via --time-weight flag)
-    • Distance (default) — edge weight = distance km
-    • Time — edge weight = distance / speedLimit
+    **PathWeightMode** (--distance / --solo / --adaptive)
+    • Distance — edge weight = distance km
+    • Solo (default) — edge weight = free-flow time
+    • Adaptive — Solo + congestion-aware rerouting
 end note
 
 == Validation ==

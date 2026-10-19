@@ -117,7 +117,8 @@ package "Domain" {
 package "Strategy" {
     enum PathWeightMode {
         Distance
-        Time
+        Solo
+        Adaptive
     }
 
     interface IPathfinding <<interface>> {
@@ -213,6 +214,10 @@ package "Orchestration" {
         + stopTimer : double
         + departed : bool
         + arrived : bool
+        + heldBySegmentEvent : bool
+        + blockedByTrain : Train*
+        + rerouteCount : int
+        + segsSinceReroute : int
     }
 
     class Simulation {
@@ -233,12 +238,16 @@ package "Orchestration" {
         + run() : void
         + setAnimCallback(cb) : void
         + setQuiet(q : bool) : void
+        + enqueueMutation(m : LiveMutation) : void  «thread-safe»
+        + setMutationCallbacks(onApplied, onRejected) : void
         + getResults() : map<string, pair<double, double>>
         - computePaths() : void
         - estimateTravelTime(train) : double
         - updatePhysics(s : TrainState&) : void
         - handleSegmentTransition(s : TrainState&, idx) : void
         - applyBlocking(states : vector<TrainState>&) : void
+        - drainMutations() : vector<LiveMutation>
+        - applyAddNode / applyAddRail / applyAddEvent / applyAddTrain
         - getEventsAtNode(nodeName) : vector<Event*>
         - getEventsOnSegment(from, to) : vector<Event*>
     }
@@ -297,8 +306,9 @@ package "Bonus — Qt GUI" #LightCyan {
 
     class SimulationWorker <<QObject>> {
         - _speedMult : atomic<double>
+        - _liveSimMutex : mutex  «guards live Simulation*»
         - _stopRequested : atomic<bool>
-        + runSimulation(netFile, trainFile, useTimeWeight) : void
+        + runSimulation(netFile, trainFile, weightMode : int) : void
         + setSpeedMultiplier(mult : double) : void
         + requestStop() : void
         ..signals..

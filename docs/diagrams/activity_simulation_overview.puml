@@ -37,8 +37,10 @@ endif
 |#LightGreen|Initialisation|
 :Compute shortest paths (Dijkstra);
 note right
-  Cost metric = distance (km)
-  or time (--time-weight flag)
+  --distance : edge length (km)
+  --solo (default) : free-flow time
+  --adaptive : solo + congestion
+  rerouting
   One path per train
 end note
 

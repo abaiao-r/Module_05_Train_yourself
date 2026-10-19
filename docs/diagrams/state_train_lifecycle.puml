@@ -41,7 +41,8 @@ Arrived : observer notified
 
 Aborted --> [*] : GUI stop button pressed
 Aborted : partial results discarded
-Aborted : thrown from usleep / animCallback
+Aborted : thrown from sleep_for / animCallback
+Aborted : exception path, not a stored status
 
 note right of Aborted
   **Bonus — GUI Stop**
