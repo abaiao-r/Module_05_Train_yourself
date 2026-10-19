@@ -61,6 +61,8 @@ class Train
 	void setPath(const std::vector<std::shared_ptr<Node>> &path);
 	void advanceToNextNode(double travelTime);
 	void applyDelay(double seconds);
+	/* Counts delay without advancing the clock (train is held in place). */
+	void recordDelay(double seconds);
 	void setStatus(TrainStatus status);
 	void setCurrentSpeed(double speed);
 	void setPosOnSegment(double pos);

@@ -698,8 +698,13 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 		if (event->tryTrigger(_rng))
 		{
 			double delay = event->getDuration();
-			s.train->applyDelay(delay);
-			s.timeSinceDepart += delay;
+			if (isLast)
+			{
+				s.train->applyDelay(delay);
+				s.timeSinceDepart += delay;
+			}
+			else
+				holdTrain(s, delay);
 			if (!_quiet)
 				_output.printEvent(*event, *s.train);
 			_observers[trainIdx]->onTrainEvent(
@@ -733,7 +738,7 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 		   stationary during the dwell, so its speed must reflect that -
 		   otherwise it retains the previous segment's cruise speed and
 		   never registers as an obstruction for blocking/reroute checks. */
-		s.stopTimer = s.train->getStopDuration();
+		s.stopTimer += s.train->getStopDuration();
 		if (s.stopTimer > 0.0)
 			s.speed_ms = 0.0;
 
@@ -742,6 +747,16 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 	}
 }
 
+
+/* An event delay physically halts the train: the stop timer keeps it
+   stationary (and visible as an obstruction) while the clock advances. */
+void Simulation::holdTrain(TrainState &s, double delay)
+{
+	s.train->recordDelay(delay);
+	s.stopTimer += delay;
+	s.speed_ms = 0.0;
+	s.profileDirty = true;
+}
 
 /* Rail events on the segment the train is currently entering. */
 void Simulation::rollSegmentEvents(TrainState &s, size_t trainIdx)
@@ -756,8 +771,7 @@ void Simulation::rollSegmentEvents(TrainState &s, size_t trainIdx)
 		if (event->tryTrigger(_rng))
 		{
 			double delay = event->getDuration();
-			s.train->applyDelay(delay);
-			s.timeSinceDepart += delay;
+			holdTrain(s, delay);
 			if (!_quiet)
 				_output.printEvent(*event, *s.train);
 			std::string loc = event->getNodeName() + "-"
