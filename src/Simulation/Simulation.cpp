@@ -229,6 +229,7 @@ void Simulation::applyAddTrain(const AddTrainCommand &c,
 	s.stopTimer = 0.0;
 	s.departed = false;
 	s.arrived = false;
+	s.segsSinceReroute = REROUTE_COOLDOWN;
 	states.push_back(s);
 	_observers.push_back(std::move(obs));
 	_trains.push_back(std::move(train));
