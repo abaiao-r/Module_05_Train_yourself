@@ -77,12 +77,14 @@ bool SimulationWorker::isStopRequested() const
 
 bool SimulationWorker::isSimulationLive() const
 {
-	return _liveSim.load(std::memory_order_acquire) != nullptr;
+	std::lock_guard<std::mutex> lk(_liveSimMutex);
+	return _liveSim != nullptr;
 }
 
 bool SimulationWorker::enqueueAddNode(const QString &name)
 {
-	Simulation *sim = _liveSim.load(std::memory_order_acquire);
+	std::lock_guard<std::mutex> lk(_liveSimMutex);
+	Simulation *sim = _liveSim;
 	if (!sim)
 		return false;
 	sim->enqueueMutation(AddNodeCommand{name.toStdString()});
@@ -93,7 +95,8 @@ bool SimulationWorker::enqueueAddRail(const QString &from, const QString &to,
 									  double distanceKm,
 									  double speedLimitKmh)
 {
-	Simulation *sim = _liveSim.load(std::memory_order_acquire);
+	std::lock_guard<std::mutex> lk(_liveSimMutex);
+	Simulation *sim = _liveSim;
 	if (!sim)
 		return false;
 	sim->enqueueMutation(AddRailCommand{from.toStdString(),
@@ -108,7 +111,8 @@ bool SimulationWorker::enqueueAddEvent(const QString &name,
 									   const QString &node1,
 									   const QString &node2)
 {
-	Simulation *sim = _liveSim.load(std::memory_order_acquire);
+	std::lock_guard<std::mutex> lk(_liveSimMutex);
+	Simulation *sim = _liveSim;
 	if (!sim)
 		return false;
 	sim->enqueueMutation(AddEventCommand{
@@ -125,7 +129,8 @@ bool SimulationWorker::enqueueAddTrain(const QString &name,
 									   double departureTime,
 									   double stopDuration)
 {
-	Simulation *sim = _liveSim.load(std::memory_order_acquire);
+	std::lock_guard<std::mutex> lk(_liveSimMutex);
+	Simulation *sim = _liveSim;
 	if (!sim)
 		return false;
 	sim->enqueueMutation(AddTrainCommand{
@@ -173,12 +178,22 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		/* Expose this simulation to enqueueAddX() calls from the GUI
 		   thread for the duration of the run; the guard clears it on
 		   every exit path (normal, stopped, or exception). */
-		_liveSim.store(&sim, std::memory_order_release);
+		{
+			std::lock_guard<std::mutex> lk(_liveSimMutex);
+			_liveSim = &sim;
+		}
 		struct LiveSimGuard
 		{
-			std::atomic<Simulation *> &ref;
-			~LiveSimGuard() { ref.store(nullptr, std::memory_order_release); }
-		} liveSimGuard{_liveSim};
+			std::mutex &mtx;
+			Simulation *&ref;
+			/* Taking the lock waits out any in-flight enqueue, so the
+			   Simulation is never destroyed under a GUI call. */
+			~LiveSimGuard()
+			{
+				std::lock_guard<std::mutex> lk(mtx);
+				ref = nullptr;
+			}
+		} liveSimGuard{_liveSimMutex, _liveSim};
 
 		sim.setMutationCallbacks(
 			[this](const LiveMutation &mutation, const std::string &desc) {
@@ -319,8 +334,8 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 						QString::fromStdString(s.lastRerouteReason);
 					snap.weightTons = s.train->getWeight();
 					snap.frictionCoeff = s.train->getFrictionCoefficient();
-					snap.maxAccelKn = s.train->getMaxAccelForce() / 1000.0;
-					snap.maxBrakeKn = s.train->getMaxBrakeForce() / 1000.0;
+					snap.maxAccelKn = s.train->getMaxAccelForce();
+					snap.maxBrakeKn = s.train->getMaxBrakeForce();
 					snap.accelRate_ms2 = s.train->getAccelRate();
 					snap.decelRate_ms2 = s.train->getDecelRate();
 					snaps.push_back(snap);
@@ -517,8 +532,8 @@ void SimulationWorker::runMulti(const QString &networkFile,
 								QString::fromStdString(s.lastRerouteReason);
 							snap.weightTons = s.train->getWeight();
 							snap.frictionCoeff = s.train->getFrictionCoefficient();
-							snap.maxAccelKn = s.train->getMaxAccelForce() / 1000.0;
-							snap.maxBrakeKn = s.train->getMaxBrakeForce() / 1000.0;
+							snap.maxAccelKn = s.train->getMaxAccelForce();
+							snap.maxBrakeKn = s.train->getMaxBrakeForce();
 							snap.accelRate_ms2 = s.train->getAccelRate();
 							snap.decelRate_ms2 = s.train->getDecelRate();
 							snaps.push_back(snap);
@@ -540,11 +555,17 @@ void SimulationWorker::runMulti(const QString &networkFile,
 			sim.run();
 
 			/* Collect results from this run */
+			/* Same-named trains (different departures) get separate rows:
+			   results keep load order, so the Nth duplicate is stable. */
+			std::map<std::string, int> seen;
 			for (const auto &r : sim.getResults())
 			{
-				statActual[r.name].push_back(r.actualTime);
-				statDelay[r.name].push_back(r.totalDelay);
-				statEstimated[r.name] = r.estimatedTime;
+				int n = seen[r.name]++;
+				std::string key = n ? r.name + " #" + std::to_string(n + 1)
+									: r.name;
+				statActual[key].push_back(r.actualTime);
+				statDelay[key].push_back(r.totalDelay);
+				statEstimated[key] = r.estimatedTime;
 			}
 
 			++completedRuns;
