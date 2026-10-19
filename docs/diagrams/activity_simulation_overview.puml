@@ -23,17 +23,6 @@ end note
 
 :Validate via TrainFactory;
 
-if (--graph flag?) then (yes)
-  #LightYellow:GraphExporter::exportDot();
-  note right
-    **Bonus — Graph Export**
-    Output: network_graph.dot
-    Renders .png/.svg if dot installed
-    Colour-coded train paths (8 palette)
-  end note
-  stop
-endif
-
 |#LightGreen|Initialisation|
 :Compute shortest paths (Dijkstra);
 note right
@@ -127,19 +116,24 @@ repeat
   note right
     --animate: TerminalAnimDisplay::render()
     GUI: signal tick(simTime, snapshots)
-    Includes usleep(FRAME_DELAY_US)
+    Includes GUI worker throttles emission and sleeps 50 ms
   end note
 
-  #LightCyan:Check stop flag (GUI);
-  note right
-    if _stopRequested → throw
-    SimulationStopException
-  end note
 
 repeat while (any train still active?) is (yes)
 ->no;
 
 |#LightPink|Finalisation|
+if (--graph flag?) then (yes)
+  #LightYellow:GraphExporter::exportDot();  (after run)
+  note right
+    **Bonus — Graph Export**
+    Output: network_graph.dot
+    Renders .png/.svg if dot installed
+    Colour-coded train paths (8 palette)
+  end note
+endif
+
 :Close all .result files;
 note right
   Observer writes:

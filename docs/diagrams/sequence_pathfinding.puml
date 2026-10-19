@@ -45,8 +45,11 @@ loop while priority queue not empty
         loop for each edge
             Dijk -> Dijk : weight = edgeWeight(edge, mode)
             note right of Dijk
-                Distance mode: weight = edge.distance
-                Time mode:     weight = edge.distance / edge.speedLimit
+                Distance: weight = edge.distance
+                Solo:     weight = distance / speedLimit
+                Adaptive: Solo + occupancy, segment-clear
+                time and event-risk penalties (adaptive
+                overload); findConstrainedPath() for detours
             end note
             Dijk -> Dijk : newDist = dist[current] + weight
             alt newDist < dist[neighbour]

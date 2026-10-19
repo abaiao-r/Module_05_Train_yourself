@@ -15,9 +15,17 @@ note right
   accelRate, decelRate
 end note
 
+:Pick target end speed;
+note right
+  final segment: 0
+  otherwise: next segment's speed limit
+  (no needless stop at intermediate nodes)
+end note
+
 :Compute braking distance;
 note right
-  brakeDist = v² / (2 × decelRate)
+  brakeDist = (v² − targetEnd²) / (2 × decelRate)
+  plus a small tolerance
 end note
 
 :Compute distance to segment end;
@@ -29,7 +37,7 @@ if (distToEnd <= brakeDist?) then (yes — must brake)
   :Apply deceleration;
   note right
     speed -= decelRate × DT
-    if speed < 0 → speed = 0
+    floored at targetEnd
   end note
   :action = "Braking";
 elseif (speed < speedLimit?) then (yes — can accelerate)
@@ -46,7 +54,8 @@ endif
 
 :Update position;
 note right
-  posOnSegment += speed × DT
+  posOnSegment += (oldSpeed + newSpeed)/2 × DT
+  (trapezoidal)
 end note
 
 if (posOnSegment >= segmentLength?) then (yes)
@@ -76,15 +85,17 @@ note right
   _animCallback(simTime, states)
   • --animate → TerminalAnimDisplay::render()
   • GUI → signal tick(simTime, snapshots)
-  Called every FRAME_DELAY_US (50ms)
-  after all trains processed,
-  not per-train per-tick.
+  Called once per tick after all trains
+  are processed. The GUI worker emits a
+  frame every 30 sim-s / speedMultiplier
+  and sleeps 50 ms after each emitted frame.
 end note
 
-#LightCyan:Check stop flag\n(GUI only);
+#LightCyan:GUI worker callback checks stop flag;
 note right
   if _stopRequested.load()
     throw SimulationStopException
+  (owned by SimulationWorker, not Simulation)
 end note
 
 stop

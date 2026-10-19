@@ -40,21 +40,6 @@ end
 
 IH --> Main : SimulationData { network, trains, events }
 
-== 1b. Graph Export (--graph flag) ==
-alt --graph flag set
-    Main -> GE : exportDot("network_graph.dot", network, trains)
-    note right of GE #LightYellow
-        **Bonus — Graph Export**
-        Writes DOT with 8-colour
-        palette for train paths.
-        Auto-renders PNG/SVG
-        if `dot` is available.
-    end note
-    GE --> Main : files written
-    Main --> User : "Graph exported"
-    note over Main : exit (no simulation)
-end
-
 == 2. Initialisation ==
 Main -> Sim ** : Simulation(network, trains, events, DijkstraPathfinding, weightMode)
 
@@ -81,7 +66,7 @@ end
 alt CLI
     Main -> Sim : run()
 else GUI
-    Main -> SW : runSimulation(netFile, trainFile, useTimeWeight)
+    Main -> SW : runSimulation(netFile, trainFile, weightMode)
     SW -> Sim : run()
 end
 
@@ -202,6 +187,19 @@ group Finalize
     end
     Sim -> OM : printResult(trains)
     OM --> User : Console summary (status, arrival time, delays)
+end
+
+== 4. Graph Export (--graph flag, after run) ==
+alt --graph flag set
+    Main -> GE : exportDot("network_graph.dot", network, trains)
+    note right of GE #LightYellow
+        **Bonus — Graph Export**
+        Needs computed train paths,
+        so it runs after Simulation::run().
+        8-colour palette; renders PNG/SVG
+        if `dot` is available.
+    end note
+    GE --> Main : files written
 end
 
 alt --animate flag

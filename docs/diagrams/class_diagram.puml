@@ -218,6 +218,22 @@ package "Orchestration" {
         + blockedByTrain : Train*
         + rerouteCount : int
         + segsSinceReroute : int
+        + segmentEntryTime : double
+        + lastRerouteReason : string
+        + etaProfile : vector<double>
+    }
+
+    struct TrainResult <<struct>> {
+        + name : string
+        + id : int
+        + estimatedTime, actualTime, totalDelay : double
+    }
+
+    class LiveMutation <<variant>> {
+        AddNodeCommand
+        AddRailCommand
+        AddEventCommand
+        AddTrainCommand
     }
 
     class Simulation {
@@ -240,7 +256,9 @@ package "Orchestration" {
         + setQuiet(q : bool) : void
         + enqueueMutation(m : LiveMutation) : void  «thread-safe»
         + setMutationCallbacks(onApplied, onRejected) : void
-        + getResults() : map<string, pair<double, double>>
+        + setEventTriggerCallback(cb) : void
+        + setRerouteCallback(cb) : void
+        + getResults() : const vector<TrainResult>&
         - computePaths() : void
         - estimateTravelTime(train) : double
         - updatePhysics(s : TrainState&) : void
@@ -256,6 +274,8 @@ package "Orchestration" {
     Simulation *-- Event : owns
     Simulation *-- OutputManager : owns
     Simulation *-- TrainState : runtime state
+    Simulation ..> TrainResult : produces
+    Simulation ..> LiveMutation : drains
     Simulation --> IPathfinding : uses (injected)
     Simulation *-- ISimulationObserver : notifies
 }
