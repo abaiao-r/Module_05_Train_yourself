@@ -231,6 +231,7 @@ void Simulation::run()
 		s.speed_ms = 0.0;
 		s.timeSinceDepart = 0.0;
 		s.stopTimer = 0.0;
+		s.heldBySegmentEvent = false;
 		s.departed = false;
 		s.arrived = false;
 		s.segsSinceReroute = REROUTE_COOLDOWN; // allow immediate first reroute
@@ -310,8 +311,11 @@ void Simulation::run()
 					s.stopTimer = 0.0;
 					s.profileDirty = true;
 					/* Back in the queue: a train that overtook during
-					   the dwell is now ahead, not behind. */
-					s.segmentEntryTime = simTime;
+					   the dwell is now ahead, not behind. A train held
+					   on the rail keeps its place in line. */
+					if (!s.heldBySegmentEvent)
+						s.segmentEntryTime = simTime;
+					s.heldBySegmentEvent = false;
 					s.evalEntryDone = s.evalEventDone
 						= s.evalPrePivotDone = false;
 				}
@@ -750,8 +754,10 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 
 /* An event delay physically halts the train: the stop timer keeps it
    stationary (and visible as an obstruction) while the clock advances. */
-void Simulation::holdTrain(TrainState &s, double delay)
+void Simulation::holdTrain(TrainState &s, double delay, bool onSegment)
 {
+	if (onSegment)
+		s.heldBySegmentEvent = true;
 	s.train->recordDelay(delay);
 	s.stopTimer += delay;
 	s.speed_ms = 0.0;
@@ -771,7 +777,7 @@ void Simulation::rollSegmentEvents(TrainState &s, size_t trainIdx)
 		if (event->tryTrigger(_rng))
 		{
 			double delay = event->getDuration();
-			holdTrain(s, delay);
+			holdTrain(s, delay, true);
 			if (!_quiet)
 				_output.printEvent(*event, *s.train);
 			std::string loc = event->getNodeName() + "-"
@@ -955,8 +961,10 @@ Simulation::SegmentState Simulation::buildSegmentState(
 	for (size_t i = 0; i < states.size(); i++)
 	{
 		const auto &ts = states[i];
-		/* A train stopped at a node is not a blocker. */
-		if (ts.arrived || !ts.departed || ts.stopTimer > 0.0)
+		/* A train dwelling at a station is not a blocker, but one held
+		   on the rail by a segment event is. */
+		if (ts.arrived || !ts.departed
+			|| (ts.stopTimer > 0.0 && !ts.heldBySegmentEvent))
 			continue;
 		const auto &p = ts.train->getPath();
 		if (p.size() < 2 || ts.segmentIndex + 1 >= p.size())

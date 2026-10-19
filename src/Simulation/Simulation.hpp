@@ -83,6 +83,7 @@ struct TrainState
 	double speed_ms;         // current speed in m/s
 	double timeSinceDepart;  // seconds since this train departed
 	double stopTimer;        // seconds remaining at a station stop
+	bool heldBySegmentEvent; // halted by a rail event: still an obstruction
 	bool departed;
 	bool arrived;
 	size_t segsSinceReroute; // segments elapsed since last congestion reroute
@@ -322,7 +323,7 @@ class Simulation
 	void rebuildProfile(TrainState &s, double simTime);
 
 	void rollSegmentEvents(TrainState &s, size_t trainIdx);
-	void holdTrain(TrainState &s, double delay);
+	void holdTrain(TrainState &s, double delay, bool onSegment = false);
 	void handleSegmentTransition(TrainState &s, size_t trainIdx,
 								 double simTime);
 	void applyBlocking(std::vector<TrainState> &states,

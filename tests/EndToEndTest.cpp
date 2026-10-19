@@ -100,6 +100,30 @@ int main()
 				  return true;
 			  });
 
+	suite.run("train held by a rail event is not overtaken by its follower",
+			  [](std::string &msg) {
+				  std::ofstream("/tmp/e2e_pass_net.txt")
+					  << "Node A\nNode B\nNode C\nRail A B 10 100\n"
+						 "Rail B C 10 100\nEvent Jam 0.5 1h B C\n";
+				  std::ofstream("/tmp/e2e_pass_trn.txt")
+					  << "L 80 0.05 356 30 A C 14h10 00h00\n"
+						 "F 80 0.05 356 30 A C 14h12 00h00\n";
+				  for (int run = 0; run < 8; run++)
+				  {
+					  auto r = runCmd(BIN + " /tmp/e2e_pass_net.txt "
+											"/tmp/e2e_pass_trn.txt");
+					  ASSERT_EQ(0, r.exitCode, msg);
+					  size_t l = r.output.find("L: Arrived | Arrival: ");
+					  size_t f = r.output.find("F: Arrived | Arrival: ");
+					  ASSERT_TRUE(l != std::string::npos
+								  && f != std::string::npos, msg);
+					  std::string lt = r.output.substr(l + 22, 8);
+					  std::string ft = r.output.substr(f + 22, 8);
+					  ASSERT_TRUE(lt <= ft, msg);
+				  }
+				  return true;
+			  });
+
 	suite.run("no arguments -> exit 1 + usage message",
 			  [](std::string &msg) {
 				  auto r = runCmd(BIN);
