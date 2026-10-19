@@ -34,6 +34,26 @@ int main()
 		return true;
 	});
 
+	suite.run("rejects path traversal in name", [](std::string &msg) {
+		ASSERT_THROWS(
+			TrainFactory::createTrain("../evil", 80.0, 0.05, 356.0, 30.0,
+									  "A", "B", 0.0, 0.0),
+			std::invalid_argument, msg);
+		ASSERT_THROWS(
+			TrainFactory::createTrain("a/b", 80.0, 0.05, 356.0, 30.0,
+									  "A", "B", 0.0, 0.0),
+			std::invalid_argument, msg);
+		return true;
+	});
+
+	suite.run("rejects train that can never move", [](std::string &msg) {
+		ASSERT_THROWS(
+			TrainFactory::createTrain("Stuck", 80.0, 5.0, 100.0, 30.0,
+									  "A", "B", 0.0, 0.0),
+			std::invalid_argument, msg);
+		return true;
+	});
+
 	suite.run("throws on empty name", [](std::string &msg) {
 		ASSERT_THROWS(
 			TrainFactory::createTrain("", 80.0, 0.05, 356.0, 30.0,

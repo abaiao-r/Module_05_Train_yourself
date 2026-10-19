@@ -10,6 +10,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
+#include <set>
+#include <utility>
 #include "InputHandler.hpp"
 
 #include <cctype>
@@ -181,6 +183,7 @@ std::vector<std::unique_ptr<Train>> InputHandler::parseTrainFile(
 		throw ParseException("Cannot open file: " + filepath);
 
 	std::vector<std::unique_ptr<Train>> trains;
+	std::set<std::pair<std::string, std::string>> seen;
 	std::string line;
 	int lineNum = 0;
 	while (std::getline(file, line))
@@ -204,6 +207,9 @@ std::vector<std::unique_ptr<Train>> InputHandler::parseTrainFile(
 			trains.push_back(TrainFactory::createTrain(
 				name, weight, friction, accel, brake, departure,
 				arrival, parseTime(timeStr), parseTime(stopStr)));
+			if (!seen.insert({name, timeStr}).second)
+				throw ParseException("Duplicate train '" + name
+					+ "' with departure time " + timeStr);
 		}
 		catch (const std::exception &e)
 		{
