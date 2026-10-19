@@ -13,6 +13,8 @@
 #include "RailNetwork.hpp"
 #include "TestFramework.hpp"
 
+#include <limits>
+
 int main()
 {
 	Test::TestSuite suite("RailNetwork");
@@ -30,6 +32,19 @@ int main()
 		net.addNode("A");
 		ASSERT_THROWS(net.addNode("A"),
 					  RailNetwork::DuplicateNodeException, msg);
+		return true;
+	});
+
+	suite.run("addConnection rejects nan/inf", [](std::string &msg) {
+		RailNetwork net;
+		net.addNode("A");
+		net.addNode("B");
+		const double nan = std::numeric_limits<double>::quiet_NaN();
+		const double inf = std::numeric_limits<double>::infinity();
+		ASSERT_THROWS(net.addConnection("A", "B", nan, 100.0),
+					  std::invalid_argument, msg);
+		ASSERT_THROWS(net.addConnection("A", "B", 10.0, inf),
+					  std::invalid_argument, msg);
 		return true;
 	});
 
