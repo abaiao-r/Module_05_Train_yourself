@@ -61,6 +61,18 @@ int main()
 		return true;
 	});
 
+	suite.run("duplicate train detected across time spellings",
+			  [&](std::string &msg) {
+		writeFile("/tmp/strict_dn.txt", baseNet);
+		writeFile("/tmp/strict_dt.txt",
+				  "T 80 0.05 356 30 A B 8h00 00h10\n"
+				  "T 80 0.05 356 30 A B 08h00 00h10\n");
+		ASSERT_THROWS(InputHandler::loadData("/tmp/strict_dn.txt",
+											 "/tmp/strict_dt.txt"),
+					  std::exception, msg);
+		return true;
+	});
+
 	/* ── Valid input tests ── */
 
 	suite.run("loads rail network file", [](std::string &msg) {
