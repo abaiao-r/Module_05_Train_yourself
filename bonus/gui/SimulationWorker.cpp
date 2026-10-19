@@ -75,6 +75,20 @@ bool SimulationWorker::isStopRequested() const
 	return _stopRequested.load(std::memory_order_relaxed);
 }
 
+namespace
+{
+/* macOS: bin/TrainGUI.app/Contents/MacOS -> four levels up; other
+   platforms run bin/TrainGUI directly -> one level up. */
+QDir projectRootDir()
+{
+	QDir dir(QCoreApplication::applicationDirPath());
+	int ups = dir.absolutePath().endsWith("/Contents/MacOS") ? 4 : 1;
+	while (ups-- > 0)
+		dir.cdUp();
+	return dir;
+}
+} // namespace
+
 bool SimulationWorker::isSimulationLive() const
 {
 	std::lock_guard<std::mutex> lk(_liveSimMutex);
@@ -157,11 +171,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		/* Ensure CWD is the project root so FileOutputObserver can
 		   write to the relative "output/results/" directory.
 		   QFileDialog may have changed the CWD in the main thread. */
-		QDir projectRoot(QCoreApplication::applicationDirPath());
-		projectRoot.cdUp(); // MacOS -> Contents
-		projectRoot.cdUp(); // Contents -> TrainGUI.app
-		projectRoot.cdUp(); // TrainGUI.app -> bin
-		projectRoot.cdUp(); // bin -> project root
+		QDir projectRoot = projectRootDir();
 		QDir::setCurrent(projectRoot.absolutePath());
 		QDir().mkpath("output/results");
 
@@ -388,11 +398,7 @@ void SimulationWorker::runMulti(const QString &networkFile,
 	try
 	{
 		/* Ensure CWD is the project root */
-		QDir projectRoot(QCoreApplication::applicationDirPath());
-		projectRoot.cdUp();
-		projectRoot.cdUp();
-		projectRoot.cdUp();
-		projectRoot.cdUp();
+		QDir projectRoot = projectRootDir();
 		QDir::setCurrent(projectRoot.absolutePath());
 		QDir().mkpath("output/results");
 
