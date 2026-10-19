@@ -1,0 +1,8 @@
+Node Westville
+Node Oldbridge
+Node Rapidway
+Node Eastport
+Rail Westville Oldbridge 80.0 60.0
+Rail Oldbridge Eastport 80.0 60.0
+Rail Westville Rapidway 250.0 300.0
+Rail Rapidway Eastport 250.0 300.0

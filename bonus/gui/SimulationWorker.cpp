@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   SimulationWorker.cpp                               :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 14:43:40 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/06 17:58:05 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,30 @@
 
 #include <map>
 #include <type_traits>
+
+static PathWeightMode intToWeightMode(int idx)
+{
+	switch (idx)
+	{
+	case 1:  return PathWeightMode::Solo;
+	case 2:  return PathWeightMode::Adaptive;
+	default: return PathWeightMode::Distance;
+	}
+}
+
+static QString fmtHms(double seconds)
+{
+	int total = static_cast<int>(seconds);
+	if (total < 0)
+		total = 0;
+	int h = total / 3600;
+	int m = (total % 3600) / 60;
+	int s = total % 60;
+	return QString("%1:%2:%3")
+		.arg(h, 2, 10, QChar('0'))
+		.arg(m, 2, 10, QChar('0'))
+		.arg(s, 2, 10, QChar('0'));
+}
 
 SimulationWorker::SimulationWorker(QObject *parent)
 	: QObject(parent) {}
@@ -119,7 +143,7 @@ struct SimulationStopException : std::exception
 
 void SimulationWorker::runSimulation(const QString &networkFile,
 									 const QString &trainFile,
-									 bool useTimeWeight)
+									 int weightMode)
 {
 	_stopRequested.store(false, std::memory_order_relaxed);
 
@@ -139,8 +163,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		auto data = InputHandler::loadData(networkFile.toStdString(),
 										   trainFile.toStdString());
 		auto pathfinder = std::make_unique<DijkstraPathfinding>();
-		PathWeightMode mode = useTimeWeight ? PathWeightMode::Time
-											: PathWeightMode::Distance;
+		PathWeightMode mode = intToWeightMode(weightMode);
 
 		Simulation sim(std::move(data.network), std::move(data.trains),
 					   std::move(data.events), std::move(pathfinder),
@@ -176,6 +199,43 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 			},
 			[this](const std::string &reason) {
 				emit mutationRejected(QString::fromStdString(reason));
+			});
+
+		/* Static event risk, so the GUI can draw markers before
+		   anything actually triggers. */
+		{
+			QVector<EventInfo> evInfos;
+			for (const auto &ev : sim.getEvents())
+			{
+				EventInfo info;
+				info.name = QString::fromStdString(ev.getName());
+				info.probability = ev.getProbability();
+				info.durationSec = ev.getDuration();
+				info.node1 = QString::fromStdString(ev.getNodeName());
+				info.node2 = QString::fromStdString(ev.getNodeName2());
+				evInfos.push_back(info);
+			}
+			emit eventsAvailable(evInfos);
+		}
+		QMap<QString, QStringList> triggeredEvents;
+		sim.setEventTriggerCallback(
+			[this, &triggeredEvents](const std::string &trainName,
+				  const std::string &eventName, const std::string &loc,
+				  double delaySec) {
+				QString tName = QString::fromStdString(trainName);
+				triggeredEvents[tName] << QString("%1 (%2)")
+					.arg(QString::fromStdString(eventName),
+						 fmtHms(delaySec));
+				emit eventTriggered(tName,
+								   QString::fromStdString(eventName),
+								   QString::fromStdString(loc), delaySec);
+			});
+		sim.setRerouteCallback(
+			[this](const std::string &trainName,
+				  const std::string &fromNode, const std::string &route) {
+				emit rerouteOccurred(QString::fromStdString(trainName),
+									QString::fromStdString(fromNode),
+									QString::fromStdString(route));
 			});
 
 		/* Install a per-tick callback that emits snapshots.
@@ -228,6 +288,9 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 					snap.arrived = s.arrived;
 					snap.segmentIndex = s.segmentIndex;
 					snap.pathSize = path.size();
+					snap.path.clear();
+					for (const auto &node : path)
+						snap.path << QString::fromStdString(node->getName());
 					snap.segmentLength_m = 0.0;
 					if (path.size() >= 2
 						&& s.segmentIndex + 1 < path.size())
@@ -246,6 +309,20 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 							}
 						} catch (...) {}
 					}
+					snap.status = QString::fromStdString(
+						Train::statusToString(s.train->getStatus()));
+					snap.blockedByName = s.blockedByTrain
+						? QString::fromStdString(s.blockedByTrain->getName())
+						: QString();
+					snap.rerouteCount = s.rerouteCount;
+					snap.lastRerouteReason =
+						QString::fromStdString(s.lastRerouteReason);
+					snap.weightTons = s.train->getWeight();
+					snap.frictionCoeff = s.train->getFrictionCoefficient();
+					snap.maxAccelKn = s.train->getMaxAccelForce() / 1000.0;
+					snap.maxBrakeKn = s.train->getMaxBrakeForce() / 1000.0;
+					snap.accelRate_ms2 = s.train->getAccelRate();
+					snap.decelRate_ms2 = s.train->getDecelRate();
 					snaps.push_back(snap);
 				}
 				emit tick(simTime, snaps);
@@ -258,14 +335,16 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		QStringList results;
 		for (const auto &r : sim.getResults())
 		{
-			int h = static_cast<int>(r.actualTime) / 3600;
-			int m = (static_cast<int>(r.actualTime) % 3600) / 60;
-			results << QString("%1%2 : %3h%4m (delay: %5s)")
-						   .arg(QString::fromStdString(r.name))
-						   .arg(r.id)
-						   .arg(h, 2, 10, QChar('0'))
-						   .arg(m, 2, 10, QChar('0'))
-						   .arg(static_cast<int>(r.totalDelay));
+			QString name = QString::fromStdString(r.name);
+			QString cause = triggeredEvents.value(name).join(", ");
+			QString line = QString("%1%2 : %3 (delay: %4)")
+							   .arg(name)
+							   .arg(r.id)
+							   .arg(fmtHms(r.actualTime),
+									fmtHms(r.totalDelay));
+			if (!cause.isEmpty())
+				line += QString(" \xe2\x80\x94 %1").arg(cause);
+			results << line;
 		}
 		emit finished(results);
 	}
@@ -285,7 +364,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 
 void SimulationWorker::runMulti(const QString &networkFile,
 								const QString &trainFile,
-								bool useTimeWeight,
+								int weightMode,
 								int numRuns,
 								bool animateFirst)
 {
@@ -302,8 +381,7 @@ void SimulationWorker::runMulti(const QString &networkFile,
 		QDir::setCurrent(projectRoot.absolutePath());
 		QDir().mkpath("output/results");
 
-		PathWeightMode mode = useTimeWeight ? PathWeightMode::Time
-											: PathWeightMode::Distance;
+		PathWeightMode mode = intToWeightMode(weightMode);
 
 		/* Stats accumulators: key = trainName */
 		std::map<std::string, std::vector<double>> statActual;
@@ -330,6 +408,39 @@ void SimulationWorker::runMulti(const QString &networkFile,
 			/* Animate only the first run if requested */
 			if (animateFirst && run == 0)
 			{
+				{
+					QVector<EventInfo> evInfos;
+					for (const auto &ev : sim.getEvents())
+					{
+						EventInfo info;
+						info.name = QString::fromStdString(ev.getName());
+						info.probability = ev.getProbability();
+						info.durationSec = ev.getDuration();
+						info.node1 = QString::fromStdString(ev.getNodeName());
+						info.node2 = QString::fromStdString(ev.getNodeName2());
+						evInfos.push_back(info);
+					}
+					emit eventsAvailable(evInfos);
+				}
+				sim.setEventTriggerCallback(
+					[this](const std::string &trainName,
+						  const std::string &eventName,
+						  const std::string &loc, double delaySec) {
+						emit eventTriggered(
+							QString::fromStdString(trainName),
+							QString::fromStdString(eventName),
+							QString::fromStdString(loc), delaySec);
+					});
+				sim.setRerouteCallback(
+					[this](const std::string &trainName,
+						  const std::string &fromNode,
+						  const std::string &route) {
+						emit rerouteOccurred(
+							QString::fromStdString(trainName),
+							QString::fromStdString(fromNode),
+							QString::fromStdString(route));
+					});
+
 				static constexpr double BASE_INTERVAL = 30.0;
 				static constexpr unsigned FRAME_DELAY_US = 50000;
 				double lastEmit = -BASE_INTERVAL;
@@ -375,6 +486,9 @@ void SimulationWorker::runMulti(const QString &networkFile,
 							snap.arrived = s.arrived;
 							snap.segmentIndex = s.segmentIndex;
 							snap.pathSize = path.size();
+							snap.path.clear();
+							for (const auto &node : path)
+								snap.path << QString::fromStdString(node->getName());
 							snap.segmentLength_m = 0.0;
 							if (path.size() >= 2
 								&& s.segmentIndex + 1 < path.size())
@@ -393,6 +507,20 @@ void SimulationWorker::runMulti(const QString &networkFile,
 									}
 								} catch (...) {}
 							}
+							snap.status = QString::fromStdString(
+								Train::statusToString(s.train->getStatus()));
+							snap.blockedByName = s.blockedByTrain
+								? QString::fromStdString(s.blockedByTrain->getName())
+								: QString();
+							snap.rerouteCount = s.rerouteCount;
+							snap.lastRerouteReason =
+								QString::fromStdString(s.lastRerouteReason);
+							snap.weightTons = s.train->getWeight();
+							snap.frictionCoeff = s.train->getFrictionCoefficient();
+							snap.maxAccelKn = s.train->getMaxAccelForce() / 1000.0;
+							snap.maxBrakeKn = s.train->getMaxBrakeForce() / 1000.0;
+							snap.accelRate_ms2 = s.train->getAccelRate();
+							snap.decelRate_ms2 = s.train->getDecelRate();
 							snaps.push_back(snap);
 						}
 						emit tick(simTime, snaps);

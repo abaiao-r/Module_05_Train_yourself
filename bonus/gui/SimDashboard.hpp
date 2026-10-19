@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   SimDashboard.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/23 01:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 15:06:28 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/06 12:55:36 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,6 +35,9 @@ class SimDashboard : public QTextEdit
 	/** Render one frame of the dashboard from a tick snapshot. */
 	void update(double simTime, const QVector<TrainSnapshot> &snapshots);
 
+	/** Store the static event list, for per-segment risk lookups. */
+	void setEventInfo(const QVector<EventInfo> &events);
+
 	/** Show final results after the simulation completes. */
 	void showResults(const QStringList &results);
 
@@ -53,6 +56,17 @@ class SimDashboard : public QTextEdit
 	/** Build an HTML table row with the box-drawing left/right borders. */
 	static QString boxRow(const QString &html);
 	static QString hRule(const QString &left, const QString &right, int n);
+	/** Names of events bound to a from→to segment or its destination
+		node - named explicitly rather than a bare number, since a
+		vague risk figure with no context isn't actually transparent. */
+	QStringList segmentEventNames(const QString &from,
+								  const QString &to) const;
+	/** Names of events bound to any remaining segment of path,
+		starting at fromIndex. */
+	QStringList remainingPathEventNames(const QStringList &path,
+										size_t fromIndex) const;
+
+	QVector<EventInfo> _events;
 };
 
 #endif

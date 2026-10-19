@@ -1,0 +1,11 @@
+Node Origin
+Node Fork
+Node MainA
+Node AltA
+Node Dest
+Event SignalFailure 0.9 20m Fork MainA
+Rail Origin Fork 20.0 200.0
+Rail Fork MainA 10.0 200.0
+Rail MainA Dest 10.0 200.0
+Rail Fork AltA 15.0 200.0
+Rail AltA Dest 15.0 200.0

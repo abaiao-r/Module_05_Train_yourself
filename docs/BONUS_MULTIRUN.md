@@ -13,7 +13,7 @@ Run the simulation N times with different random seeds and aggregate travel-time
 ./bin/train_yourself network.txt trains.txt --runs 1000
 
 # Combine with time-based routing
-./bin/train_yourself network.txt trains.txt --time --runs 500
+./bin/train_yourself network.txt trains.txt --solo --runs 500
 
 # Combine with animation (animation plays run 0 only)
 ./bin/train_yourself network.txt trains.txt --animate --runs 100

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   NetworkScene.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 14:43:40 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/06 18:06:54 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,7 @@
 #include <QFont>
 #include <QGraphicsSceneHoverEvent>
 #include <QPen>
+#include <QTimer>
 #include <QtMath>
 #include <cmath>
 #include <cstdlib>
@@ -90,6 +91,16 @@ NetworkScene::~NetworkScene() {}
 /*  addNode                                                           */
 /* ================================================================== */
 
+/* Node label text, with any risky event names appended directly (not
+   just an icon) so it's readable at a glance, without needing to
+   hover. */
+static QString nodeLabelText(const QString &name, const QString &riskNames)
+{
+	return riskNames.isEmpty()
+		? name
+		: name + QString::fromUtf8(" \xE2\x9A\xA0 ") + riskNames;
+}
+
 void NetworkScene::addNode(const QString &name, const QPointF &pos)
 {
 	if (_nodes.contains(name))
@@ -103,17 +114,32 @@ void NetworkScene::addNode(const QString &name, const QPointF &pos)
 	dot->setZValue(10);
 	addItem(dot);
 
-	auto *label = addText(name, QFont("Segoe UI", 10, QFont::Bold));
+	auto *label = addText(nodeLabelText(name, QString()),
+						  QFont("Segoe UI", 10, QFont::Bold));
 	label->setDefaultTextColor(Qt::white);
 	label->setPos(pos.x() + R + 4, pos.y() - 10);
 	label->setZValue(11);
 
-	_nodes[name] = {dot, label, pos};
+	_nodes[name] = {dot, label, pos, QString()};
 }
 
 /* ================================================================== */
 /*  addEdge                                                           */
 /* ================================================================== */
+
+/* Edge label text, with any risky event names appended directly (see
+   nodeLabelText) so it stays correctly positioned (part of the same
+   tracked label item) instead of a separate floating marker. */
+static QString edgeLabelText(double distKm, double speedKmh,
+							 const QString &riskNames)
+{
+	QString txt = QString("%1 km | %2 km/h")
+					  .arg(distKm, 0, 'f', 1)
+					  .arg(speedKmh, 0, 'f', 0);
+	if (!riskNames.isEmpty())
+		txt += QString::fromUtf8(" \xE2\x9A\xA0 ") + riskNames;
+	return txt;
+}
 
 void NetworkScene::addEdge(const QString &from, const QString &to,
 						   double distKm, double speedKmh)
@@ -134,15 +160,13 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 	line->setZValue(1);
 
 	QPointF mid = (p1 + p2) / 2.0;
-	QString txt = QString("%1 km | %2 km/h")
-					  .arg(distKm, 0, 'f', 1)
-					  .arg(speedKmh, 0, 'f', 0);
-	auto *label = addText(txt, QFont("Segoe UI", 7));
+	auto *label = addText(edgeLabelText(distKm, speedKmh, QString()),
+						  QFont("Segoe UI", 7));
 	label->setDefaultTextColor(QColor(189, 195, 199));
-	label->setPos(mid.x() + 4, mid.y() - 6);
+	label->setPos(mid.x() + 4, mid.y() - label->boundingRect().height());
 	label->setZValue(2);
 
-	_edges.push_back({line, label, from, to, distKm, speedKmh});
+	_edges.push_back({line, label, from, to, distKm, speedKmh, QString()});
 }
 
 /* ================================================================== */
@@ -207,7 +231,7 @@ void NetworkScene::renameNode(const QString &oldName, const QString &newName)
 
 	NodeVis nv = _nodes.take(oldName);
 	nv.dot->setName(newName);
-	nv.label->setPlainText(newName);
+	nv.label->setPlainText(nodeLabelText(newName, nv.riskNames));
 	_nodes[newName] = nv;
 
 	/* Update every edge referencing the old name */
@@ -235,9 +259,7 @@ void NetworkScene::updateEdge(const QString &from, const QString &to,
 			e.distKm = newDist;
 			e.speedKmh = newSpeed;
 			e.label->setPlainText(
-				QString("%1 km | %2 km/h")
-					.arg(newDist, 0, 'f', 1)
-					.arg(newSpeed, 0, 'f', 0));
+				edgeLabelText(newDist, newSpeed, e.riskNames));
 			return;
 		}
 	}
@@ -254,6 +276,7 @@ void NetworkScene::clear()
 	_edges.clear();
 	_trains.clear();
 	_trailLines.clear();
+	_events.clear();
 }
 
 /* ================================================================== */
@@ -294,7 +317,7 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 	QPointF p2 = _nodes[e.to].pos;
 	e.line->setLine(p1.x(), p1.y(), p2.x(), p2.y());
 	QPointF mid = (p1 + p2) / 2.0;
-	e.label->setPos(mid.x() + 4, mid.y() - 6);
+	e.label->setPos(mid.x() + 4, mid.y() - e.label->boundingRect().height());
 }
 
 /* ================================================================== */
@@ -505,8 +528,39 @@ void NetworkScene::updateTrains(double /*simTime*/,
 		vis.prevFrac = curFrac;
 
 		vis.dot->setPos(pos);
-		vis.label->setPos(pos.x() + 12, pos.y() - 16);
+		/* Arrived trains sit on top of the node, so drop the label below
+		   it (instead of the usual upper-right slot) to avoid colliding
+		   with the node's own name label, and fade it like the dot. */
+		vis.label->setPos(pos.x() + 12,
+						   s.arrived ? pos.y() + 14 : pos.y() - 16);
 		vis.dot->setOpacity(s.arrived ? 0.35 : 1.0);
+		vis.label->setOpacity(s.arrived ? 0.35 : 1.0);
+
+		/* Blocked/Delayed trains get a red ring so the state is visible
+		   at a glance, not just in the dashboard text. */
+		bool isDelayed = (s.status == QLatin1String("Delayed"));
+		vis.dot->setPen(QPen(isDelayed ? QColor(231, 76, 60) : Qt::white,
+							 isDelayed ? 2.5 : 1.5));
+
+		QString tip = s.name;
+		tip += QString("\nStatus: %1").arg(s.status);
+		if (!s.blockedByName.isEmpty())
+			tip += QString("\nBlocked by: %1").arg(s.blockedByName);
+		if (s.rerouteCount > 0)
+		{
+			tip += QString("\nRerouted %1x").arg(s.rerouteCount);
+			if (!s.lastRerouteReason.isEmpty())
+				tip += QString(" (%1)").arg(s.lastRerouteReason);
+		}
+		tip += QString("\nWeight: %1 t | Friction: %2")
+				   .arg(s.weightTons, 0, 'f', 0)
+				   .arg(s.frictionCoeff, 0, 'f', 2);
+		tip += QString("\nAccel: %1 kN (%2 m/s\xC2\xB2) | Brake: %3 kN (%4 m/s\xC2\xB2)")
+				   .arg(s.maxAccelKn, 0, 'f', 0)
+				   .arg(s.accelRate_ms2, 0, 'f', 2)
+				   .arg(s.maxBrakeKn, 0, 'f', 0)
+				   .arg(s.decelRate_ms2, 0, 'f', 2);
+		vis.dot->setToolTip(tip);
 	}
 }
 
@@ -531,6 +585,138 @@ void NetworkScene::clearTrains()
 	}
 	_trains.clear();
 }
+
+/* ================================================================== */
+/*  Event risk markers / live flash / reroute markers                 */
+/* ================================================================== */
+
+void NetworkScene::setEventInfo(const QVector<EventInfo> &events)
+{
+	_events = events;
+	drawEventMarkers();
+}
+
+void NetworkScene::drawEventMarkers()
+{
+	/* Reset any previous risk marking before reapplying, in case this
+	   is called again with a different event list. */
+	for (auto &n : _nodes)
+	{
+		if (!n.riskNames.isEmpty())
+		{
+			n.riskNames.clear();
+			n.label->setPlainText(nodeLabelText(n.dot->name(), QString()));
+		}
+	}
+	for (auto &e : _edges)
+	{
+		if (!e.riskNames.isEmpty())
+		{
+			e.riskNames.clear();
+			e.label->setPlainText(
+				edgeLabelText(e.distKm, e.speedKmh, QString()));
+		}
+	}
+
+	/* Multiple events can share one location - accumulate names for
+	   all of them before touching the label, so nothing gets silently
+	   overwritten by a later event at the same spot. */
+	QMap<QString, QStringList> nodeNames;
+	QMap<QString, QStringList> edgeNames;
+
+	for (const auto &ev : _events)
+	{
+		if (!ev.node2.isEmpty())
+		{
+			for (auto &e : _edges)
+			{
+				if ((e.from == ev.node1 && e.to == ev.node2)
+					|| (e.from == ev.node2 && e.to == ev.node1))
+					edgeNames[e.from + "->" + e.to] << ev.name;
+			}
+		}
+		else if (_nodes.contains(ev.node1))
+		{
+			nodeNames[ev.node1] << ev.name;
+		}
+	}
+
+	for (auto &e : _edges)
+	{
+		QString key = e.from + "->" + e.to;
+		if (!edgeNames.contains(key))
+			continue;
+		e.riskNames = edgeNames[key].join(", ");
+		e.label->setPlainText(
+			edgeLabelText(e.distKm, e.speedKmh, e.riskNames));
+	}
+	for (auto it = nodeNames.begin(); it != nodeNames.end(); ++it)
+	{
+		if (!_nodes.contains(it.key()))
+			continue;
+		auto &n = _nodes[it.key()];
+		n.riskNames = it.value().join(", ");
+		n.label->setPlainText(nodeLabelText(n.dot->name(), n.riskNames));
+	}
+}
+
+void NetworkScene::flashEvent(const QString &eventName,
+							  const QString &trainName)
+{
+	Q_UNUSED(trainName);
+	const EventInfo *found = nullptr;
+	for (const auto &ev : _events)
+		if (ev.name == eventName) { found = &ev; break; }
+	if (!found)
+		return;
+
+	if (!found->node2.isEmpty())
+	{
+		/* Rail event - flash the segment line(s) between the two nodes. */
+		for (auto &e : _edges)
+		{
+			if ((e.from == found->node1 && e.to == found->node2)
+				|| (e.from == found->node2 && e.to == found->node1))
+			{
+				QPen original = e.line->pen();
+				e.line->setPen(QPen(QColor(231, 76, 60), 4.5,
+									Qt::SolidLine, Qt::RoundCap));
+				QGraphicsLineItem *line = e.line;
+				QTimer::singleShot(900, this, [this, line, original]() {
+					if (line->scene() == this)
+						line->setPen(original);
+				});
+			}
+		}
+	}
+	else if (_nodes.contains(found->node1))
+	{
+		/* Station event - flash the node dot. */
+		auto *dot = _nodes[found->node1].dot;
+		QBrush original = dot->brush();
+		dot->setBrush(QBrush(QColor(231, 76, 60)));
+		QTimer::singleShot(900, this, [this, dot, original]() {
+			if (dot->scene() == this)
+				dot->setBrush(original);
+		});
+	}
+}
+
+void NetworkScene::markReroute(const QString &nodeName,
+							   const QString &trainName)
+{
+	Q_UNUSED(trainName);
+	if (!_nodes.contains(nodeName))
+		return;
+	auto *dot = _nodes[nodeName].dot;
+	QPen original = dot->pen();
+	dot->setPen(QPen(QColor(52, 152, 219), 4));
+	QTimer::singleShot(900, this, [this, dot, original]() {
+		if (dot->scene() == this)
+			dot->setPen(original);
+	});
+}
+
 
 /* ================================================================== */
 /*  Accessors                                                         */

@@ -22,11 +22,12 @@ Plain `Makefile` with:
 | `make` | Build the CLI simulator |
 | `make test` | Run all 498 tests |
 | `make run` | Run with sample data |
-| `make run-time` | Run with time-based routing |
+| `make run-solo` | Run with solo (fastest-alone) routing |
 | `make run-animate` | Run with terminal animation |
 | `make run-multi` | Run 1000 simulations with statistics |
 | `make run-graph` | Export Graphviz DOT + render |
-| `make run-graph-time` | Export graph with time-based routing |
+| `make run-graph-solo` | Export graph with solo routing |
+| `make run-adaptive` | Run with adaptive (traffic + event aware) routing |
 | `make bonus` | Build the Qt GUI (checks Qt 6 first) |
 | `make run-gui` | Build & launch the GUI |
 | `make setup` | Check & install all dependencies (compiler + Qt) |

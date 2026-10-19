@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   MainWindow.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 14:43:40 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/06 12:55:36 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <cmath>
+#include <climits>
 #include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
@@ -77,6 +78,29 @@ public:
 		setResizeAnchor(QGraphicsView::AnchorUnderMouse);
 		setDragMode(QGraphicsView::ScrollHandDrag);
 		setInteractive(true);
+
+		/* Legend as a fixed viewport overlay (not a scene item) so it
+		   stays put in a corner regardless of the graph's layout, pan,
+		   or zoom, instead of floating wherever scene coordinates
+		   happen to land. */
+		_legend = new QLabel(this);
+		_legend->setTextFormat(Qt::RichText);
+		_legend->setStyleSheet(
+			"QLabel { background: rgba(15, 23, 42, 210); color: #e0e0e0;"
+			" border: 1px solid #334155; border-radius: 6px;"
+			" padding: 6px 10px; font-size: 11px; }");
+		_legend->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_legend->setText(
+			"<span style='color:#f1c40f;'>&#9888;</span> event risk"
+			" (see Events list in dashboard)<br>"
+			"<span style='color:#e74c3c;'>&#9679;</span> red flash ="
+			" event triggered<br>"
+			"<span style='color:#3498db;'>&#9679;</span> blue flash ="
+			" train rerouted here<br>"
+			"<span style='color:#e74c3c;'>&#9679;</span> red ring ="
+			" train currently blocked");
+		_legend->adjustSize();
+		_legend->move(10, 10);
 	}
 
 protected:
@@ -113,6 +137,9 @@ protected:
 		QGraphicsView::mouseReleaseEvent(event);
 		setDragMode(QGraphicsView::ScrollHandDrag);
 	}
+
+private:
+	QLabel *_legend;
 };
 
 /* ================================================================== */
@@ -194,7 +221,7 @@ QGraphicsView { border: 1px solid #334155; border-radius: 6px; }
 /* ================================================================== */
 
 MainWindow::MainWindow(QWidget *parent)
-	: QMainWindow(parent), _useTimeWeight(false), _simRunning(false),
+	: QMainWindow(parent), _weightMode(0), _simRunning(false),
 	  _view(nullptr),
 	  _scene(nullptr), _nodeList(nullptr), _edgeList(nullptr),
 	  _trainList(nullptr), _eventList(nullptr), _logView(nullptr),
@@ -219,6 +246,7 @@ MainWindow::MainWindow(QWidget *parent)
 	_worker->moveToThread(&_simThread);
 	qRegisterMetaType<QVector<TrainSnapshot>>("QVector<TrainSnapshot>");
 	qRegisterMetaType<QVector<TrainStatRow>>("QVector<TrainStatRow>");
+	qRegisterMetaType<QVector<EventInfo>>("QVector<EventInfo>");
 
 	connect(&_simThread, &QThread::finished, _worker, &QObject::deleteLater);
 	connect(_worker, &SimulationWorker::tick,
@@ -239,6 +267,26 @@ MainWindow::MainWindow(QWidget *parent)
 			this, &MainWindow::onLiveNodeAdded);
 	connect(_worker, &SimulationWorker::railAdded,
 			this, &MainWindow::onLiveRailAdded);
+	connect(_worker, &SimulationWorker::eventsAvailable, this,
+			[this](QVector<EventInfo> events) {
+				_scene->setEventInfo(events);
+				_dashboard->setEventInfo(events);
+			});
+	connect(_worker, &SimulationWorker::eventTriggered, this,
+			[this](QString trainName, QString eventName, QString location,
+				  double delaySec) {
+				Q_UNUSED(location);
+				_scene->flashEvent(eventName, trainName);
+				logInfo(QString("Event \"%1\" delayed %2 by %3 min")
+							.arg(eventName, trainName)
+							.arg(delaySec / 60.0, 0, 'f', 1));
+			});
+	connect(_worker, &SimulationWorker::rerouteOccurred, this,
+			[this](QString trainName, QString fromNode, QString newRoute) {
+				_scene->markReroute(fromNode, trainName);
+				logInfo(QString("%1 rerouted at %2: %3")
+							.arg(trainName, fromNode, newRoute));
+			});
 	_simThread.start();
 
 	/* ── Sensible initial window size ── */
@@ -464,7 +512,7 @@ void MainWindow::buildToolbar()
 	tb->addWidget(runsCaption);
 
 	_runsSpinBox = new QSpinBox;
-	_runsSpinBox->setRange(1, 100);
+	_runsSpinBox->setRange(1, INT_MAX);
 	_runsSpinBox->setValue(1);
 	_runsSpinBox->setToolTip("Number of simulation runs (multi-run Monte Carlo)");
 	_runsSpinBox->setFixedWidth(60);
@@ -499,12 +547,17 @@ void MainWindow::buildToolbar()
 
 	_pathWeightCombo = new QComboBox;
 	_pathWeightCombo->addItem("Distance");
-	_pathWeightCombo->addItem("Time");
+	_pathWeightCombo->addItem("Solo");
+	_pathWeightCombo->addItem("Adaptive");
 	_pathWeightCombo->setCurrentIndex(0);
 	_pathWeightCombo->setToolTip(
 		"Pathfinding weight:\n"
-		"  Distance — shortest path by km\n"
-		"  Time     — fastest path (accounts for speed limits)");
+		"  Distance   — shortest path by km\n"
+		"  Solo       — fastest path if this train were alone "
+		"(ignores traffic & events)\n"
+		"  Adaptive   — ultimate mode: reroutes around live traffic "
+		"AND avoids\n"
+		"               routes prone to costly random events");
 	_pathWeightCombo->setFixedWidth(100);
 	_pathWeightCombo->setStyleSheet(
 		"QComboBox { background: #1e293b; color: #e0e0e0; "
@@ -516,7 +569,7 @@ void MainWindow::buildToolbar()
 		"QComboBox QAbstractItemView { background: #1e293b; color: #e0e0e0; "
 		"selection-background-color: #533483; border: 1px solid #334155; }");
 	connect(_pathWeightCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-			this, [this](int idx) { _useTimeWeight = (idx == 1); });
+			this, [this](int idx) { _weightMode = idx; });
 	tb->addWidget(_pathWeightCombo);
 
 	tb->addSeparator();
@@ -2559,7 +2612,7 @@ void MainWindow::onRunSimulation()
 		QMetaObject::invokeMethod(
 			_worker, "runMulti", Qt::QueuedConnection,
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
-			Q_ARG(bool, _useTimeWeight),
+			Q_ARG(int, _weightMode),
 			Q_ARG(int, numRuns),
 			Q_ARG(bool, animate));
 	}
@@ -2570,7 +2623,7 @@ void MainWindow::onRunSimulation()
 		QMetaObject::invokeMethod(
 			_worker, "runSimulation", Qt::QueuedConnection,
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
-			Q_ARG(bool, _useTimeWeight));
+			Q_ARG(int, _weightMode));
 	}
 }
 

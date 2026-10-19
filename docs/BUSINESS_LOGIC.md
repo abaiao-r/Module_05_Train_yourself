@@ -40,9 +40,63 @@ Input format: `name weight friction accelForce brakeForce from to time stopDurat
 Before simulation begins, each train is assigned an **optimal route** through the network using Dijkstra's algorithm. The cost metric is configurable via `PathWeightMode`:
 
 - **Distance** (default) — minimises total kilometres: edge weight = `distance`
-- **Time** — minimises travel time: edge weight = `distance / speedLimit`
+- **Solo** — fastest route if this train were the only one on the track: edge weight = `distance / speedLimit`, ignores other trains and random events
+- **Adaptive** — the ultimate mode: builds on Solo's time weighting, plus dynamically re-routes around occupied segments and avoids routes prone to costly random events (see §3a)
 
-Pass `--time` on the command line to use time-based routing. If no route exists, the train is skipped with a warning.
+Pass `--distance`, `--solo`, or `--adaptive` on the command line (mutually exclusive; `--solo` is the default with no flag). If no route exists, the train is skipped with a warning.
+
+### 3a. Adaptive Mode: Congestion + Event-Aware Routing
+
+When `--adaptive` is active, the simulator **dynamically re-routes trains at runtime** to spread traffic across parallel corridors, avoid crowded segments, and steer away from routes prone to costly random events. This contrasts with Distance and Solo modes, where every train's path is fixed before the simulation starts and never changes.
+
+#### The rule: "am I stuck, and does a detour pay?"
+
+A train asks four questions, in order. The first "no" means **stay put** (no pathfinding, no cost):
+
+1. Is another train on **my current segment**?
+2. Is it **ahead of me** (it entered the segment before me; ties broken by train id)?
+3. Am I **faster** than it (my free ETA to the segment end is shorter)?
+4. Does the leader keep blocking me **after the next node** (shared stretch > 0), and is the best detour from that node at least `MIN_GAIN_SEC` (30 s) quicker than staying?
+
+A train cannot turn around mid-segment, so the earliest switch point is the **next node** (the pivot). If the leader leaves the shared route at the pivot, nothing is gained and no search is done.
+
+#### How the two options are compared
+
+- **Stay ETA** and **detour ETA** both come from `replayEta`, a non-mutating replay of the real physics (acceleration, braking, node speed carry-over, dwell at intermediate stops, following distance behind the leader).
+- The detour candidate is found with `findConstrainedPath`: Dijkstra from the pivot with the shared directed segments **forbidden during the search**, using static weights (`distance / speedLimit`, plus expected event delay, plus the train's stop duration at intermediate nodes).
+- Dijkstra only **proposes** a candidate; `replayEta` **judges** it. Reroute iff `detourETA + 30 s < stayETA`.
+- Random events are not replayed; their expected delay is added per remaining segment to both options.
+- **Event risk = probability × duration** (the average delay per pass, in the same units as travel time). Example: a 40 % × 20 min event costs 8 min on average, so a route that is 5 min longer but avoids it wins; at 5 % the cost is 1 min and the shorter route wins. Break-even here is 25 %. This minimises the *average* delay of the train itself; it ignores variance and knock-on delay to following trains. The map is cached and rebuilt only when events or topology change live.
+
+#### When it is evaluated (cost control)
+
+The cheap checks (1-3 and shared-stretch) are pure arithmetic every tick. The expensive part (constrained Dijkstra + two replays) runs only on triggers, at most 3 times per train per segment: on **segment entry**, on **leader change / leader reroute / leader starts dwelling / topology or event change**, and once when the train is within `PRE_PIVOT_HORIZON_SEC` (60 s) of the pivot. Candidate paths are cached per (pivot, destination, forbidden set, dwell) and cleared when topology or events change; the decision itself is never cached. A 3-segment cooldown remains as secondary anti-churn.
+
+A dwelling train does not block. Directional tracks: `A->B` and `B->A` are independent (head-on conflicts are out of scope).
+
+#### Per-train ETA profile
+
+Each train keeps an `etaProfile` (free-flow predicted arrival at each remaining node), rebuilt on route change, segment entry, dwell end and (rate-limited to once per 10 s) when blocking deviates the train. It is for display (GUI) only, not a decision input.
+
+#### Demo scenarios
+
+`input/*/railNetworkScenarioN*.txt` + `trainPrintScenarioN*.txt`: 1 Baseline, 2 BlockReroutePays, 3 BlockStayBetter, 4 MultiTrainCongestion, 5 EventRisk, 6 Combined, 7 LeaderDiverges, 8 SkipDivergingLeader (the nearest leader that keeps sharing the route after the pivot is used, not just the train directly ahead). Run e.g. `./bin/train_yourself <network> <train> --adaptive` or load them in the GUI. Tests: `tests/AdaptiveRerouteTest.cpp`.
+
+#### Design rationale
+
+**Why 120 seconds (`CONGESTION_PENALTY`)?**
+The penalty must be large enough to push trains onto an alternative route, but small enough that a mildly congested short path can still beat a much longer empty path. On a typical segment (say 50 km at 200 km/h → 15 min travel time), one extra train adds 120 s ≈ 2 min of virtual cost — roughly a 13 % surcharge. Two trains add 4 min (~27 %). This is in the same order of magnitude as **real-world operational delays caused by headway constraints** on shared track (trains must keep 2–3 min separation in practice, and each following train incurs signalling-imposed slowdowns). The constant is deliberately conservative: it biases towards keeping the fast route unless congestion is significant. A value too low (e.g., 30 s) would make rerouting almost never trigger; a value too high (e.g., 600 s) would scatter trains onto poor routes at the slightest sharing.
+
+**Why decentralised (no central coordinator)?**
+A central scheduler (e.g., a conflict-free timetable planner or slot-allocation system) would be more "optimal" in a global sense, but it contradicts the simulator's core design: trains are independent agents that depart at scheduled times and react to local conditions. The decentralised approach mirrors **real-world dispatcher-less signalling** where each train's on-board system picks routes based on current track occupancy (similar to ETCS Level 3 concepts). It is also simpler to implement, test, and reason about — each train independently asks "is my remaining path congested?" and, if so, runs Dijkstra with penalties. No global lock, no train-to-train communication, no second pass. The emergent behaviour (load balancing) arises from each train independently penalising the same congested segments.
+
+**Why a cooldown of 3 segments?**
+Without a cooldown, two trains departing 1 minute apart can enter an infinite reroute loop:
+1. Train A takes Route 1, Train B sees congestion on Route 1 → switches to Route 2.
+2. Next segment, Train A sees Route 2 is now congested (Train B is there) → switches to Route 2 as well.
+3. Train B sees Route 2 has 2 trains → switches back to Route 1. Repeat forever.
+
+A cooldown of 3 segments means a train must commit to its chosen corridor for at least 3 hops before reconsidering. On most networks, 3 segments is enough to clear the overlap zone of a fork, so by the time the cooldown expires the train has "passed through" the shared area and won't flip back. The value 3 was chosen empirically: 1 is too short (oscillation still occurs on tight meshes), 5+ is too long (trains miss valid reroute opportunities on networks with many short segments). Three provides a good balance for the test networks ranging from 3-node minimal to 20-node ParisMetro.
 
 ### 4. Physics-Based Travel Time
 
@@ -83,12 +137,14 @@ Events can occur at **specific stations** (node events) or on **rail segments** 
 - A **probability** (0.0 to 1.0) of triggering
 - A **duration** (the delay in seconds if triggered)
 
-**Node events** trigger when a train arrives at the bound station. **Rail events** trigger when a train enters the bound segment (bidirectional match). Input format:
+**Node events** trigger when a train arrives at the bound station. **Rail events** trigger when a train enters the bound segment (bidirectional match), including its first segment at departure. Input format:
 
 - Node event: `Event <name> <probability> <duration> <node_name>`
 - Rail event: `Event <name> <probability> <duration> <node_name1> <node_name2>`
 
 When triggered, the train's clock advances by the event's duration, and the delay is accumulated.
+
+Note: a train that finishes a station stop is re-queued behind any train that overtook it during the stop, so it never drags a faster train backwards.
 
 ### 9. Per-Train Output Files (Observer Pattern)
 

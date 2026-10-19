@@ -1,0 +1,14 @@
+Node Origin
+Node Fork
+Node MainA
+Node MainB
+Node Dest
+Node AltA
+Node AltB
+Rail Origin Fork 30.0 200.0
+Rail Fork MainA 40.0 200.0
+Rail MainA MainB 40.0 200.0
+Rail MainB Dest 40.0 200.0
+Rail Fork AltA 42.0 200.0
+Rail AltA AltB 42.0 200.0
+Rail AltB Dest 42.0 200.0

@@ -13,7 +13,7 @@ A live full-screen terminal dashboard that visualises the simulation in real tim
 ./bin/train_yourself network.txt trains.txt --animate
 
 # Combine with time routing
-./bin/train_yourself network.txt trains.txt --time --animate
+./bin/train_yourself network.txt trains.txt --solo --animate
 
 # Combine with multi-run (animation plays first run only)
 ./bin/train_yourself network.txt trains.txt --animate --runs 100

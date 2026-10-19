@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/22 18:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/09/05 14:43:40 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:15:16 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -121,7 +121,7 @@ class MainWindow : public QMainWindow
 	std::vector<Event> _eventDefs;
 	QString _networkFilePath;
 	QString _trainFilePath;
-	bool _useTimeWeight;
+	int _weightMode;  // 0 = Distance, 1 = Solo, 2 = Adaptive
 	bool _simRunning;
 	double _lastSimTime = 0.0;  // seconds from midnight, updated on each tick
 

@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/21 02:45:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 15:45:29 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,8 +33,26 @@ static void printHelp()
 	std::cout
 		<< "Usage: ./train_yourself <network_file> <train_file> [options]\n\n"
 		<< "Options:\n"
-		<< "  --time              Optimise route by travel time "
-		<< "instead of distance\n"
+		<< "  --distance          Shortest distance (km)\n"
+		<< "  --solo              Fastest way if this train were the "
+		<< "only one on\n"
+		<< "                      the track — optimises by travel time, "
+		<< "ignoring\n"
+		<< "                      every other train and every random "
+		<< "event. This is\n"
+		<< "                      the default.\n"
+		<< "  --adaptive          The ultimate mode: fastest way "
+		<< "accounting for real\n"
+		<< "                      conditions — reacts to live traffic "
+		<< "(dynamically\n"
+		<< "                      reroutes around occupied segments) "
+		<< "AND avoids routes\n"
+		<< "                      prone to costly random events. Goal: "
+		<< "every train\n"
+		<< "                      arrives as fast as possible.\n"
+		<< "                      (--distance, --solo and --adaptive "
+		<< "are\n"
+		<< "                      mutually exclusive — pick one)\n"
 		<< "  --graph <file.dot>  Export network + paths as "
 		<< "Graphviz DOT file\n"
 		<< "                      Auto-renders PNG & SVG if graphviz is "
@@ -147,7 +165,7 @@ int main(int argc, char **argv)
 	if (argc < 3 || argc > 10)
 	{
 		std::cerr << "Usage: " << argv[0]
-				  << " <network_file> <train_file> [--time] "
+				  << " <network_file> <train_file> [--distance|--solo|--adaptive] "
 				     "[--graph file.dot] [--animate] [--runs N]"
 				  << std::endl;
 		std::cerr << "Use --help for detailed format information."
@@ -170,14 +188,46 @@ int main(int argc, char **argv)
 	}
 
 	/* Parse optional flags */
-	PathWeightMode weightMode = PathWeightMode::Distance;
+	PathWeightMode weightMode = PathWeightMode::Solo;
+	bool weightModeSet = false;
 	std::string graphFile;
 	bool animate = false;
 	int numRuns = 1;
 	for (int i = 3; i < argc; i++)
 	{
-		if (std::strcmp(argv[i], "--time") == 0)
-			weightMode = PathWeightMode::Time;
+		if (std::strcmp(argv[i], "--distance") == 0)
+		{
+			if (weightModeSet)
+			{
+				std::cerr << "Error: --distance, --solo and --adaptive are "
+							  "mutually exclusive" << std::endl;
+				return EXIT_FAILURE;
+			}
+			weightMode = PathWeightMode::Distance;
+			weightModeSet = true;
+		}
+		else if (std::strcmp(argv[i], "--solo") == 0)
+		{
+			if (weightModeSet)
+			{
+				std::cerr << "Error: --distance, --solo and --adaptive are "
+							  "mutually exclusive" << std::endl;
+				return EXIT_FAILURE;
+			}
+			weightMode = PathWeightMode::Solo;
+			weightModeSet = true;
+		}
+		else if (std::strcmp(argv[i], "--adaptive") == 0)
+		{
+			if (weightModeSet)
+			{
+				std::cerr << "Error: --distance, --solo and --adaptive are "
+							  "mutually exclusive" << std::endl;
+				return EXIT_FAILURE;
+			}
+			weightMode = PathWeightMode::Adaptive;
+			weightModeSet = true;
+		}
 		else if (std::strcmp(argv[i], "--animate") == 0)
 			animate = true;
 		else if (std::strcmp(argv[i], "--runs") == 0)

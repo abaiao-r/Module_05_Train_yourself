@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   SimDashboard.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ctw03933 <ctw03933@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/23 01:30:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/02/23 23:25:46 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/06 18:06:54 by ctw03933         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -117,7 +117,7 @@ static int visLen(const QString &html)
 	return len;
 }
 
-static constexpr int BOX_INNER = 56; /* visible chars between ║ … ║ */
+static constexpr int BOX_INNER = 80; /* visible chars between ║ … ║ */
 
 /* Truncate visible text to maxVis chars, preserving HTML tags. */
 static QString visTruncate(const QString &html, int maxVis)
@@ -168,9 +168,40 @@ QString SimDashboard::boxRow(const QString &html)
 				   "<span style='color:%1;'>%5</span><br>")
 		.arg(C_BORDER,
 			 QString(QChar(0x2551)), // ║
-			 html,
+			 content,
 			 spaces,
 			 QString(QChar(0x2551)));
+}
+
+void SimDashboard::setEventInfo(const QVector<EventInfo> &events)
+{
+	_events = events;
+}
+
+QStringList SimDashboard::segmentEventNames(const QString &from,
+											const QString &to) const
+{
+	QStringList names;
+	for (const auto &ev : _events)
+	{
+		bool onSegment = !ev.node2.isEmpty()
+			&& ((ev.node1 == from && ev.node2 == to)
+				|| (ev.node1 == to && ev.node2 == from));
+		bool atDestNode = ev.node2.isEmpty() && ev.node1 == to;
+		if (onSegment || atDestNode)
+			names << ev.name;
+	}
+	return names;
+}
+
+QStringList SimDashboard::remainingPathEventNames(const QStringList &path,
+												  size_t fromIndex) const
+{
+	QStringList names;
+	for (size_t i = fromIndex; i + 1 < static_cast<size_t>(path.size()); i++)
+		names << segmentEventNames(path[static_cast<int>(i)],
+								   path[static_cast<int>(i) + 1]);
+	return names;
 }
 
 /* ── Main update ───────────────────────────────────────────────────────── */
@@ -192,6 +223,40 @@ void SimDashboard::update(double simTime,
 	html += boxRow(QString("  <b style='color:%1;'>Clock:</b> %2")
 					   .arg(C_TITLE, fmtTime(simTime)));
 	html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)), BOX_INNER);
+
+	/* Legend */
+	html += boxRow(QString("  <span style='color:%1;'>\xe2\x9a\xa0</span>"
+						   " risk  <span style='color:%2;'>\xe2\x97\x8f</span>"
+						   " delayed  <span style='color:%3;'>\xe2\x97\x8f</span>"
+						   " running  <span style='color:%4;'>\xe2\x97\x8f</span>"
+						   " arrived")
+					   .arg(C_YELLOW, C_RED, C_YELLOW, C_GREEN));
+	html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)), BOX_INNER);
+
+	/* Events - full details shown directly, not hidden behind hover,
+	   since a graph tooltip is easy to miss and hard to discover. */
+	if (!_events.isEmpty())
+	{
+		html += boxRow(QString("  <b style='color:%1;'>Events:</b>")
+						   .arg(C_TITLE));
+		for (const auto &ev : _events)
+		{
+			QString where = ev.node2.isEmpty()
+				? QString("%1 (station)").arg(ev.node1)
+				: QString("%1 \xe2\x86\x92 %2").arg(ev.node1, ev.node2);
+			html += boxRow(
+				QString("    <span style='color:%1;'>\xe2\x9a\xa0 %2</span>"
+						" @ %3")
+					.arg(C_YELLOW, ev.name, where));
+			html += boxRow(
+				QString("      Probability: <b>%1%</b>"
+						"  Consequence: <b>%2 min delay</b>")
+					.arg(ev.probability * 100.0, 0, 'f', 0)
+					.arg(ev.durationSec / 60.0, 0, 'f', 1));
+		}
+		html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)),
+					 BOX_INNER);
+	}
 
 	for (int i = 0; i < snapshots.size(); i++)
 	{
@@ -224,6 +289,15 @@ void SimDashboard::update(double simTime,
 			badge = QString("<span style='background:%1;color:%2;"
 							"padding:1px 4px;border-radius:3px;'>"
 							"Stopped</span>")
+						.arg(C_BADGE, C_RED);
+		}
+		else if (s.status == QLatin1String("Delayed"))
+		{
+			dot = QChar(0x25CF);
+			dotCol = C_RED;
+			badge = QString("<span style='background:%1;color:%2;"
+							"padding:1px 4px;border-radius:3px;'>"
+							"Delayed</span>")
 						.arg(C_BADGE, C_RED);
 		}
 		else
@@ -305,8 +379,81 @@ void SimDashboard::update(double simTime,
 
 			/* Elapsed */
 			html += boxRow(
-				QString("    <span style='color:%1;'>Time:</span> %2")
+					QString("    <span style='color:%1;'>Time:</span> %2")
 					.arg(C_DIM, fmtTime(s.timeSinceDepart)));
+
+			/* Blocked-by */
+			if (!s.blockedByName.isEmpty())
+			{
+				html += boxRow(
+					QString("    <span style='color:%1;'>Blocked by:"
+							"</span> %2")
+						.arg(C_RED, s.blockedByName));
+			}
+
+			/* Reroute count + reason */
+			if (s.rerouteCount > 0)
+			{
+				html += boxRow(
+					QString("    <span style='color:%1;'>Rerouted:"
+							"</span> %2x")
+						.arg(C_CYAN)
+						.arg(s.rerouteCount));
+				if (!s.lastRerouteReason.isEmpty())
+				{
+					html += boxRow(
+						QString("    <span style='color:%1;'>Reason:"
+								"</span> %2")
+							.arg(C_DIM, s.lastRerouteReason));
+				}
+			}
+
+			/* Event risk: current segment (if any) plus a summary of
+			   everything still ahead on the route, so it's visible
+			   well before the train actually reaches a risky segment.
+			   Named explicitly (full details are in the Events section
+			   above) rather than a bare number with no context. */
+			if (!s.from.isEmpty() && !s.to.isEmpty())
+			{
+				QStringList here = segmentEventNames(s.from, s.to);
+				if (!here.isEmpty())
+				{
+					html += boxRow(
+						QString("    <span style='color:%1;'>"
+								"\xe2\x9a\xa0 Here:</span> %2")
+							.arg(C_YELLOW, here.join(", ")));
+				}
+			}
+			if (!s.path.isEmpty())
+			{
+				/* +1 so this doesn't repeat the current segment,
+				   already shown above as "Here". */
+				QStringList ahead = remainingPathEventNames(
+					s.path, static_cast<size_t>(s.segmentIndex) + 1);
+				if (!ahead.isEmpty())
+				{
+					html += boxRow(
+						QString("    <span style='color:%1;'>"
+								"\xe2\x9a\xa0 Ahead:</span> %2")
+							.arg(C_YELLOW, ahead.join(", ")));
+				}
+			}
+
+			/* Physics */
+			html += boxRow(
+				QString("    <span style='color:%1;'>Weight:</span>"
+						" %2t  <span style='color:%1;'>Accel:</span>"
+						" %3 m/s\xC2\xB2")
+					.arg(C_DIM)
+					.arg(s.weightTons, 0, 'f', 0)
+					.arg(s.accelRate_ms2, 0, 'f', 2));
+			html += boxRow(
+				QString("    <span style='color:%1;'>Friction:</span>"
+						" %2  <span style='color:%1;'>Decel:</span>"
+						" %3 m/s\xC2\xB2")
+					.arg(C_DIM)
+					.arg(s.frictionCoeff, 0, 'f', 2)
+					.arg(s.decelRate_ms2, 0, 'f', 2));
 		}
 
 		/* Separator */

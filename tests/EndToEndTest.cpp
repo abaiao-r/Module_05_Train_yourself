@@ -6,7 +6,7 @@
 /*   By: abaiao-r <abaiao-r@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/23 13:00:00 by abaiao-r          #+#    #+#             */
-/*   Updated: 2026/03/01 15:45:29 by abaiao-r         ###   ########.fr       */
+/*   Updated: 2026/09/05 19:17:55 by abaiao-r         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -97,10 +97,13 @@ int main()
 				  auto r = runCmd(BIN + " --help");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Options:"), msg);
-				  ASSERT_TRUE(outputContains(r.output, "--time"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "--solo"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "--adaptive"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--graph"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--animate"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--runs"), msg);
+				  ASSERT_TRUE(outputContains(r.output,
+							  "mutually exclusive"), msg);
 				  return true;
 			  });
 
@@ -230,13 +233,27 @@ int main()
 			  });
 
 	/* ------------------------------------------------------------------ */
-	/*  --time mode                                                       */
+	/*  --solo mode                                                       */
 	/* ------------------------------------------------------------------ */
 
-	suite.run("--time mode -> exit 0 + trains arrive",
+	suite.run("--solo mode -> exit 0 + trains arrive",
 			  [](std::string &msg) {
 				  cleanupE2E();
-				  auto r = runCmd(BIN + " " + NET + " " + TRN + " --time");
+				  auto r = runCmd(BIN + " " + NET + " " + TRN + " --solo");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
+				  return true;
+			  });
+
+	/* ------------------------------------------------------------------ */
+	/*  --adaptive mode                                                   */
+	/* ------------------------------------------------------------------ */
+
+	suite.run("--adaptive mode -> exit 0 + trains arrive",
+			  [](std::string &msg) {
+				  cleanupE2E();
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --adaptive");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
 				  return true;
@@ -317,11 +334,11 @@ int main()
 	/*  Combined flags                                                    */
 	/* ------------------------------------------------------------------ */
 
-	suite.run("--time --graph combined -> exit 0",
+	suite.run("--solo --graph combined -> exit 0",
 			  [](std::string &msg) {
 				  cleanupE2E();
 				  auto r = runCmd(BIN + " " + NET + " " + TRN
-								  + " --time --graph output/graphs/e2e_combo.dot");
+								  + " --solo --graph output/graphs/e2e_combo.dot");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(
 					  std::filesystem::exists(
@@ -331,15 +348,57 @@ int main()
 				  return true;
 			  });
 
-	suite.run("--time --runs 2 combined -> exit 0 + stats",
+	suite.run("--solo --runs 2 combined -> exit 0 + stats",
 			  [](std::string &msg) {
 				  cleanupE2E();
 				  auto r = runCmd(BIN + " " + NET + " " + TRN
-								  + " --time --runs 2");
+								  + " --solo --runs 2");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(
 					  outputContains(r.output, "Multi-Run Statistics"),
 					  msg);
+				  return true;
+			  });
+
+	suite.run("--adaptive --runs 2 combined -> exit 0 + stats",
+			  [](std::string &msg) {
+				  cleanupE2E();
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --adaptive --runs 2");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(
+					  outputContains(r.output, "Multi-Run Statistics"),
+					  msg);
+				  return true;
+			  });
+
+	suite.run("--adaptive --graph combined -> exit 0",
+			  [](std::string &msg) {
+				  cleanupE2E();
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --adaptive --graph output/graphs/e2e_cong.dot");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
+				  return true;
+			  });
+
+	suite.run("--solo --adaptive -> exit 1 (mutually exclusive)",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --solo --adaptive");
+				  ASSERT_EQ(1, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "mutually exclusive"),
+							  msg);
+				  return true;
+			  });
+
+	suite.run("--adaptive --solo -> exit 1 (mutually exclusive)",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --adaptive --solo");
+				  ASSERT_EQ(1, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "mutually exclusive"),
+							  msg);
 				  return true;
 			  });
 
