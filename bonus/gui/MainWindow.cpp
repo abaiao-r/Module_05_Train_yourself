@@ -1389,7 +1389,7 @@ void MainWindow::onAddNode()
 			logInfo("Queued live add of node '" + name
 					+ "' (applies on the next tick).");
 		else
-			logError("Cannot queue node: no simulation is running.");
+			logError("Cannot queue node: live edits need a single-run simulation (not available during multi-run or after it ends).");
 		return;
 	}
 
@@ -1485,7 +1485,7 @@ void MainWindow::onAddEdge()
 							"(applies on the next tick).")
 						.arg(from, to));
 		else
-			logError("Cannot queue edge: no simulation is running.");
+			logError("Cannot queue edge: live edits need a single-run simulation (not available during multi-run or after it ends).");
 		return;
 	}
 
@@ -1652,7 +1652,7 @@ void MainWindow::onAddTrain()
 					+ "' (applies on the next tick; route and departure "
 					  "time are re-validated against the live network).");
 		else
-			logError("Cannot queue train: no simulation is running.");
+			logError("Cannot queue train: live edits need a single-run simulation (not available during multi-run or after it ends).");
 		return;
 	}
 
@@ -1784,7 +1784,7 @@ void MainWindow::onAddEvent()
 			logInfo("Queued live add of event '" + evName
 					+ "' (applies on the next tick).");
 		else
-			logError("Cannot queue event: no simulation is running.");
+			logError("Cannot queue event: live edits need a single-run simulation (not available during multi-run or after it ends).");
 		return;
 	}
 
