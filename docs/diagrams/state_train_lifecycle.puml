@@ -16,41 +16,32 @@ Waiting : departure → arrival
 Waiting : stopDuration
 
 Running --> StoppedAtStation : reached intermediate node
-Running --> Delayed : event triggers at node
+Running --> Delayed : blocked by train ahead (per tick)
 Running --> Arrived : reached final destination
-Running --> Aborted : SimulationStopException\n(GUI stop requested)
 Running : physics loop (1s ticks)
 Running : accelerate / brake / maintain
 Running : speed capped by segment limit
 Running : animation callback invoked\n(if --animate or GUI)
 
 StoppedAtStation --> Running : stopTimer reaches 0
-StoppedAtStation --> Aborted : SimulationStopException
-StoppedAtStation : speed = 0, position = 0
-StoppedAtStation : timer counts down from stopDuration
+StoppedAtStation : NOT a TrainStatus: TrainState::stopTimer > 0
+StoppedAtStation : also used for event holds (holdTrain)
+StoppedAtStation : heldBySegmentEvent keeps queue position
 
-Delayed --> Running : delay timer expires
-Delayed --> StoppedAtStation : delay at intermediate node
-Delayed --> Aborted : SimulationStopException
-Delayed : totalDelay += event.duration
-Delayed : clock advances by delay
+Delayed --> Running : no longer blocked (reset each tick)
+Delayed : speed capped by blockedByTrain
+Delayed : set only by applyBlocking()
 
 Arrived --> [*] : .result file finalised
 Arrived : actual travel time recorded
 Arrived : observer notified
 
-Aborted --> [*] : GUI stop button pressed
-Aborted : partial results discarded
-Aborted : thrown from sleep_for / animCallback
-Aborted : exception path, not a stored status
-
-note right of Aborted
+note as StopNote
   **Bonus — GUI Stop**
-  SimulationWorker sets
-  _stopRequested (atomic).
-  Simulation checks flag in
-  sleep loop and throws
-  SimulationStopException.
+  Not a train state. SimulationWorker's
+  animation callback checks _stopRequested
+  and throws SimulationStopException,
+  abandoning the run (no results).
 end note
 
 note left of Running

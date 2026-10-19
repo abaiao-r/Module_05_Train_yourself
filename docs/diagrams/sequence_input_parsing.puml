@@ -85,9 +85,10 @@ end
 
 IH --> Main : SimulationData { network, trains, events }
 note right of Main
-    GUI: network & trains stored in
-    MainWindow members, validated
-    only when "Run" is clicked.
+    CLI / loadData() path only.
+    GUI: parse results are stored in MainWindow
+    members; SimulationWorker calls loadData()
+    again when "Run" is clicked.
 end note
 
 @enduml
