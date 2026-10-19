@@ -15,6 +15,8 @@
 #include "InputHandler.hpp"
 
 #include <cctype>
+#include <cmath>
+#include <stdexcept>
 #include <fstream>
 #include <sstream>
 
@@ -41,6 +43,13 @@ static std::string parseQuotedOrWord(std::istringstream &iss)
 	return word;
 }
 
+static void requireEndOfLine(std::istringstream &iss)
+{
+	iss >> std::ws;
+	if (!iss.eof())
+		throw InputHandler::ParseException("Unexpected trailing content");
+}
+
 static double parseDuration(const std::string &str)
 {
 	if (str.empty())
@@ -49,14 +58,18 @@ static double parseDuration(const std::string &str)
 	double value;
 	try
 	{
-		value = std::stod(str.substr(0, str.size() - 1));
+		size_t used = 0;
+		std::string num = str.substr(0, str.size() - 1);
+		value = std::stod(num, &used);
+		if (used != num.size())
+			throw std::invalid_argument(num);
 	}
 	catch (const std::exception &)
 	{
 		throw InputHandler::ParseException(
 			"Invalid duration value: " + str);
 	}
-	if (value < 0.0)
+	if (!std::isfinite(value) || value < 0.0)
 		throw InputHandler::ParseException(
 			"Duration cannot be negative: " + str);
 	switch (unit)
@@ -81,9 +94,18 @@ static double parseTime(const std::string &str)
 	int hours, minutes = 0;
 	try
 	{
-		hours = std::stoi(str.substr(0, hPos));
+		size_t used = 0;
+		std::string h = str.substr(0, hPos);
+		hours = std::stoi(h, &used);
+		if (used != h.size())
+			throw std::invalid_argument(h);
 		if (hPos + 1 < str.size())
-			minutes = std::stoi(str.substr(hPos + 1));
+		{
+			std::string m = str.substr(hPos + 1);
+			minutes = std::stoi(m, &used);
+			if (used != m.size())
+				throw std::invalid_argument(m);
+		}
 	}
 	catch (const std::exception &)
 	{
@@ -135,6 +157,7 @@ void InputHandler::parseNetworkFile(const std::string &filepath,
 				std::string name = parseQuotedOrWord(iss);
 				if (name.empty())
 					throw ParseException("Missing node name");
+				requireEndOfLine(iss);
 				network.addNode(name);
 			}
 			else if (keyword == "Event")
@@ -148,6 +171,7 @@ void InputHandler::parseNetworkFile(const std::string &filepath,
 					throw ParseException("Invalid event line");
 				/* Optional second node → rail segment event */
 				iss >> nodeName2;
+				requireEndOfLine(iss);
 				events.emplace_back(name, probability,
 									parseDuration(durationStr), nodeName,
 									nodeName2);
@@ -159,6 +183,7 @@ void InputHandler::parseNetworkFile(const std::string &filepath,
 				iss >> from >> to >> distance >> speedLimit;
 				if (iss.fail() || from.empty() || to.empty())
 					throw ParseException("Invalid rail line");
+				requireEndOfLine(iss);
 				network.addConnection(from, to, distance, speedLimit);
 			}
 			else
@@ -204,6 +229,7 @@ std::vector<std::unique_ptr<Train>> InputHandler::parseTrainFile(
 				|| arrival.empty() || timeStr.empty()
 				|| stopStr.empty())
 				throw ParseException("Invalid train line");
+			requireEndOfLine(iss);
 			trains.push_back(TrainFactory::createTrain(
 				name, weight, friction, accel, brake, departure,
 				arrival, parseTime(timeStr), parseTime(stopStr)));
@@ -283,6 +309,21 @@ void InputHandler::validateData(const std::string &networkFile,
 					networkFile + ": Event '" + ev.getName()
 					+ "' references unknown node '"
 					+ ev.getNodeName2() + "'");
+			bool linked = false;
+			for (const auto &e : data.network.getNeighbours(
+					 ev.getNodeName()))
+				if (e.destination->getName() == ev.getNodeName2())
+					linked = true;
+			for (const auto &e : data.network.getNeighbours(
+					 ev.getNodeName2()))
+				if (e.destination->getName() == ev.getNodeName())
+					linked = true;
+			if (!linked)
+				throw ParseException(
+					networkFile + ": Event '" + ev.getName()
+					+ "' references nonexistent rail '"
+					+ ev.getNodeName() + " - " + ev.getNodeName2()
+					+ "'");
 		}
 	}
 

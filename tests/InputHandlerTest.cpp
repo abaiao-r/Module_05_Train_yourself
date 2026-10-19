@@ -13,6 +13,7 @@
 #include "InputHandler.hpp"
 #include "RailNetwork.hpp"
 #include "TestFramework.hpp"
+#include <fstream>
 
 static const std::string NET = "input/railNetworkPrintFolder/";
 static const std::string TRN = "input/trainPrintFolder/";
@@ -22,6 +23,43 @@ static const std::string GOOD_TRN = TRN + "trainPrintGood.txt";
 int main()
 {
 	Test::TestSuite suite("InputHandler");
+
+	/* ── Strict parsing ── */
+
+	auto writeFile = [](const std::string &path, const std::string &c) {
+		std::ofstream(path) << c;
+	};
+	const std::string baseNet = "Node A\nNode B\nNode C\nRail A B 5 100\n";
+	const std::string okTrain = "T 80 0.05 356 30 A B 14h10 00h10\n";
+
+	suite.run("rejects trailing junk on rail line", [&](std::string &msg) {
+		writeFile("/tmp/strict_n1.txt", baseNet + "Rail B C 5 100 junk\n");
+		writeFile("/tmp/strict_t.txt", okTrain);
+		ASSERT_THROWS(InputHandler::loadData("/tmp/strict_n1.txt",
+											 "/tmp/strict_t.txt"),
+					  std::exception, msg);
+		return true;
+	});
+
+	suite.run("rejects malformed time suffix", [&](std::string &msg) {
+		writeFile("/tmp/strict_n2.txt", baseNet);
+		writeFile("/tmp/strict_t2.txt",
+				  "T 80 0.05 356 30 A B 14h10x 00h10\n");
+		ASSERT_THROWS(InputHandler::loadData("/tmp/strict_n2.txt",
+											 "/tmp/strict_t2.txt"),
+					  std::exception, msg);
+		return true;
+	});
+
+	suite.run("rejects rail event on nonexistent rail", [&](std::string &msg) {
+		writeFile("/tmp/strict_n3.txt",
+				  baseNet + "Event Storm 0.5 1h A C\n");
+		writeFile("/tmp/strict_t3.txt", okTrain);
+		ASSERT_THROWS(InputHandler::loadData("/tmp/strict_n3.txt",
+											 "/tmp/strict_t3.txt"),
+					  std::exception, msg);
+		return true;
+	});
 
 	/* ── Valid input tests ── */
 
