@@ -29,7 +29,6 @@ static const std::string NET =
 	"input/railNetworkPrintFolder/railNetworkPrintGood.txt";
 static const std::string TRN = "input/trainPrintFolder/trainPrintGood.txt";
 
-/* ---- Helpers ---- */
 
 /**
  * Run a shell command, capture combined stdout+stderr, return exit code.
@@ -74,15 +73,9 @@ static void cleanupE2E()
 	std::filesystem::remove_all("output/graphs");
 }
 
-/* ======================================================================== */
-
 int main()
 {
 	Test::TestSuite suite("End-to-End");
-
-	/* ------------------------------------------------------------------ */
-	/*  CLI argument validation                                           */
-	/* ------------------------------------------------------------------ */
 
 	suite.run("node event delay holds the train (arrival shifted >= delay)",
 			  [](std::string &msg) {
@@ -188,10 +181,6 @@ int main()
 				  return true;
 			  });
 
-	/* ------------------------------------------------------------------ */
-	/*  Default mode — full pipeline                                      */
-	/* ------------------------------------------------------------------ */
-
 	suite.run("default mode -> exit 0",
 			  [](std::string &msg) {
 				  cleanupE2E();
@@ -279,10 +268,6 @@ int main()
 				  return true;
 			  });
 
-	/* ------------------------------------------------------------------ */
-	/*  --solo mode                                                       */
-	/* ------------------------------------------------------------------ */
-
 	suite.run("--solo mode -> exit 0 + trains arrive",
 			  [](std::string &msg) {
 				  cleanupE2E();
@@ -291,10 +276,6 @@ int main()
 				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
 				  return true;
 			  });
-
-	/* ------------------------------------------------------------------ */
-	/*  --adaptive mode                                                   */
-	/* ------------------------------------------------------------------ */
 
 	suite.run("--adaptive mode -> exit 0 + trains arrive",
 			  [](std::string &msg) {
@@ -305,10 +286,6 @@ int main()
 				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
 				  return true;
 			  });
-
-	/* ------------------------------------------------------------------ */
-	/*  --graph mode                                                      */
-	/* ------------------------------------------------------------------ */
 
 	suite.run("--graph -> exit 0 + creates .dot file",
 			  [](std::string &msg) {
@@ -349,10 +326,6 @@ int main()
 				  return true;
 			  });
 
-	/* ------------------------------------------------------------------ */
-	/*  --runs mode                                                       */
-	/* ------------------------------------------------------------------ */
-
 	suite.run("--runs 2 -> exit 0 + multi-run statistics",
 			  [](std::string &msg) {
 				  cleanupE2E();
@@ -376,10 +349,6 @@ int main()
 					  msg);
 				  return true;
 			  });
-
-	/* ------------------------------------------------------------------ */
-	/*  Combined flags                                                    */
-	/* ------------------------------------------------------------------ */
 
 	suite.run("--solo --graph combined -> exit 0",
 			  [](std::string &msg) {
@@ -449,10 +418,6 @@ int main()
 				  return true;
 			  });
 
-	/* ------------------------------------------------------------------ */
-	/*  Error input files                                                 */
-	/* ------------------------------------------------------------------ */
-
 	suite.run("bad station in train file -> exit 1",
 			  [](std::string &msg) {
 				  auto r = runCmd(
@@ -486,10 +451,6 @@ int main()
 							  msg);
 				  return true;
 			  });
-
-	/* ------------------------------------------------------------------ */
-	/*  Multiple networks (ensure different inputs work)                  */
-	/* ------------------------------------------------------------------ */
 
 	suite.run("France network + France trains -> exit 0",
 			  [](std::string &msg) {

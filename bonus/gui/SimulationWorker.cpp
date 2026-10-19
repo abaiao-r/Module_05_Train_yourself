@@ -356,7 +356,6 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 
 		sim.run();
 
-		/* Collect results */
 		QStringList results;
 		for (const auto &r : sim.getResults())
 		{
@@ -382,10 +381,6 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		emit error(QString::fromStdString(e.what()));
 	}
 }
-
-/* ================================================================== */
-/*  runMulti — Monte-Carlo multi-run with optional first-run anim     */
-/* ================================================================== */
 
 void SimulationWorker::runMulti(const QString &networkFile,
 								const QString &trainFile,
@@ -426,7 +421,6 @@ void SimulationWorker::runMulti(const QString &networkFile,
 						   mode);
 			sim.setQuiet(true);
 
-			/* Animate only the first run if requested */
 			if (animateFirst && run == 0)
 			{
 				{
@@ -560,7 +554,6 @@ void SimulationWorker::runMulti(const QString &networkFile,
 
 			sim.run();
 
-			/* Collect results from this run */
 			/* Same-named trains (different departures) get separate rows:
 			   results keep load order, so the Nth duplicate is stable. */
 			std::map<std::string, int> seen;
@@ -578,7 +571,6 @@ void SimulationWorker::runMulti(const QString &networkFile,
 			emit runProgress(completedRuns, numRuns);
 		}
 
-		/* Build aggregated stats */
 		QVector<TrainStatRow> stats;
 		for (const auto &pair : statActual)
 		{

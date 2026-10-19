@@ -26,7 +26,6 @@ static const std::string BIN = "./bin/train_yourself";
 static const std::string NET = "input/railNetworkPrintFolder/";
 static const std::string TRN = "input/trainPrintFolder/";
 
-/* ---- Helper ---- */
 
 static int runExit(const std::string &cmd)
 {
@@ -59,15 +58,9 @@ static bool expectFail(const std::string &net, const std::string &trn,
 	return true;
 }
 
-/* ======================================================================== */
-
 int main()
 {
 	Test::TestSuite suite("Input-Combo");
-
-	/* ------------------------------------------------------------------ */
-	/*  Valid pairs — must exit 0                                          */
-	/* ------------------------------------------------------------------ */
 
 	suite.run("Good network + Good trains",
 			  [](std::string &m) {
@@ -147,10 +140,6 @@ int main()
 								  "trainPrintEmpty.txt", "", m);
 			  });
 
-	/* ------------------------------------------------------------------ */
-	/*  Valid pairs with flags                                             */
-	/* ------------------------------------------------------------------ */
-
 	suite.run("France --solo",
 			  [](std::string &m) {
 				  return expectOk("railNetworkFrance.txt",
@@ -189,10 +178,6 @@ int main()
 								  "--solo --graph /tmp/ci_combo_test2.dot",
 								  m);
 			  });
-
-	/* ------------------------------------------------------------------ */
-	/*  Bad network files — must exit non-zero                             */
-	/* ------------------------------------------------------------------ */
 
 	suite.run("BAD: Empty network",
 			  [](std::string &m) {
@@ -271,10 +256,6 @@ int main()
 				  return expectFail("railNetworkQuotedNames.txt",
 									"trainPrintGood.txt", m);
 			  });
-
-	/* ------------------------------------------------------------------ */
-	/*  Bad train files — must exit non-zero                               */
-	/* ------------------------------------------------------------------ */
 
 	suite.run("BAD: BadStation trains",
 			  [](std::string &m) {

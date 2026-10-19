@@ -113,7 +113,6 @@ int main()
 				  return true;
 			  });
 
-	/* ---- PathWeightMode::Solo tests ---- */
 
 	suite.run("time mode prefers faster route over shorter",
 			  [](std::string &msg) {

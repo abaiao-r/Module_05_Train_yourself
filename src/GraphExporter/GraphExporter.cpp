@@ -27,7 +27,6 @@
 #include "RailNetwork.hpp"
 #include "Train.hpp"
 
-/* ---- colour palette (8 distinct colours for up to 8 trains) ---- */
 static const char *TRAIN_COLOURS[] = {
 	"#e6194b", // red
 	"#3cb44b", // green
@@ -40,7 +39,6 @@ static const char *TRAIN_COLOURS[] = {
 };
 static constexpr size_t NUM_COLOURS = sizeof(TRAIN_COLOURS) / sizeof(TRAIN_COLOURS[0]);
 
-/* ---- helpers ---- */
 
 /** Build a canonical key for an undirected edge (alphabetical order). */
 static std::string edgeKey(const std::string &a, const std::string &b)
@@ -48,7 +46,6 @@ static std::string edgeKey(const std::string &a, const std::string &b)
 	return (a < b) ? a + "|" + b : b + "|" + a;
 }
 
-/* ---- public ---- */
 void GraphExporter::exportDot(
 	const std::string &filename,
 	const RailNetwork &network,
@@ -70,7 +67,6 @@ void GraphExporter::exportDot(
 	out << "    fontsize=18;\n";
 	out << "    fontcolor=\"#cdd6f4\";\n\n";
 
-	/* Node styling */
 	out << "    node [\n";
 	out << "        shape=box, style=\"filled,rounded\",\n";
 	out << "        fillcolor=\"#313244\", fontcolor=\"#cdd6f4\",\n";
@@ -78,13 +74,11 @@ void GraphExporter::exportDot(
 	out << "        fontsize=11, margin=\"0.15,0.08\"\n";
 	out << "    ];\n\n";
 
-	/* Default edge style */
 	out << "    edge [\n";
 	out << "        color=\"#585b70\", fontcolor=\"#a6adc8\",\n";
 	out << "        fontname=\"Helvetica\", fontsize=9\n";
 	out << "    ];\n\n";
 
-	/* Emit all nodes — highlight stations (City*) differently */
 	auto nodeNames = network.getNodeNames();
 	for (const auto &name : nodeNames)
 	{
@@ -98,7 +92,7 @@ void GraphExporter::exportDot(
 	}
 	out << "\n";
 
-	/* Collect all edges (undirected — avoid duplicates) */
+	/* Rails are undirected: emit each pair once. */
 	std::set<std::string> emitted;
 	for (const auto &nodeName : nodeNames)
 	{
@@ -120,7 +114,6 @@ void GraphExporter::exportDot(
 	}
 	out << "\n";
 
-	/* Overlay each train's path in colour */
 	for (size_t t = 0; t < trains.size(); t++)
 	{
 		const auto &path = trains[t]->getPath();
@@ -129,7 +122,6 @@ void GraphExporter::exportDot(
 
 		const char *colour = TRAIN_COLOURS[t % NUM_COLOURS];
 
-		/* Legend entry: invisible node + label */
 		out << "    \"_legend_" << t
 			<< "\" [label=\"" << trains[t]->getName()
 			<< "\", shape=plaintext, fontcolor=\"" << colour
@@ -140,7 +132,6 @@ void GraphExporter::exportDot(
 			const std::string &from = path[i]->getName();
 			const std::string &to = path[i + 1]->getName();
 
-			/* Look up the edge to annotate speed */
 			double speed = 0.0;
 			for (const auto &edge : network.getNeighbours(from))
 			{
@@ -172,12 +163,11 @@ void GraphExporter::exportDot(
 
 	std::cout << "Graph exported to " << filename << std::endl;
 
-	/* Derive base name (strip .dot extension if present) */
 	std::string base = filename;
 	if (base.size() > 4 && base.substr(base.size() - 4) == ".dot")
 		base = base.substr(0, base.size() - 4);
 
-	/* Validate filename to prevent shell injection */
+	/* The filename is passed to system(): reject shell metacharacters. */
 	auto isSafeChar = [](char c) {
 		return std::isalnum(static_cast<unsigned char>(c))
 			   || c == '.' || c == '/' || c == '_' || c == '-';

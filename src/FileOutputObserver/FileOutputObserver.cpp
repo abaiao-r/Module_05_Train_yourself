@@ -17,7 +17,6 @@
 #include <sstream>
 #include <stdexcept>
 
-/* ---- Static helpers ---- */
 std::string FileOutputObserver::fmtTimeShort(double seconds)
 {
 	int total = static_cast<int>(seconds);
@@ -51,7 +50,6 @@ std::string FileOutputObserver::padRight(const std::string &s,
 	return std::string(width - s.size(), ' ') + s;
 }
 
-/* ---- Constructor / Destructor ---- */
 FileOutputObserver::FileOutputObserver(const std::string &trainName,
 									   double departureTimeSec)
 	: _filename(buildFilename(trainName, departureTimeSec))
@@ -67,7 +65,6 @@ FileOutputObserver::~FileOutputObserver()
 		_file.close();
 }
 
-/* ---- Observer callbacks ---- */
 void FileOutputObserver::onTrainStart(const std::string &trainName,
 									  int trainId,
 									  double estimatedTimeSec)
@@ -86,20 +83,16 @@ void FileOutputObserver::onTrainStep(double timeSinceStart,
 									 int segmentCellsKm,
 									 const std::vector<int> &blockingCells)
 {
-	// Time
 	_file << "[" << fmtTimeShort(timeSinceStart) << "] - ";
 
-	// Segment nodes (right-padded to 10 chars)
 	_file << "[" << padRight(fromNode, 10) << "]"
 		  << "[" << padRight(toNode, 10) << "] - ";
 
-	// Distance remaining
 	std::ostringstream distOss;
 	distOss << std::fixed << std::setprecision(2)
 			<< std::setfill('0') << std::setw(5) << distRemainingKm;
 	_file << "[" << distOss.str() << "km] - ";
 
-	// Action (right-padded to 8 chars)
 	_file << "[" << padRight(action, 8) << "] - ";
 
 	// Rail graph: one cell per km

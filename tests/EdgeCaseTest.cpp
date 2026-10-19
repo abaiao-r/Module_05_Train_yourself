@@ -35,7 +35,6 @@ int main()
 {
 	Test::TestSuite suite("EdgeCase");
 
-	/* ── Minimal network: 2 nodes, 1 rail, 1 train ── */
 
 	suite.run("minimal network simulation completes",
 			  [](std::string &msg) {
@@ -86,7 +85,6 @@ int main()
 				  return true;
 			  });
 
-	/* ── Empty train file: network loads but no simulation ── */
 
 	suite.run("empty train file runs without crash",
 			  [](std::string &msg) {
@@ -102,7 +100,6 @@ int main()
 				  return true;
 			  });
 
-	/* ── Disconnected graph: train cannot reach destination ── */
 
 	suite.run("disconnected graph throws for unreachable train",
 			  [](std::string &msg) {
@@ -118,7 +115,6 @@ int main()
 				  return true;
 			  });
 
-	/* ── Midnight departure (00h00) ── */
 
 	suite.run("midnight departure simulation completes",
 			  [](std::string &msg) {
@@ -136,7 +132,6 @@ int main()
 				  return true;
 			  });
 
-	/* ── Late night departure (23h59) ── */
 
 	suite.run("late night departure simulation completes",
 			  [](std::string &msg) {
@@ -154,7 +149,6 @@ int main()
 				  return true;
 			  });
 
-	/* ── Null pathfinder ── */
 
 	suite.run("null pathfinder throws",
 			  [](std::string &msg) {
@@ -169,7 +163,6 @@ int main()
 				  return true;
 			  });
 
-	/* ── Train to unknown station ── */
 
 	suite.run("train with unknown destination throws at load time",
 			  [](std::string &msg) {

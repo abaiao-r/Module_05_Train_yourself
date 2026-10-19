@@ -15,7 +15,6 @@
 #include <algorithm>
 #include <cmath>
 
-/* ---- Canonical form ---- */
 RailNetwork::RailNetwork() {}
 
 RailNetwork::RailNetwork(const RailNetwork &src)
@@ -51,7 +50,6 @@ RailNetwork &RailNetwork::operator=(RailNetwork &&src) noexcept
 
 RailNetwork::~RailNetwork() {}
 
-/* ---- Graph operations ---- */
 void RailNetwork::addNode(const std::string &name)
 {
 	if (_nodes.count(name))
@@ -116,7 +114,6 @@ std::vector<std::string> RailNetwork::getNodeNames() const
 
 size_t RailNetwork::nodeCount() const { return _nodes.size(); }
 
-/* ---- Exception implementations ---- */
 RailNetwork::NodeNotFoundException::NodeNotFoundException(
 	const std::string &name)
 	: std::runtime_error("Node not found: " + name)

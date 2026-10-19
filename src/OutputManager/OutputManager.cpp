@@ -18,7 +18,6 @@
 
 #include "Node.hpp"
 
-/* ---- Canonical form ---- */
 OutputManager::OutputManager() {}
 OutputManager::OutputManager(const OutputManager &) {}
 OutputManager &OutputManager::operator=(const OutputManager &)
@@ -27,7 +26,6 @@ OutputManager &OutputManager::operator=(const OutputManager &)
 }
 OutputManager::~OutputManager() {}
 
-/* ---- Formatting ---- */
 std::string OutputManager::formatTime(double seconds)
 {
 	int totalSec = static_cast<int>(seconds);
@@ -41,7 +39,6 @@ std::string OutputManager::formatTime(double seconds)
 	return oss.str();
 }
 
-/* ---- Output methods ---- */
 void OutputManager::printNetwork(const RailNetwork &network) const
 {
 	std::cout << "=== Rail Network ===" << std::endl;

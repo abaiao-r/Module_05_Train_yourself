@@ -32,20 +32,17 @@ class SimDashboard : public QTextEdit
   public:
 	explicit SimDashboard(QWidget *parent = nullptr);
 
-	/** Render one frame of the dashboard from a tick snapshot. */
 	void update(double simTime, const QVector<TrainSnapshot> &snapshots);
 
 	/** Store the static event list, for per-segment risk lookups. */
 	void setEventInfo(const QVector<EventInfo> &events);
 
-	/** Show final results after the simulation completes. */
 	void showResults(const QStringList &results);
 
 	/** Show aggregated multi-run statistics table. */
 	void showMultiRunStats(const QVector<TrainStatRow> &stats,
 						   int completedRuns);
 
-	/** Reset to the idle / welcome state. */
 	void clear();
 
   private:

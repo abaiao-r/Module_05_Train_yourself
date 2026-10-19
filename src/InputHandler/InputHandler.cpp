@@ -22,7 +22,6 @@
 
 #include "TrainFactory.hpp"
 
-/* ---- File-scope helpers ---- */
 static std::string parseQuotedOrWord(std::istringstream &iss)
 {
 	char c;
@@ -118,7 +117,6 @@ static double parseTime(const std::string &str)
 	return hours * 3600.0 + minutes * 60.0;
 }
 
-/* ---- Public interface ---- */
 SimulationData InputHandler::loadData(const std::string &networkFile,
 									  const std::string &trainFile)
 {
@@ -129,7 +127,6 @@ SimulationData InputHandler::loadData(const std::string &networkFile,
 	return data;
 }
 
-/* ---- Private helpers ---- */
 void InputHandler::parseNetworkFile(const std::string &filepath,
 									RailNetwork &network,
 									std::vector<Event> &events)
@@ -253,12 +250,10 @@ InputHandler::ParseException::ParseException(const std::string &msg)
 {
 }
 
-/* ---- Cross-file validation ---- */
 void InputHandler::validateData(const std::string &networkFile,
 								const std::string &trainFile,
 								const SimulationData &data)
 {
-	/* Network must contain at least one node and one rail */
 	if (data.network.nodeCount() == 0)
 		throw ParseException(networkFile
 							 + ": Network file contains no nodes");
@@ -276,7 +271,6 @@ void InputHandler::validateData(const std::string &networkFile,
 		throw ParseException(networkFile
 							 + ": Network file contains no rails");
 
-	/* Every event must reference existing node(s) */
 	for (const auto &ev : data.events)
 	{
 		bool found = false;
@@ -293,7 +287,6 @@ void InputHandler::validateData(const std::string &networkFile,
 				networkFile + ": Event '" + ev.getName()
 				+ "' references unknown node '" + ev.getNodeName()
 				+ "'");
-		/* Rail segment event: validate second node too */
 		if (ev.isRailEvent())
 		{
 			bool found2 = false;
@@ -328,7 +321,6 @@ void InputHandler::validateData(const std::string &networkFile,
 		}
 	}
 
-	/* Every train must depart from and arrive at an existing node */
 	for (const auto &train : data.trains)
 	{
 		bool depFound = false, arrFound = false;

@@ -32,11 +32,7 @@ class Train;
 class Node;
 class NetworkScene;
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  DraggableNode                                                            */
-/*  Custom QGraphicsEllipseItem that notifies the scene when it moves,       */
-/*  so edges and labels track the node in real time.                         */
-/* ────────────────────────────────────────────────────────────────────────── */
+/* Notifies the scene on every move so edges and labels track the node. */
 class DraggableNode : public QGraphicsEllipseItem
 {
   public:
@@ -56,9 +52,6 @@ class DraggableNode : public QGraphicsEllipseItem
 	NetworkScene *_netScene;
 };
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/*  NetworkScene                                                             */
-/* ────────────────────────────────────────────────────────────────────────── */
 class NetworkScene : public QGraphicsScene
 {
 	Q_OBJECT
@@ -67,7 +60,6 @@ class NetworkScene : public QGraphicsScene
 	explicit NetworkScene(QObject *parent = nullptr);
 	~NetworkScene();
 
-	/* ─── Network building ──────────────────────────────────────────── */
 	void addNode(const QString &name, const QPointF &pos);
 	void addEdge(const QString &from, const QString &to,
 				 double distKm, double speedKmh);
@@ -84,12 +76,10 @@ class NetworkScene : public QGraphicsScene
 	/* Called by DraggableNode::itemChange when a node is dragged */
 	void nodeMoved(const QString &name, const QPointF &newPos);
 
-	/* ─── Train visualisation ──────────────────────────────────────── */
 	void updateTrains(double simTime,
 					  const QVector<TrainSnapshot> &snapshots);
 	void clearTrains();
 
-	/* ─── Events / reroutes ─────────────────────────────────────────── */
 	/** Mark every segment/node that has an event bound to it, by
 		appending a small risk indicator to its existing label and a
 		tooltip with the details - keeps it correctly positioned when
@@ -100,7 +90,6 @@ class NetworkScene : public QGraphicsScene
 	/** Briefly mark the node where a train just switched paths. */
 	void markReroute(const QString &nodeName, const QString &trainName);
 
-	/* ─── Accessors ────────────────────────────────────────────────── */
 	QStringList nodeNames() const;
 	bool hasNode(const QString &name) const;
 
