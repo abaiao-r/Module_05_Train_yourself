@@ -208,11 +208,18 @@ int main()
 				  std::getline(f, line);
 				  ASSERT_TRUE(outputContains(line, "Final travel time"),
 							  msg);
-				  /* Skip blank line, then check first step line */
-				  std::getline(f, line); // blank
-				  std::getline(f, line); // first step
-				  ASSERT_TRUE(outputContains(line, "["), msg);
-				  ASSERT_TRUE(outputContains(line, "km]"), msg);
+				  /* Random events may add header lines; find a step line */
+				  bool foundStep = false;
+				  while (std::getline(f, line))
+				  {
+					  if (outputContains(line, "[")
+						  && outputContains(line, "km]"))
+					  {
+						  foundStep = true;
+						  break;
+					  }
+				  }
+				  ASSERT_TRUE(foundStep, msg);
 				  return true;
 			  });
 
