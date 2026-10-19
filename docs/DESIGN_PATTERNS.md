@@ -6,10 +6,10 @@
 
 ## Strategy — Pathfinding
 
-`IPathfinding` defines the interface; `DijkstraPathfinding` is the concrete strategy. The algorithm is injected into `Simulation` at construction, making it trivial to swap (e.g., A\*, BFS). A `PathWeightMode` parameter controls whether edges are weighted by distance (km) or time (km ÷ km/h):
+`IPathfinding` defines the interface; `DijkstraPathfinding` is the concrete strategy. The algorithm is injected into `Simulation` at construction, making it trivial to swap (e.g., A\*, BFS). A `PathWeightMode` parameter controls whether edges are weighted by distance (km), solo travel time (km ÷ km/h), or adaptive (time plus live traffic and event risk):
 
 ```cpp
-enum class PathWeightMode { Distance, Time };
+enum class PathWeightMode { Distance, Solo, Adaptive };
 
 class IPathfinding {
 public:
@@ -18,6 +18,8 @@ public:
         const std::string &start, const std::string &end,
         const RailNetwork &network,
         PathWeightMode mode = PathWeightMode::Distance) const = 0;
+    // plus an adaptive overload (occupancy, clear times, event risk)
+    // and findConstrainedPath() for detours around forbidden edges
 };
 ```
 
@@ -110,6 +112,8 @@ Simulation(RailNetwork network,
            PathWeightMode weightMode = PathWeightMode::Distance);
 ```
 
+The constructor default is `Distance`; the CLI (`main.cpp`) passes `Solo` unless `--distance` or `--adaptive` is given.
+
 ---
 
 ## Orthodox Canonical Form
@@ -195,7 +199,7 @@ Every component does **one thing** with a straightforward implementation:
 | **Edge** | A plain `struct` with 3 public fields — no getters, no methods, no inheritance. |
 | **Event** | Just a name, a node, and a duration — stored as a flat value type. |
 | **TrainFactory** | One static method `createTrain()` — validates, constructs, returns. No builder pattern, no configuration objects. |
-| **PathWeightMode** | A simple `enum class` with two values instead of a class hierarchy for weight strategies. |
+| **PathWeightMode** | A simple `enum class` with three values (`Distance`, `Solo`, `Adaptive`) instead of a class hierarchy for weight strategies. |
 | **Physics loop** | A single `while` loop with clear `if/else` branches (brake → accelerate → maintain). No state machine framework. |
 
 ### DRY — Don't Repeat Yourself
@@ -244,7 +248,7 @@ public:
 | `Train` | Physics state (speed, position, forces) | `getId()`, `getName()`, `getStatus()`, state transition methods |
 | `Node` | Internal name storage | `getName()` only — no setter, enforced by const reference |
 | `Simulation` | Tick loop internals, train scheduling | `run()` — single entry point |
-| `OutputManager` | File I/O handles, path construction | `writeResult()`, `setOutputDir()` |
+| `OutputManager` | Console formatting details | `printNetwork()`, `printTrainPath()`, `printDeparture()`, `printArrival()`, `printEvent()`, `printReroute()`, `printResult()`, `formatTime()` |
 | `DijkstraPathfinding` | Priority queue, visited set, distance map | `findPath()` — pure function, no side effects |
 
 ### Single Responsibility Principle (SRP)
@@ -262,7 +266,7 @@ Each class has **exactly one reason to change**:
 | `TrainFactory` | Validate and construct trains |
 | `DijkstraPathfinding` | Compute shortest paths |
 | `FileOutputObserver` | Write simulation results to files |
-| `OutputManager` | Manage output directory and file routing |
+| `OutputManager` | Format and print console output (files are owned by `FileOutputObserver`) |
 | `Simulation` | Run the physics loop |
 | `GraphExporter` | Export the network as a DOT graph |
 
@@ -295,7 +299,7 @@ The architecture enforces strict layering so that concerns never leak across bou
 
 Interfaces are **minimal and focused**:
 
-- `IPathfinding` — one method: `findPath()`. No graph building, no caching API.
+- `IPathfinding` — path queries only: two `findPath()` overloads (base and adaptive-aware) plus `findConstrainedPath()` for detours. No graph building, no caching API.
 - `ISimulationObserver` — four callbacks: start, step, event, finish. No subscription management, no filtering.
 
 Clients are never forced to depend on methods they don't use.

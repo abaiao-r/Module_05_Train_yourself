@@ -56,7 +56,7 @@ make bonus
 make run-gui
 ```
 
-On **macOS**, `make run-gui` opens `bin/TrainGUI.app`. On **Linux/WSL**, it runs `./bin/TrainGUI` directly.
+On **macOS**, `make run-gui` opens `bin/TrainGUI.app`. On **Linux/WSL**, it runs `./bin/TrainGUI` directly. The worker `chdir`s to the project root before running so `output/results/` resolves: four directories above the executable on macOS (`bin/TrainGUI.app/Contents/MacOS`), one directory above `bin/` elsewhere.
 
 ### Requirements
 
@@ -145,7 +145,7 @@ All four entity types support Create, Edit, and Delete through dialog-based UI:
 |--------|--------|------|--------|
 | **Node** | Name input dialog | Rename dialog | Remove + cascade edges |
 | **Edge** | From/To combo + distance/speed inputs | Update distance/speed | Remove connection |
-| **Train** | All 9 fields (name, weight, friction, forces, stations, time, stop) | Modify any field | Remove train |
+| **Train** | All 9 fields (name, weight, friction, forces in kN, stations, time, stop) | Modify any field | Remove train |
 | **Event** | Name, probability, duration, target node(s) | Modify any field | Remove event |
 
 Each entity type has a dedicated **list widget** in the sidebar with **Add**, **Edit**, and **Delete** buttons.
@@ -201,7 +201,7 @@ The slider uses a **logarithmic mapping** for natural feel:
 
 Formula: `multiplier = 10^((sliderValue - 10) / 10)`
 
-Frame rate is constant at ~20 FPS regardless of speed setting.
+Frame delay is constant (50 ms, ~20 FPS). The multiplier scales the **frame emit interval** instead: a frame is emitted every `30 s × multiplier` of simulation time (minimum 1 s), so a lower multiplier gives finer, slower-looking playback.
 
 #### Background Thread
 
@@ -248,7 +248,9 @@ A colour-coded log panel at the bottom records all actions:
 
 ### 7. Validation & Safety
 
-- **Edit guard**: All CRUD operations check `guardSimRunning()` — if a simulation is active, a warning is shown asking the user to stop it first
+- **Edit guard**: edit, delete and load/import operations check `guardSimRunning()` — if a simulation is active, a warning is shown asking the user to stop it first
+- **Live adds**: while a single-run simulation is live, adding a node, edge, train or event is queued into the running `Simulation` (`enqueueAddNode/AddRail/AddTrain/AddEvent`) and applied atomically at the next tick; it is not added to the editor model (add it again after stopping to keep it). Not available during multi-run or after the run ends (the add is refused and logged). Rejections (duplicate, departure passed, no route, ...) are reported through the mutation callbacks
+- **Thread safety**: `SimulationWorker` publishes the running `Simulation*` under `_liveSimMutex`; a scope guard (`LiveSimGuard`) clears it on every exit path, taking the lock so an in-flight enqueue finishes before the `Simulation` is destroyed
 - **Deferred validation**: Loading network/train files only parses (no cross-validation). Full validation (station existence, route validity) happens at Run time via the simulation worker
 - **Node name validation**: Checked on create/edit to prevent empty or invalid names
 
@@ -264,7 +266,7 @@ The central `QMainWindow` subclass. Owns all model data and UI widgets.
 - `RailNetwork _network` — the graph model
 - `vector<unique_ptr<Train>> _trainDefs` — train definitions
 - `vector<Event> _eventDefs` — event definitions
-- `_useTimeWeight` — distance vs. time optimisation toggle
+- `_weightMode` — int from the path-weight combo (0 Distance, 1 Solo, 2 Adaptive)
 
 **Layout builders:**
 | Method | Creates |
@@ -298,6 +300,9 @@ Worker Object pattern for background simulation.
 | `setSpeedMultiplier(double)` | atomic | Set simulation speed |
 | `requestStop()` | atomic | Signal the worker to stop |
 | `isStopRequested()` | atomic | Check stop flag |
+| `enqueueAddNode/AddRail/AddEvent/AddTrain(...)` | mutex | Queue a live mutation; returns `false` if no simulation is live |
+| `isSimulationLive()` | mutex | True while a single-run simulation is running |
+| `runMulti(...)` | slot | Multi-run Monte Carlo (no live edits) |
 
 **Signals:**
 | Signal | Payload | When |
@@ -316,7 +321,7 @@ A `QTextEdit` subclass (read-only, monospace) rendering the live dashboard.
 - `boxRow(content)` — auto-pad and wrap in `║…║` borders
 - `hRule(left, right, width)` — generate `═` horizontal rules
 
-Box width: `BOX_INNER = 56` characters.
+Box width: `BOX_INNER = 80` characters.
 
 ---
 

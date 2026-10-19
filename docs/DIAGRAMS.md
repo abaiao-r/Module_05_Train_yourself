@@ -21,7 +21,7 @@ SVG: [class_diagram.svg](diagrams/class_diagram.svg) · Source: [class_diagram.p
 
 ## State Machine — Train Lifecycle
 
-Shows how a train transitions through states: Waiting → Running → Stopped/Delayed → Arrived. Includes the bonus **Aborted** state (GUI stop button).
+Shows how a train transitions through states: Waiting → Running → Stopped/Delayed → Arrived. (A GUI stop aborts the run via an exception; there is no `Aborted` status.)
 
 ![Train Lifecycle](diagrams/state_train_lifecycle.png)
 
@@ -71,7 +71,7 @@ SVG: [sequence_input_parsing.svg](diagrams/sequence_input_parsing.svg) · Source
 
 ## Sequence — Dijkstra Pathfinding
 
-The shortest-path algorithm: validation, priority queue loop, and path reconstruction. Shows both Distance and Time weight modes.
+The shortest-path algorithm: validation, priority queue loop, and path reconstruction. Weight modes are `PathWeightMode {Distance, Solo, Adaptive}` (the rendered diagram predates Solo/Adaptive).
 
 ![Pathfinding Sequence](diagrams/sequence_pathfinding.png)
 

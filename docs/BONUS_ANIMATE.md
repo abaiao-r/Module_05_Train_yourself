@@ -28,7 +28,7 @@ make run-animate
 --animate    Show live terminal animation of the simulation
 ```
 
-When combined with `--runs N`, animation only plays during run 0; remaining runs proceed silently.
+When combined with `--runs N`, animation only plays during run 0 and runs 1..N-1 print no console output. Run 0 is not fully silent (only `--animate` with a single run suppresses the text output), and `.result` files are rewritten every run.
 
 ---
 
@@ -121,7 +121,7 @@ Each call to `render()` follows this sequence:
 7. Draw bottom border:   ╚═══════════════════════════════╝
 8. Erase leftover lines from previous (longer) frame
 9. Flush stdout
-10. usleep(50000)  →  ~50 ms delay → ~20 FPS
+10. std::this_thread::sleep_for(50 ms)  →  ~20 FPS
 ```
 
 ### Progress Bar
@@ -158,8 +158,8 @@ Width: 40 characters. Shows percentage next to the bar.
 | `fmtTime` | `string fmtTime(double seconds)` | Format seconds → `"HH:MM:SS"` |
 | `progressBar` | `string progressBar(double fraction, int width)` | Unicode block bar |
 | `speedStr` | `string speedStr(double speed_ms)` | `"  123.4 km/h"` |
-| `visLen` | `size_t visLen(const string& s)` | Visible width, stripping ANSI escapes, counting UTF-8 |
-| `boxLine` | `string boxLine(const string& content)` | Pad to 62 visible chars, wrap in `║…║` |
+| `visLen` | `static int visLen(const string& s)` | Visible width, stripping ANSI escapes, counting UTF-8 |
+| `boxLine` | `static string boxLine(const string& content)` | Pad to 62 visible chars, wrap in `║…║` |
 
 ---
 
