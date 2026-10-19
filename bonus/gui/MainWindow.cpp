@@ -49,10 +49,6 @@
 #include "Node.hpp"
 #include "TrainFactory.hpp"
 
-/* ================================================================== */
-/*  Helpers                                                           */
-/* ================================================================== */
-
 static QString quoteIfNeeded(const std::string &s)
 {
 	QString q = QString::fromStdString(s);
@@ -60,10 +56,6 @@ static QString quoteIfNeeded(const std::string &s)
 		return '"' + q + '"';
 	return q;
 }
-
-/* ================================================================== */
-/*  ZoomableView – wheel zoom + smart pan / node-drag                 */
-/* ================================================================== */
 
 #include <QWheelEvent>
 
@@ -142,10 +134,6 @@ private:
 	QLabel *_legend;
 };
 
-/* ================================================================== */
-/*  Style sheet                                                       */
-/* ================================================================== */
-
 static const char *STYLESHEET = R"(
 QMainWindow { background: #1a1a2e; }
 QMenuBar { background: #16213e; color: #e0e0e0; font-size: 13px; padding: 2px; }
@@ -216,10 +204,6 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QGraphicsView { border: 1px solid #334155; border-radius: 6px; }
 )";
 
-/* ================================================================== */
-/*  Constructor / Destructor                                          */
-/* ================================================================== */
-
 MainWindow::MainWindow(QWidget *parent)
 	: QMainWindow(parent), _weightMode(0), _simRunning(false),
 	  _view(nullptr),
@@ -241,7 +225,6 @@ MainWindow::MainWindow(QWidget *parent)
 	buildSidebar();
 	scanPresetFiles();
 
-	/* Worker thread setup */
 	_worker = new SimulationWorker;
 	_worker->moveToThread(&_simThread);
 	qRegisterMetaType<QVector<TrainSnapshot>>("QVector<TrainSnapshot>");
@@ -289,7 +272,6 @@ MainWindow::MainWindow(QWidget *parent)
 			});
 	_simThread.start();
 
-	/* ── Sensible initial window size ── */
 	resize(1400, 900);
 
 	logInfo("Welcome! Load a network preset or create nodes to get started.");
@@ -302,14 +284,9 @@ MainWindow::~MainWindow()
 	_simThread.wait();
 	_worker = nullptr; /* deleted by deleteLater on thread finish */
 
-	/* Clean up temporary simulation files */
 	QFile::remove(QDir::tempPath() + "/trainsim_network.txt");
 	QFile::remove(QDir::tempPath() + "/trainsim_trains.txt");
 }
-
-/* ================================================================== */
-/*  Logging helpers                                                   */
-/* ================================================================== */
 
 void MainWindow::logInfo(const QString &msg)
 {
@@ -337,10 +314,6 @@ void MainWindow::logSuccess(const QString &msg)
 				"<span style='color:#6ee7b7;'>%2</span>")
 			.arg(ts, msg.toHtmlEscaped()));
 }
-
-/* ================================================================== */
-/*  Validation helpers                                                */
-/* ================================================================== */
 
 bool MainWindow::validateNodeName(const QString &name,
 								  QString &errorOut) const
@@ -386,10 +359,6 @@ bool MainWindow::guardSimRunning(const QString &action)
 		"Click Stop to abort the simulation first.");
 	return true;
 }
-
-/* ================================================================== */
-/*  UI construction                                                   */
-/* ==================================================================  */
 
 void MainWindow::buildMenus()
 {
@@ -506,7 +475,6 @@ void MainWindow::buildToolbar()
 
 	tb->addSeparator();
 
-	/* ── Runs spinbox ── */
 	auto *runsCaption = new QLabel("  Runs: ");
 	runsCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
 	tb->addWidget(runsCaption);
@@ -523,7 +491,6 @@ void MainWindow::buildToolbar()
 		"QSpinBox:focus { border-color: #533483; }");
 	tb->addWidget(_runsSpinBox);
 
-	/* ── Animate checkbox ── */
 	_animateCheck = new QCheckBox("Animate");
 	_animateCheck->setChecked(true);
 	_animateCheck->setToolTip(
@@ -540,7 +507,6 @@ void MainWindow::buildToolbar()
 
 	tb->addSeparator();
 
-	/* ── Path weight mode ── */
 	auto *pathCaption = new QLabel("  Path: ");
 	pathCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
 	tb->addWidget(pathCaption);
@@ -574,7 +540,6 @@ void MainWindow::buildToolbar()
 
 	tb->addSeparator();
 
-	/* ── Speed slider ── */
 	auto *spdCaption = new QLabel("  Speed: ");
 	spdCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
 	tb->addWidget(spdCaption);
@@ -605,7 +570,6 @@ void MainWindow::buildToolbar()
 
 	tb->addSeparator();
 
-	/* ── Fit-graph button ── */
 	auto *fitBtn = new QPushButton("  Fit Graph  ");
 	fitBtn->setStyleSheet(
 		"QPushButton { background: #3b82f6; font-size: 13px; padding: 8px 16px; }"
@@ -618,7 +582,6 @@ void MainWindow::buildCentralWidget()
 {
 	auto *vSplit = new QSplitter(Qt::Vertical, this);
 
-	/* ── Top: graph + live dashboard side by side ── */
 	_hSplit = new QSplitter(Qt::Horizontal);
 
 	_view = new ZoomableView(_scene);
@@ -635,7 +598,6 @@ void MainWindow::buildCentralWidget()
 	_hSplit->setSizes({1200, DASH_LIVE_W}); /* initial preset      */
 	vSplit->addWidget(_hSplit);
 
-	/* ── Bottom: log view ── */
 	_logView = new QTextEdit;
 	_logView->setReadOnly(true);
 	_logView->setMaximumHeight(180);
@@ -658,7 +620,6 @@ void MainWindow::buildSidebar()
 	mainLay->setContentsMargins(8, 8, 8, 8);
 	mainLay->setSpacing(6);
 
-	/* ── Preset combos ── */
 	auto *presetGroup = new QGroupBox("Quick Load Presets");
 	auto *presetLay = new QVBoxLayout(presetGroup);
 
@@ -682,10 +643,8 @@ void MainWindow::buildSidebar()
 	presetLay->addWidget(_presetTrainCombo);
 	mainLay->addWidget(presetGroup);
 
-	/* ── Tab widget for the 4 element lists ── */
 	auto *tabs = new QTabWidget;
 
-	/* --- Nodes tab --- */
 	auto *nodeTab = new QWidget;
 	auto *nodeLay = new QVBoxLayout(nodeTab);
 	nodeLay->setContentsMargins(4, 4, 4, 4);
@@ -705,7 +664,6 @@ void MainWindow::buildSidebar()
 	nodeLay->addLayout(nodeActions);
 	tabs->addTab(nodeTab, "Nodes");
 
-	/* --- Edges tab --- */
 	auto *edgeTab = new QWidget;
 	auto *edgeLay = new QVBoxLayout(edgeTab);
 	edgeLay->setContentsMargins(4, 4, 4, 4);
@@ -725,7 +683,6 @@ void MainWindow::buildSidebar()
 	edgeLay->addLayout(edgeActions);
 	tabs->addTab(edgeTab, "Edges");
 
-	/* --- Trains tab --- */
 	auto *trainTab = new QWidget;
 	auto *trainLay = new QVBoxLayout(trainTab);
 	trainLay->setContentsMargins(4, 4, 4, 4);
@@ -745,7 +702,6 @@ void MainWindow::buildSidebar()
 	trainLay->addLayout(trainActions);
 	tabs->addTab(trainTab, "Trains");
 
-	/* --- Events tab --- */
 	auto *eventTab = new QWidget;
 	auto *eventLay = new QVBoxLayout(eventTab);
 	eventLay->setContentsMargins(4, 4, 4, 4);
@@ -769,10 +725,6 @@ void MainWindow::buildSidebar()
 	dock->setWidget(container);
 	addDockWidget(Qt::RightDockWidgetArea, dock);
 }
-
-/* ================================================================== */
-/*  Preset scanning                                                   */
-/* ================================================================== */
 
 void MainWindow::scanPresetFiles()
 {
@@ -811,7 +763,6 @@ void MainWindow::scanPresetFiles()
 		}
 	}
 
-	/* Scan train presets */
 	QDir trainDir(root.filePath("input/trainPrintFolder"));
 	if (trainDir.exists())
 	{
@@ -827,10 +778,6 @@ void MainWindow::scanPresetFiles()
 		}
 	}
 }
-
-/* ================================================================== */
-/*  Refresh sidebar lists                                             */
-/* ================================================================== */
 
 void MainWindow::refreshLists()
 {
@@ -890,10 +837,6 @@ void MainWindow::refreshLists()
 			.arg(_trainList->count())
 			.arg(_eventList->count()));
 }
-
-/* ================================================================== */
-/*  File loading / saving                                             */
-/* ================================================================== */
 
 void MainWindow::onLoadNetwork()
 {
@@ -1131,10 +1074,6 @@ void MainWindow::onSaveTrains()
 			   + " train(s) to " + QFileInfo(path).fileName());
 }
 
-/* ================================================================== */
-/*  Import / Export All                                               */
-/* ================================================================== */
-
 void MainWindow::onImportAll()
 {
 	if (guardSimRunning("import files"))
@@ -1253,7 +1192,6 @@ void MainWindow::onExportAll()
 	if (dir.isEmpty())
 		return;
 
-	/* ---- Export network file ---- */
 	QString netPath = dir + "/network.txt";
 	{
 		QFile f(netPath);
@@ -1290,7 +1228,6 @@ void MainWindow::onExportAll()
 	}
 	logSuccess("Exported network to " + netPath);
 
-	/* ---- Export trains file ---- */
 	if (!_trainDefs.empty())
 	{
 		QString trainPath = dir + "/trains.txt";
@@ -1356,10 +1293,6 @@ void MainWindow::onExportDot()
 		logError("DOT export failed: " + QString::fromStdString(e.what()));
 	}
 }
-
-/* ================================================================== */
-/*  Create dialogs                                                    */
-/* ================================================================== */
 
 void MainWindow::onAddNode()
 {
@@ -1489,7 +1422,6 @@ void MainWindow::onAddEdge()
 		return;
 	}
 
-	/* Check for duplicate edge */
 	for (int i = 0; i < _edgeList->count(); ++i)
 	{
 		QString txt = _edgeList->item(i)->text();
@@ -1612,7 +1544,6 @@ void MainWindow::onAddTrain()
 	if (dlg.exec() != QDialog::Accepted)
 		return;
 
-	/* Validate train name */
 	QString trainName = nameEdit->text().trimmed();
 	if (trainName.isEmpty())
 	{
@@ -1751,7 +1682,6 @@ void MainWindow::onAddEvent()
 	if (dlg.exec() != QDialog::Accepted)
 		return;
 
-	/* Validate event name */
 	QString evName = nameEdit->text().trimmed();
 	if (evName.isEmpty())
 	{
@@ -1795,10 +1725,6 @@ void MainWindow::onAddEvent()
 	logSuccess("Added event: " + evName);
 }
 
-/* ================================================================== */
-/*  Delete operations                                                 */
-/* ================================================================== */
-
 void MainWindow::onDeleteNode()
 {
 	if (guardSimRunning("delete a node"))
@@ -1813,7 +1739,6 @@ void MainWindow::onDeleteNode()
 
 	QString name = item->text();
 
-	/* Count trains that will be invalidated */
 	int affectedTrains = 0;
 	for (const auto &t : _trainDefs)
 		if (t->getDepartureStation() == name.toStdString()
@@ -1830,10 +1755,8 @@ void MainWindow::onDeleteNode()
 	if (ret != QMessageBox::Yes)
 		return;
 
-	/* Remove from scene */
 	_scene->removeNode(name);
 
-	/* Rebuild RailNetwork from scene (simplest approach) */
 	RailNetwork newNet;
 	for (const auto &n : _scene->nodeNames())
 		newNet.addNode(n.toStdString());
@@ -1902,7 +1825,7 @@ void MainWindow::onDeleteEdge()
 		return;
 	}
 
-	/* Parse "From <-> To  (... km, ... km/h)" */
+	/* Edge identity is recovered from the list text "A <-> B (...)". */
 	QString text = item->text();
 	QStringList parts = text.split(" <-> ");
 	if (parts.size() < 2)
@@ -1919,7 +1842,6 @@ void MainWindow::onDeleteEdge()
 
 	_scene->removeEdge(from, to);
 
-	/* Rebuild network without this edge */
 	RailNetwork newNet;
 	for (const auto &n : _network.getNodeNames())
 		newNet.addNode(n);
@@ -1997,10 +1919,6 @@ void MainWindow::onDeleteEvent()
 	logSuccess("Deleted event: " + name);
 }
 
-/* ================================================================== */
-/*  Edit operations                                                   */
-/* ================================================================== */
-
 void MainWindow::onEditNode()
 {
 	if (guardSimRunning("edit a node"))
@@ -2045,7 +1963,6 @@ void MainWindow::onEditNode()
 		return;
 	}
 
-	/* Rebuild RailNetwork with the renamed node */
 	RailNetwork newNet;
 	for (const auto &n : _network.getNodeNames())
 	{
@@ -2078,10 +1995,8 @@ void MainWindow::onEditNode()
 	}
 	_network = std::move(newNet);
 
-	/* Update scene visual */
 	_scene->renameNode(oldName, newName);
 
-	/* Update trains referencing old name */
 	for (auto &t : _trainDefs)
 	{
 		bool changed = false;
@@ -2107,7 +2022,6 @@ void MainWindow::onEditNode()
 		}
 	}
 
-	/* Update events referencing old name */
 	for (size_t i = 0; i < _eventDefs.size(); ++i)
 	{
 		auto &ev = _eventDefs[i];
@@ -2145,7 +2059,6 @@ void MainWindow::onEditEdge()
 		return;
 	}
 
-	/* Parse "From <-> To  (X.X km, Y km/h)" */
 	QString text = item->text();
 	QStringList parts = text.split(" <-> ");
 	if (parts.size() < 2)
@@ -2154,7 +2067,6 @@ void MainWindow::onEditEdge()
 	QString remainder = parts[1];
 	QString to = remainder.split("  (").first().trimmed();
 
-	/* Find current values */
 	double curDist = 10.0;
 	double curSpeed = 200.0;
 	for (const auto &e : _network.getNeighbours(from.toStdString()))
@@ -2207,7 +2119,6 @@ void MainWindow::onEditEdge()
 	double newDist = distSpin->value();
 	double newSpeed = speedSpin->value();
 
-	/* Rebuild RailNetwork with updated edge */
 	RailNetwork newNet;
 	for (const auto &n : _network.getNodeNames())
 		newNet.addNode(n);
@@ -2238,7 +2149,6 @@ void MainWindow::onEditEdge()
 	}
 	_network = std::move(newNet);
 
-	/* Update scene visual */
 	_scene->updateEdge(from, to, newDist, newSpeed);
 
 	refreshLists();
@@ -2327,7 +2237,6 @@ void MainWindow::onEditTrain()
 	if (dlg.exec() != QDialog::Accepted)
 		return;
 
-	/* Validate edited train */
 	QString editTrainName = nameEdit->text().trimmed();
 	if (editTrainName.isEmpty())
 	{
@@ -2448,7 +2357,6 @@ void MainWindow::onEditEvent()
 	if (dlg.exec() != QDialog::Accepted)
 		return;
 
-	/* Validate event name */
 	QString editEvName = nameEdit->text().trimmed();
 	if (editEvName.isEmpty())
 	{
@@ -2479,10 +2387,6 @@ void MainWindow::onEditEvent()
 	refreshLists();
 	logSuccess("Updated event: " + editEvName);
 }
-
-/* ================================================================== */
-/*  Simulation                                                        */
-/* ================================================================== */
 
 void MainWindow::onRunSimulation()
 {
@@ -2520,7 +2424,6 @@ void MainWindow::onRunSimulation()
 		QString dep = QString::fromStdString(t->getDepartureStation());
 		QString arr = QString::fromStdString(t->getArrivalStation());
 
-		/* Check stations exist */
 		bool depExists = false;
 		bool arrExists = false;
 		for (const auto &n : _network.getNodeNames())
@@ -2551,7 +2454,6 @@ void MainWindow::onRunSimulation()
 			return;
 		}
 
-		/* Check route reachability */
 		try
 		{
 			auto path = preflight.findPath(
@@ -2605,7 +2507,6 @@ void MainWindow::onRunSimulation()
 
 	if (numRuns > 1)
 	{
-		/* Multi-run Monte Carlo mode */
 		logInfo(QString("--- Starting multi-run (%1 runs, animate first: %2) ---")
 					.arg(numRuns).arg(animate ? "yes" : "no"));
 		_runBtn->setText(QString("  Run 0/%1...  ").arg(numRuns));
@@ -2618,7 +2519,6 @@ void MainWindow::onRunSimulation()
 	}
 	else
 	{
-		/* Single run — always animated */
 		logInfo("--- Starting simulation ---");
 		QMetaObject::invokeMethod(
 			_worker, "runSimulation", Qt::QueuedConnection,
@@ -2829,10 +2729,6 @@ void MainWindow::onStopSimulation()
 	_stopBtn->setText("  Stopping...  ");
 	_worker->requestStop();
 }
-
-/* ================================================================== */
-/*  Temporary file helpers                                            */
-/* ================================================================== */
 
 QString MainWindow::writeTemporaryNetworkFile() const
 {

@@ -95,7 +95,6 @@ int main()
 {
 	Test::TestSuite suite("Adaptive");
 
-	/* ── enum value exists ────────────────────────────────── */
 	suite.run("PathWeightMode::Adaptive exists", [](std::string &msg) {
 		PathWeightMode m = PathWeightMode::Adaptive;
 		ASSERT_TRUE(m != PathWeightMode::Distance, msg);
@@ -103,7 +102,6 @@ int main()
 		return true;
 	});
 
-	/* ── edgeWeight base cost matches Solo mode ──────────── */
 	suite.run("Adaptive base cost equals Solo cost", [](std::string &msg) {
 		RailNetwork net = makeDiamond();
 		const auto &edges = net.getNeighbours("A");
@@ -117,7 +115,6 @@ int main()
 		return true;
 	});
 
-	/* ── empty occupancy == Solo mode path ───────────────── */
 	suite.run("empty occupancy returns same path as Solo",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -132,7 +129,6 @@ int main()
 		return true;
 	});
 
-	/* ── occupancy on A->B shifts route to A->C->D ──────── */
 	suite.run("occupied segment is avoided",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -158,7 +154,6 @@ int main()
 		return true;
 	});
 
-	/* ── penalty is additive per train ───────────────────── */
 	suite.run("more trains on segment -> higher cost",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -192,7 +187,6 @@ int main()
 		return true;
 	});
 
-	/* ── non-occupied segment has zero penalty ───────────── */
 	suite.run("non-occupied segment has zero penalty",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -219,7 +213,6 @@ int main()
 		return true;
 	});
 
-	/* ── congestion on all routes: picks least congested ── */
 	suite.run("picks least congested route",
 			  [](std::string &msg) {
 		RailNetwork net = makeTriple();
@@ -237,7 +230,6 @@ int main()
 		return true;
 	});
 
-	/* ── start == end returns single node ─────────────────── */
 	suite.run("start equals end with occupancy",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -252,7 +244,6 @@ int main()
 		return true;
 	});
 
-	/* ── unreachable returns empty ────────────────────────── */
 	suite.run("disconnected graph returns empty with occupancy",
 			  [](std::string &msg) {
 		RailNetwork net;
@@ -267,7 +258,6 @@ int main()
 		return true;
 	});
 
-	/* ── CONGESTION_PENALTY constant value ────────────────── */
 	suite.run("CONGESTION_PENALTY is 120 seconds",
 			  [](std::string &msg) {
 		ASSERT_NEAR(120.0, DijkstraPathfinding::CONGESTION_PENALTY,
@@ -275,7 +265,6 @@ int main()
 		return true;
 	});
 
-	/* ── Non-Adaptive mode ignores occupancy ───────────── */
 	suite.run("Distance mode ignores occupancy overload",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -294,7 +283,6 @@ int main()
 		return true;
 	});
 
-	/* ── bidirectional occupancy keys are separate ────────── */
 	suite.run("A->B and B->A are separate occupancy keys",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -322,7 +310,6 @@ int main()
 		return true;
 	});
 
-	/* ── time-aware penalty: real clear-time estimate is used ────── */
 	suite.run("clear-time estimate overrides the flat penalty",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -358,7 +345,6 @@ int main()
 		return true;
 	});
 
-	/* ── time-aware penalty is floored, not treated as free ──────── */
 	suite.run("clear-time estimate is floored at MIN_CONGESTION_PENALTY",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -390,7 +376,6 @@ int main()
 		return true;
 	});
 
-	/* ── missing clear-time entry falls back to the flat penalty ─── */
 	suite.run("segment without a clear-time entry uses the flat penalty",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -419,7 +404,6 @@ int main()
 		return true;
 	});
 
-	/* ── event risk adds cost even with zero occupancy ───────────── */
 	suite.run("event risk penalises an edge with no current traffic",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -449,7 +433,6 @@ int main()
 		return true;
 	});
 
-	/* ── findPath avoids a risky edge even before any train departs ── */
 	suite.run("findPath reroutes around event risk with empty occupancy",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();
@@ -475,7 +458,6 @@ int main()
 		return true;
 	});
 
-	/* ── missing event-risk entry has no effect ──────────────────── */
 	suite.run("segment without an event-risk entry is unaffected",
 			  [](std::string &msg) {
 		RailNetwork net = makeDiamond();

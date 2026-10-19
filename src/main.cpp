@@ -173,7 +173,6 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	/* Validate .txt extension on input files */
 	if (!hasTxtExtension(argv[1]))
 	{
 		std::cerr << "Error: Network file must have .txt extension: "
@@ -187,7 +186,6 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	/* Parse optional flags */
 	PathWeightMode weightMode = PathWeightMode::Solo;
 	bool weightModeSet = false;
 	std::string graphFile;
@@ -262,8 +260,7 @@ int main(int argc, char **argv)
 
 	try
 	{
-		/* ---- Multi-run statistics collection ---- */
-		/* Key = trainName, Value = vector of actualTimes */
+		/* trainName -> actual travel time of each run. */
 		std::map<std::string, std::vector<double>> statActual;
 		std::map<std::string, std::vector<double>> statDelay;
 		std::map<std::string, double> statEstimated;
@@ -302,7 +299,6 @@ int main(int argc, char **argv)
 			if (animate && run == 0)
 				animDisplay.cleanup();
 
-			/* Collect results */
 			/* Same-named trains (different departures) get separate rows:
 			   results keep load order, so the Nth duplicate is stable. */
 			std::map<std::string, int> seen;
@@ -327,7 +323,6 @@ int main(int argc, char **argv)
 			}
 		}
 
-		/* ---- Print multi-run statistics ---- */
 		if (numRuns > 1)
 		{
 			std::cout << "\n=== Multi-Run Statistics (" << numRuns

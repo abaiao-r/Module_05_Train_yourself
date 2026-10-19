@@ -50,7 +50,6 @@ class MainWindow : public QMainWindow
 	~MainWindow();
 
   private slots:
-	/* ─── File I/O ──────────────────────────────────────────────────── */
 	void onLoadNetwork();
 	void onLoadTrains();
 	void onSaveNetwork();
@@ -61,25 +60,21 @@ class MainWindow : public QMainWindow
 	void onLoadPresetNetwork(int index);
 	void onLoadPresetTrains(int index);
 
-	/* ─── Create ────────────────────────────────────────────────────── */
 	void onAddNode();
 	void onAddEdge();
 	void onAddTrain();
 	void onAddEvent();
 
-	/* ─── Delete ────────────────────────────────────────────────────── */
 	void onDeleteNode();
 	void onDeleteEdge();
 	void onDeleteTrain();
 	void onDeleteEvent();
 
-	/* ─── Edit ──────────────────────────────────────────────────────── */
 	void onEditNode();
 	void onEditEdge();
 	void onEditTrain();
 	void onEditEvent();
 
-	/* ─── Simulation ────────────────────────────────────────────────── */
 	void onRunSimulation();
 	void onStopSimulation();
 	void onSimTick(double simTime, QVector<TrainSnapshot> snapshots);
@@ -110,12 +105,10 @@ class MainWindow : public QMainWindow
 
 	void scanPresetFiles();
 
-	/* ─── Validation helpers ───────────────────────────────────────── */
 	bool validateNodeName(const QString &name, QString &errorOut) const;
 	bool isSimRunning() const;
 	bool guardSimRunning(const QString &action);
 
-	/* ─── Model ─────────────────────────────────────────────────────── */
 	RailNetwork _network;
 	std::vector<std::unique_ptr<Train>> _trainDefs;
 	std::vector<Event> _eventDefs;
@@ -125,7 +118,6 @@ class MainWindow : public QMainWindow
 	bool _simRunning;
 	double _lastSimTime = 0.0;  // seconds from midnight, updated on each tick
 
-	/* ─── Widgets ───────────────────────────────────────────────────── */
 	QSplitter *_hSplit;
 	QGraphicsView *_view;
 	NetworkScene *_scene;
@@ -146,11 +138,9 @@ class MainWindow : public QMainWindow
 	QCheckBox *_animateCheck;
 	QComboBox *_pathWeightCombo;
 
-	/* ─── Preset combos ─────────────────────────────────────────────── */
 	QComboBox *_presetNetworkCombo;
 	QComboBox *_presetTrainCombo;
 
-	/* ─── Delete buttons (one per tab) ──────────────────────────────── */
 	QPushButton *_delNodeBtn;
 	QPushButton *_delEdgeBtn;
 	QPushButton *_delTrainBtn;
@@ -160,7 +150,6 @@ class MainWindow : public QMainWindow
 	QPushButton *_editTrainBtn;
 	QPushButton *_editEventBtn;
 
-	/* ─── Simulation thread ─────────────────────────────────────────── */
 	QThread _simThread;
 	SimulationWorker *_worker;
 };

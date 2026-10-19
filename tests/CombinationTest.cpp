@@ -35,12 +35,10 @@
 #include "Simulation.hpp"
 #include "TestFramework.hpp"
 
-/* ─── input directories ─── */
 
 static const std::string NET_DIR = "input/railNetworkPrintFolder/";
 static const std::string TRN_DIR = "input/trainPrintFolder/";
 
-/* ─── all input files ─── */
 
 static const std::vector<std::string> NETWORK_FILES = {
 	"railNetworkBadEventDuration.txt",
@@ -84,7 +82,6 @@ static const std::vector<std::string> TRAIN_FILES = {
 	"trainPrintUnreachable.txt",
 };
 
-/* ─── helpers ─── */
 
 /**
  * Extract a short label from a filename, e.g.
@@ -95,11 +92,9 @@ static std::string shortLabel(const std::string &filename,
 							  const std::string &prefix)
 {
 	std::string label = filename;
-	/* strip prefix */
 	size_t pos = label.find(prefix);
 	if (pos != std::string::npos)
 		label = label.substr(pos + prefix.length());
-	/* strip .txt */
 	pos = label.rfind(".txt");
 	if (pos != std::string::npos)
 		label = label.substr(0, pos);
@@ -112,7 +107,6 @@ static std::string shortLabel(const std::string &filename,
  */
 static void cleanupOutputDir()
 {
-	/* Use system to remove all result files — safe and simple */
 	std::system("rm -f output/results/*.result 2>/dev/null");
 }
 
@@ -129,24 +123,20 @@ static bool tryFullRun(const std::string &netFile,
 					   const std::string &trnFile,
 					   std::string &phase)
 {
-	/* Phase 1 — parse */
 	phase = "loadData";
 	auto data = InputHandler::loadData(netFile, trnFile);
 
-	/* Phase 2 — construct simulation */
 	phase = "construct";
 	Simulation sim(std::move(data.network), std::move(data.trains),
 				   std::move(data.events),
 				   std::make_unique<DijkstraPathfinding>());
 
-	/* Phase 3 — run simulation */
 	phase = "run";
 	sim.run();
 
 	return true;
 }
 
-/* ─── main ─── */
 
 int main()
 {

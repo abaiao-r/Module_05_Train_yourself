@@ -21,7 +21,6 @@
 #include "Node.hpp"
 #include "RailNetwork.hpp"
 
-/* ---- Canonical form ---- */
 DijkstraPathfinding::DijkstraPathfinding() {}
 DijkstraPathfinding::DijkstraPathfinding(const DijkstraPathfinding &) {}
 
@@ -33,7 +32,6 @@ DijkstraPathfinding &DijkstraPathfinding::operator=(
 
 DijkstraPathfinding::~DijkstraPathfinding() {}
 
-/* ---- Edge weight helper ---- */
 double DijkstraPathfinding::edgeWeight(const Edge &edge,
 									   PathWeightMode mode)
 {
@@ -42,7 +40,6 @@ double DijkstraPathfinding::edgeWeight(const Edge &edge,
 	return edge.distance;                       // km
 }
 
-/* ---- Edge weight with congestion + event-risk penalty ---- */
 double DijkstraPathfinding::edgeWeight(const Edge &edge,
 									   PathWeightMode mode,
 									   const std::string &from,
@@ -78,12 +75,11 @@ double DijkstraPathfinding::edgeWeight(const Edge &edge,
 	return base;
 }
 
-/* ---- Algorithm ---- */
 std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 	const std::string &start, const std::string &end,
 	const RailNetwork &network, PathWeightMode mode) const
 {
-	// Validate that both nodes exist in the network
+
 	network.findNode(start);
 	network.findNode(end);
 
@@ -141,7 +137,6 @@ std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 	return path;
 }
 
-/* ---- Adaptive-aware pathfinding ---- */
 std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 	const std::string &start, const std::string &end,
 	const RailNetwork &network, PathWeightMode mode,
@@ -215,7 +210,6 @@ std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findPath(
 	return path;
 }
 
-/* ---- Constrained static search (forbidden edges + intermediate dwell) ---- */
 std::vector<std::shared_ptr<Node>> DijkstraPathfinding::findConstrainedPath(
 	const std::string &start, const std::string &end,
 	const RailNetwork &network, const ForbiddenEdges &forbidden,

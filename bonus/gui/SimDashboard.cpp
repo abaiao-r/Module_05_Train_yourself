@@ -13,7 +13,7 @@
 #include "SimDashboard.hpp"
 #include <cmath>
 
-/* ── Colour palette (matching the dark theme) ──────────────────────────── */
+/* Dark-theme palette. */
 static const char *C_BORDER  = "#06b6d4"; /* cyan-400  – box borders    */
 static const char *C_TITLE   = "#e0e0e0"; /* white-ish – title text     */
 static const char *C_DIM     = "#94a3b8"; /* slate-400 – dim text       */
@@ -23,7 +23,6 @@ static const char *C_RED     = "#f87171"; /* red-400   – stopped/delay  */
 static const char *C_CYAN    = "#22d3ee"; /* cyan-300  – progress bar   */
 static const char *C_BADGE   = "#334155"; /* slate-700 – badge bg       */
 
-/* ── Constructor ───────────────────────────────────────────────────────── */
 SimDashboard::SimDashboard(QWidget *parent) : QTextEdit(parent)
 {
 	setReadOnly(true);
@@ -43,7 +42,6 @@ SimDashboard::SimDashboard(QWidget *parent) : QTextEdit(parent)
 	clear();
 }
 
-/* ── Helpers ───────────────────────────────────────────────────────────── */
 
 QString SimDashboard::fmtTime(double seconds)
 {
@@ -147,7 +145,6 @@ static QString visTruncate(const QString &html, int maxVis)
 		out += c;
 		vis++;
 	}
-	/* Close any unclosed tags */
 	return out;
 }
 
@@ -155,7 +152,6 @@ QString SimDashboard::boxRow(const QString &html)
 {
 	QString content = html;
 	int vis = visLen(content);
-	/* If content is too wide, truncate it */
 	if (vis > BOX_INNER)
 		content = visTruncate(content, BOX_INNER);
 	vis = visLen(content);
@@ -204,7 +200,6 @@ QStringList SimDashboard::remainingPathEventNames(const QStringList &path,
 	return names;
 }
 
-/* ── Main update ───────────────────────────────────────────────────────── */
 
 void SimDashboard::update(double simTime,
 						  const QVector<TrainSnapshot> &snapshots)
@@ -212,19 +207,16 @@ void SimDashboard::update(double simTime,
 	QString html;
 	html += "<pre style='margin:0; line-height:1.4;'>";
 
-	/* ═══ Header ═══ */
 	html += hRule(QString(QChar(0x2554)), QString(QChar(0x2557)), BOX_INNER);
 	html += boxRow(QString("  <b style='color:%1;'>Train Simulation "
 						   "\xe2\x80\x94 Live View</b>")
 					   .arg(C_TITLE));
 	html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)), BOX_INNER);
 
-	/* Clock */
 	html += boxRow(QString("  <b style='color:%1;'>Clock:</b> %2")
 					   .arg(C_TITLE, fmtTime(simTime)));
 	html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)), BOX_INNER);
 
-	/* Legend */
 	html += boxRow(QString("  <span style='color:%1;'>\xe2\x9a\xa0</span>"
 						   " risk  <span style='color:%2;'>\xe2\x97\x8f</span>"
 						   " delayed  <span style='color:%3;'>\xe2\x97\x8f</span>"
@@ -262,7 +254,6 @@ void SimDashboard::update(double simTime,
 	{
 		const auto &s = snapshots[i];
 
-		/* ── Train header ── */
 		QString dot, badge, dotCol;
 		if (s.arrived)
 		{
@@ -318,7 +309,6 @@ void SimDashboard::update(double simTime,
 				.arg(s.id)
 				.arg(C_DIM, s.departure, s.arrival, badge));
 
-		/* ── Detail lines ── */
 		if (!s.departed)
 		{
 			/* Nothing extra — badge says "Waiting" */
@@ -333,7 +323,6 @@ void SimDashboard::update(double simTime,
 		}
 		else
 		{
-			/* Segment */
 			if (!s.from.isEmpty() && !s.to.isEmpty())
 			{
 				html += boxRow(
@@ -342,7 +331,6 @@ void SimDashboard::update(double simTime,
 						.arg(C_DIM, s.from, s.to));
 			}
 
-			/* Speed */
 			QString action;
 			if (s.stopTimer > 0.0)
 				action = "Stopped";
@@ -355,7 +343,6 @@ void SimDashboard::update(double simTime,
 						" %2  (%3)")
 					.arg(C_DIM, speedStr(s.speed_ms), action));
 
-			/* Progress bar */
 			double frac = 0.5;
 			if (s.pathSize > 1)
 			{
@@ -377,12 +364,10 @@ void SimDashboard::update(double simTime,
 					.arg(C_CYAN, progressBar(frac, 30))
 					.arg(pct));
 
-			/* Elapsed */
 			html += boxRow(
 					QString("    <span style='color:%1;'>Time:</span> %2")
 					.arg(C_DIM, fmtTime(s.timeSinceDepart)));
 
-			/* Blocked-by */
 			if (!s.blockedByName.isEmpty())
 			{
 				html += boxRow(
@@ -439,7 +424,6 @@ void SimDashboard::update(double simTime,
 				}
 			}
 
-			/* Physics */
 			html += boxRow(
 				QString("    <span style='color:%1;'>Weight:</span>"
 						" %2t  <span style='color:%1;'>Accel:</span>"
@@ -456,7 +440,6 @@ void SimDashboard::update(double simTime,
 					.arg(s.decelRate_ms2, 0, 'f', 2));
 		}
 
-		/* Separator */
 		if (i + 1 < snapshots.size())
 		{
 			QString sep;
@@ -467,14 +450,12 @@ void SimDashboard::update(double simTime,
 		}
 	}
 
-	/* ═══ Footer ═══ */
 	html += hRule(QString(QChar(0x255A)), QString(QChar(0x255D)), BOX_INNER);
 	html += "</pre>";
 
 	setHtml(html);
 }
 
-/* ── Show final results ────────────────────────────────────────────────── */
 
 void SimDashboard::showResults(const QStringList &results)
 {
@@ -495,7 +476,6 @@ void SimDashboard::showResults(const QStringList &results)
 	setHtml(html);
 }
 
-/* ── Show multi-run statistics ─────────────────────────────────────────── */
 
 void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
 									 int completedRuns)
@@ -505,7 +485,6 @@ void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
 	   2 margin + 14 name + 5*(8 time + 2 gap) + 2 = 68 inner chars */
 	static constexpr int STAT_BOX = 72;
 
-	/* Local lambdas that use the wider box */
 	auto sHRule = [](const QString &left, const QString &right, int n) -> QString {
 		QString bar;
 		for (int i = 0; i < n; i++)
@@ -544,7 +523,6 @@ void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
 	QString html;
 	html += "<pre style='margin:0; line-height:1.4;'>";
 
-	/* Header */
 	html += sHRule(QString(QChar(0x2554)), QString(QChar(0x2557)), STAT_BOX);
 	html += sBoxRow(
 		QString("  <b style='color:%1;'>Multi-Run Statistics "
@@ -577,21 +555,18 @@ void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
 		+ QString("<b style='color:%1;'>%2</b>").arg(C_CYAN, pad("Delay", 8)),
 		STAT_BOX);
 
-	/* Separator */
 	QString sep;
 	for (int i = 0; i < STAT_BOX - 2; i++)
 		sep += QChar(0x2500);
 	html += sBoxRow(QString("  <span style='color:%1;'>%2</span>")
 					   .arg(C_DIM, sep), STAT_BOX);
 
-	/* Per-train rows */
 	for (const auto &s : stats)
 	{
 		QString name = s.name;
 		if (name.length() > 12)
 			name = name.left(11) + QChar(0x2026); /* … */
 
-		/* Determine delay colour */
 		const char *delayCol = C_GREEN;
 		if (s.avgDelay > 600)
 			delayCol = C_RED;
@@ -620,7 +595,6 @@ void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
 	setHtml(html);
 }
 
-/* ── Clear / idle ──────────────────────────────────────────────────────── */
 
 void SimDashboard::clear()
 {

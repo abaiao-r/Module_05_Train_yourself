@@ -26,10 +26,6 @@
 #include "Node.hpp"
 #include "RailNetwork.hpp"
 
-/* ================================================================== */
-/*  DraggableNode                                                     */
-/* ================================================================== */
-
 DraggableNode::DraggableNode(const QString &name, double radius,
 							 NetworkScene *scene, QGraphicsItem *parent)
 	: QGraphicsEllipseItem(-radius, -radius, 2 * radius, 2 * radius, parent),
@@ -64,10 +60,6 @@ void DraggableNode::hoverLeaveEvent(QGraphicsSceneHoverEvent *)
 	setCursor(Qt::OpenHandCursor);
 }
 
-/* ================================================================== */
-/*  Colour palette                                                    */
-/* ================================================================== */
-
 const QColor NetworkScene::PALETTE[] = {
 	QColor(231, 76, 60),   QColor(46, 204, 113),  QColor(52, 152, 219),
 	QColor(241, 196, 15),  QColor(155, 89, 182),  QColor(230, 126, 34),
@@ -76,20 +68,12 @@ const QColor NetworkScene::PALETTE[] = {
 const int NetworkScene::PALETTE_SIZE =
 	static_cast<int>(sizeof(PALETTE) / sizeof(PALETTE[0]));
 
-/* ================================================================== */
-/*  Constructor / Destructor                                          */
-/* ================================================================== */
-
 NetworkScene::NetworkScene(QObject *parent) : QGraphicsScene(parent)
 {
 	setBackgroundBrush(QColor(44, 62, 80));
 }
 
 NetworkScene::~NetworkScene() {}
-
-/* ================================================================== */
-/*  addNode                                                           */
-/* ================================================================== */
 
 /* Node label text, with any risky event names appended directly (not
    just an icon) so it's readable at a glance, without needing to
@@ -123,10 +107,6 @@ void NetworkScene::addNode(const QString &name, const QPointF &pos)
 	_nodes[name] = {dot, label, pos, QString()};
 }
 
-/* ================================================================== */
-/*  addEdge                                                           */
-/* ================================================================== */
-
 /* Edge label text, with any risky event names appended directly (see
    nodeLabelText) so it stays correctly positioned (part of the same
    tracked label item) instead of a separate floating marker. */
@@ -146,7 +126,6 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 {
 	if (!_nodes.contains(from) || !_nodes.contains(to))
 		return;
-	/* Avoid duplicates */
 	for (const auto &e : _edges)
 		if ((e.from == from && e.to == to) || (e.from == to && e.to == from))
 			return;
@@ -169,16 +148,11 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 	_edges.push_back({line, label, from, to, distKm, speedKmh, QString()});
 }
 
-/* ================================================================== */
-/*  removeNode                                                        */
-/* ================================================================== */
-
 void NetworkScene::removeNode(const QString &name)
 {
 	if (!_nodes.contains(name))
 		return;
 
-	/* Remove all edges attached to this node first */
 	for (int i = _edges.size() - 1; i >= 0; --i)
 	{
 		if (_edges[i].from == name || _edges[i].to == name)
@@ -199,10 +173,6 @@ void NetworkScene::removeNode(const QString &name)
 	_nodes.remove(name);
 }
 
-/* ================================================================== */
-/*  removeEdge                                                        */
-/* ================================================================== */
-
 void NetworkScene::removeEdge(const QString &from, const QString &to)
 {
 	for (int i = 0; i < _edges.size(); ++i)
@@ -220,10 +190,6 @@ void NetworkScene::removeEdge(const QString &from, const QString &to)
 	}
 }
 
-/* ================================================================== */
-/*  renameNode                                                        */
-/* ================================================================== */
-
 void NetworkScene::renameNode(const QString &oldName, const QString &newName)
 {
 	if (!_nodes.contains(oldName) || _nodes.contains(newName))
@@ -234,7 +200,6 @@ void NetworkScene::renameNode(const QString &oldName, const QString &newName)
 	nv.label->setPlainText(nodeLabelText(newName, nv.riskNames));
 	_nodes[newName] = nv;
 
-	/* Update every edge referencing the old name */
 	for (auto &e : _edges)
 	{
 		if (e.from == oldName)
@@ -243,10 +208,6 @@ void NetworkScene::renameNode(const QString &oldName, const QString &newName)
 			e.to = newName;
 	}
 }
-
-/* ================================================================== */
-/*  updateEdge                                                        */
-/* ================================================================== */
 
 void NetworkScene::updateEdge(const QString &from, const QString &to,
 							  double newDist, double newSpeed)
@@ -265,10 +226,6 @@ void NetworkScene::updateEdge(const QString &from, const QString &to,
 	}
 }
 
-/* ================================================================== */
-/*  clear                                                             */
-/* ================================================================== */
-
 void NetworkScene::clear()
 {
 	QGraphicsScene::clear();
@@ -279,10 +236,6 @@ void NetworkScene::clear()
 	_events.clear();
 }
 
-/* ================================================================== */
-/*  nodeMoved — keeps edges and label in sync during drag             */
-/* ================================================================== */
-
 void NetworkScene::nodeMoved(const QString &name, const QPointF &newPos)
 {
 	if (!_nodes.contains(name))
@@ -291,7 +244,6 @@ void NetworkScene::nodeMoved(const QString &name, const QPointF &newPos)
 	_nodes[name].pos = newPos;
 	_nodes[name].label->setPos(newPos.x() + 20, newPos.y() - 10);
 
-	/* Update every edge touching this node */
 	for (auto &e : _edges)
 	{
 		if (e.from == name || e.to == name)
@@ -320,10 +272,6 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 	e.label->setPos(mid.x() + 4, mid.y() - e.label->boundingRect().height());
 }
 
-/* ================================================================== */
-/*  loadFromNetwork                                                   */
-/* ================================================================== */
-
 void NetworkScene::loadFromNetwork(const RailNetwork &network)
 {
 	clear();
@@ -345,10 +293,6 @@ void NetworkScene::loadFromNetwork(const RailNetwork &network)
 
 	layoutForceDirected();
 }
-
-/* ================================================================== */
-/*  Force-directed layout                                             */
-/* ================================================================== */
 
 void NetworkScene::layoutForceDirected()
 {
@@ -420,10 +364,6 @@ void NetworkScene::layoutForceDirected()
 		it.value().dot->setPos(it.value().pos);
 }
 
-/* ================================================================== */
-/*  Edge position helper                                              */
-/* ================================================================== */
-
 QPointF NetworkScene::edgePosition(const QString &from, const QString &to,
 								   double fraction) const
 {
@@ -433,10 +373,6 @@ QPointF NetworkScene::edgePosition(const QString &from, const QString &to,
 	QPointF p2 = _nodes[to].pos;
 	return p1 + (p2 - p1) * fraction;
 }
-
-/* ================================================================== */
-/*  Train animation                                                   */
-/* ================================================================== */
 
 void NetworkScene::updateTrains(double /*simTime*/,
 								const QVector<TrainSnapshot> &snapshots)
@@ -458,7 +394,6 @@ void NetworkScene::updateTrains(double /*simTime*/,
 				QPointF p1 = _nodes[s.from].pos;
 				QPointF p2 = _nodes[s.to].pos;
 				double frac = 0.5;
-				/* Find the edge distance to compute fraction */
 				for (const auto &e : _edges)
 				{
 					if ((e.from == s.from && e.to == s.to)
@@ -502,7 +437,6 @@ void NetworkScene::updateTrains(double /*simTime*/,
 		}
 		auto &vis = _trains[key];
 
-		/* Draw fluid trail: a short line from previous to current pos */
 		if (vis.hasPrev && s.departed && !s.arrived)
 		{
 			double dx = pos.x() - vis.prevPos.x();
@@ -586,10 +520,6 @@ void NetworkScene::clearTrains()
 	_trains.clear();
 }
 
-/* ================================================================== */
-/*  Event risk markers / live flash / reroute markers                 */
-/* ================================================================== */
-
 void NetworkScene::setEventInfo(const QVector<EventInfo> &events)
 {
 	_events = events;
@@ -672,7 +602,6 @@ void NetworkScene::flashEvent(const QString &eventName,
 
 	if (!found->node2.isEmpty())
 	{
-		/* Rail event - flash the segment line(s) between the two nodes. */
 		for (auto &e : _edges)
 		{
 			if ((e.from == found->node1 && e.to == found->node2)
@@ -691,7 +620,6 @@ void NetworkScene::flashEvent(const QString &eventName,
 	}
 	else if (_nodes.contains(found->node1))
 	{
-		/* Station event - flash the node dot. */
 		auto *dot = _nodes[found->node1].dot;
 		QBrush original = dot->brush();
 		dot->setBrush(QBrush(QColor(231, 76, 60)));
@@ -717,10 +645,6 @@ void NetworkScene::markReroute(const QString &nodeName,
 	});
 }
 
-
-/* ================================================================== */
-/*  Accessors                                                         */
-/* ================================================================== */
 
 QStringList NetworkScene::nodeNames() const
 {

@@ -24,7 +24,6 @@ int main()
 {
 	Test::TestSuite suite("InputHandler");
 
-	/* ── Strict parsing ── */
 
 	auto writeFile = [](const std::string &path, const std::string &c) {
 		std::ofstream(path) << c;
@@ -73,7 +72,6 @@ int main()
 		return true;
 	});
 
-	/* ── Valid input tests ── */
 
 	suite.run("loads rail network file", [](std::string &msg) {
 		auto data = InputHandler::loadData(GOOD_NET, GOOD_TRN);
@@ -135,7 +133,6 @@ int main()
 		return true;
 	});
 
-	/* ── Missing file tests ── */
 
 	suite.run("throws on missing file", [](std::string &msg) {
 		ASSERT_THROWS(
@@ -160,7 +157,6 @@ int main()
 				  return true;
 			  });
 
-	/* ── Bad network input tests ── */
 
 	suite.run("throws on unknown keyword",
 			  [](std::string &msg) {
@@ -243,7 +239,6 @@ int main()
 				  return true;
 			  });
 
-	/* ── Bad event input tests ── */
 
 	suite.run("throws on negative event duration",
 			  [](std::string &msg) {
@@ -265,7 +260,6 @@ int main()
 				  return true;
 			  });
 
-	/* ── Bad train input tests ── */
 
 	suite.run("throws on invalid time (25h00)",
 			  [](std::string &msg) {
@@ -297,7 +291,6 @@ int main()
 				  return true;
 			  });
 
-	/* ── Edge case valid inputs ── */
 
 	suite.run("empty network file throws",
 			  [](std::string &msg) {

@@ -14,7 +14,6 @@
 
 #include "Node.hpp"
 
-/* ---- Canonical form ---- */
 Train::Train(int id, const std::string &name, double weight, double friction,
 			 double accelForce, double brakeForce,
 			 const std::string &departure, const std::string &arrival,
@@ -72,7 +71,6 @@ Train &Train::operator=(const Train &src)
 
 Train::~Train() {}
 
-/* ---- Mutators ---- */
 void Train::setPath(const std::vector<std::shared_ptr<Node>> &path)
 {
 	_path = path;
@@ -105,7 +103,6 @@ void Train::setPosOnSegment(double pos) { _posOnSegment = pos; }
 void Train::setPathIndex(size_t idx) { _pathIndex = idx; }
 void Train::setCurrentTime(double t) { _currentTime = t; }
 
-/* ---- Getters ---- */
 int Train::getId() const { return _id; }
 const std::string &Train::getName() const { return _name; }
 double Train::getWeight() const { return _weight; }
@@ -155,7 +152,6 @@ bool Train::hasArrived() const
 	return _status == TrainStatus::Arrived;
 }
 
-/* ---- Physics helpers ---- */
 double Train::getAccelRate() const
 {
 	double mass_kg = _weight * 1000.0;

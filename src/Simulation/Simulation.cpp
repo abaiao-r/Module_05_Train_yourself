@@ -23,7 +23,6 @@
 #include "Node.hpp"
 #include "TrainFactory.hpp"
 
-/* ---- Constructor / Destructor ---- */
 Simulation::Simulation(RailNetwork network,
 					   std::vector<std::unique_ptr<Train>> trains,
 					   std::vector<Event> events,
@@ -40,7 +39,6 @@ Simulation::Simulation(RailNetwork network,
 
 Simulation::~Simulation() {}
 
-/* ---- Const accessors (for auxiliary tools) ---- */
 const RailNetwork &Simulation::getNetwork() const { return _network; }
 
 const std::vector<std::unique_ptr<Train>> &Simulation::getTrains() const
@@ -75,7 +73,6 @@ void Simulation::setRerouteCallback(RerouteCallback cb)
 
 void Simulation::setQuiet(bool q) { _quiet = q; }
 
-/* ---- Live mutation queue ---- */
 void Simulation::enqueueMutation(LiveMutation mutation)
 {
 	std::lock_guard<std::mutex> lock(_mutationMutex);
@@ -235,7 +232,6 @@ void Simulation::applyAddTrain(const AddTrainCommand &c,
 	_trains.push_back(std::move(train));
 }
 
-/* ---- Public ---- */
 void Simulation::run()
 {
 	if (!_quiet)
@@ -245,13 +241,11 @@ void Simulation::run()
 	if (!_quiet)
 		std::cout << "=== Simulation ===" << std::endl;
 
-	/* Sort trains by departure time */
 	std::sort(_trains.begin(), _trains.end(),
 			  [](const auto &a, const auto &b) {
 				  return a->getDepartureTime() < b->getDepartureTime();
 			  });
 
-	/* Create per-train states and file-output observers */
 	std::vector<TrainState> states;
 	states.reserve(_trains.size());
 	_observers.clear();
@@ -277,7 +271,6 @@ void Simulation::run()
 		_observers.push_back(std::move(obs));
 	}
 
-	/* Write estimated travel times to result files */
 	for (size_t i = 0; i < states.size(); i++)
 	{
 		double est = estimateTravelTime(*states[i].train);
@@ -285,7 +278,6 @@ void Simulation::run()
 									states[i].train->getId(), est);
 	}
 
-	/* Find earliest departure to start the clock */
 	double simTime = std::numeric_limits<double>::max();
 	for (auto &t : _trains)
 	{
@@ -294,7 +286,6 @@ void Simulation::run()
 	}
 	simTime -= DT;
 
-	/* Main concurrent simulation loop */
 	auto anyActive = [&]() {
 		for (auto &s : states)
 		{
@@ -319,7 +310,6 @@ void Simulation::run()
 			if (s.arrived)
 				continue;
 
-			/* Check departure */
 			if (!s.departed)
 			{
 				if (simTime >= s.train->getDepartureTime())
@@ -335,7 +325,6 @@ void Simulation::run()
 				continue;
 			}
 
-			/* Station stop countdown */
 			bool isStopped = false;
 			if (s.stopTimer > 0.0)
 			{
@@ -360,7 +349,6 @@ void Simulation::run()
 
 			if (!isStopped)
 			{
-				/* Skip if path too short */
 				if (s.train->getPath().size() < 2)
 				{
 					s.arrived = true;
@@ -368,13 +356,11 @@ void Simulation::run()
 					continue;
 				}
 
-				/* Physics step */
 				updatePhysics(s);
 				s.timeSinceDepart += DT;
 				s.train->setCurrentTime(s.train->getCurrentTime()
 										+ DT);
 
-				/* Segment transition */
 				auto &path = s.train->getPath();
 				double segLen_m, segSpd_ms;
 				getSegmentInfo(path[s.segmentIndex]->getName(),
@@ -385,7 +371,6 @@ void Simulation::run()
 					handleSegmentTransition(s, i, simTime);
 			}
 
-			/* Output at intervals */
 			double modt = std::fmod(s.timeSinceDepart, OUTPUT_INTERVAL);
 			if (modt < DT || s.arrived)
 			{
@@ -408,7 +393,6 @@ void Simulation::run()
 					if (posKm >= segKm)
 						posKm = segKm - 1;
 
-					/* Find blocking trains on same segment */
 					std::vector<int> blocking;
 					for (size_t j = 0; j < states.size(); j++)
 					{
@@ -480,7 +464,6 @@ void Simulation::run()
 					rebuildProfile(st, simTime);
 		}
 
-		/* Live animation callback */
 		if (_animCallback)
 			_animCallback(simTime, states);
 	}
@@ -501,7 +484,6 @@ void Simulation::run()
 		applyMutation(mutation, states, simTime);
 	}
 
-	/* Finalize observer files */
 	for (size_t i = 0; i < states.size(); i++)
 	{
 		_observers[i]->onTrainFinish(states[i].train->getName(),
@@ -511,7 +493,6 @@ void Simulation::run()
 	if (!_quiet)
 		_output.printResult(_trains);
 
-	/* Collect per-train results */
 	_results.clear();
 	for (size_t i = 0; i < states.size(); i++)
 	{
@@ -525,7 +506,6 @@ void Simulation::run()
 	}
 }
 
-/* ---- Path computation ---- */
 void Simulation::computePaths()
 {
 	if (!_quiet)
@@ -574,7 +554,6 @@ void Simulation::computePaths()
 		std::cout << std::endl;
 }
 
-/* ---- Estimated travel time (analytical) ---- */
 double Simulation::estimateTravelTime(const Train &train) const
 {
 	const auto &path = train.getPath();
@@ -591,11 +570,9 @@ double Simulation::estimateTravelTime(const Train &train) const
 		getSegmentInfo(path[i]->getName(), path[i + 1]->getName(),
 					   segLen_m, speedLim_ms);
 
-		/* Solo to accelerate from 0 to speed limit */
 		double tAccel = speedLim_ms / accel;
 		double dAccel = 0.5 * accel * tAccel * tAccel;
 
-		/* Solo to brake from speed limit to 0 */
 		double tBrake = speedLim_ms / decel;
 		double dBrake = 0.5 * decel * tBrake * tBrake;
 
@@ -613,14 +590,12 @@ double Simulation::estimateTravelTime(const Train &train) const
 			totalTime += tAccel + tMaintain + tBrake;
 		}
 
-		/* Add stop duration at intermediate stations */
 		if (i < path.size() - 2)
 			totalTime += train.getStopDuration();
 	}
 	return totalTime;
 }
 
-/* ---- Segment info lookup ---- */
 void Simulation::getSegmentInfo(const std::string &from,
 								const std::string &to, double &length_m,
 								double &speedLimit_ms) const
@@ -638,20 +613,17 @@ void Simulation::getSegmentInfo(const std::string &from,
 	throw std::runtime_error("No edge from " + from + " to " + to);
 }
 
-/* ---- Total remaining distance from current position ---- */
 double Simulation::totalRemainingDistance(const TrainState &s) const
 {
 	const auto &path = s.train->getPath();
 	if (path.size() < 2 || s.segmentIndex + 1 >= path.size())
 		return 0.0;
 
-	/* Remaining on current segment */
 	double segLen_m, spd_ms;
 	getSegmentInfo(path[s.segmentIndex]->getName(),
 				   path[s.segmentIndex + 1]->getName(), segLen_m, spd_ms);
 	double remaining = segLen_m - s.posOnSegment_m;
 
-	/* Full lengths of subsequent segments */
 	for (size_t i = s.segmentIndex + 1; i + 1 < path.size(); i++)
 	{
 		double sLen, sSp;
@@ -662,7 +634,6 @@ double Simulation::totalRemainingDistance(const TrainState &s) const
 	return remaining;
 }
 
-/* ---- Physics step (1 second) ---- */
 void Simulation::updatePhysics(TrainState &s)
 {
 	auto &path = s.train->getPath();
@@ -725,7 +696,6 @@ void Simulation::physicsStep(const std::vector<std::shared_ptr<Node>> &path,
 		pos = segLen_m;
 }
 
-/* ---- Segment transition ---- */
 void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 										 double simTime)
 {
@@ -734,12 +704,10 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 		return;
 	bool isLast = (s.segmentIndex + 2 >= path.size());
 
-	/* Notify arrival at next node */
 	std::string arrNode = path[s.segmentIndex + 1]->getName();
 	if (!_quiet)
 		_output.printArrival(*s.train, arrNode, s.train->getCurrentTime());
 
-	/* Trigger events at this node */
 	auto nodeEvents = getEventsAtNode(arrNode);
 	for (const auto *event : nodeEvents)
 	{
@@ -765,14 +733,12 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 
 	if (isLast)
 	{
-		/* Arrived at destination */
 		s.speed_ms = 0.0;
 		s.arrived = true;
 		s.train->setStatus(TrainStatus::Arrived);
 	}
 	else
 	{
-		/* Move to next segment */
 		s.segmentIndex++;
 		s.posOnSegment_m = 0.0;
 		s.segmentEntryTime = simTime;
@@ -835,7 +801,6 @@ void Simulation::rollSegmentEvents(TrainState &s, size_t trainIdx)
 	}
 }
 
-/* ---- Build expected event-delay map (event-aware routing) ---- */
 SegmentEventRisk Simulation::buildEventRisk() const
 {
 	SegmentEventRisk risk;
@@ -873,11 +838,9 @@ const SegmentEventRisk &Simulation::cachedEventRisk() const
 	return _riskCache;
 }
 
-/* ---- Exact kinematic ETA - deterministic, not an approximation.
-   Uses the train's real accel capability, current speed and the
-   segment's speed limit to solve for how long it actually takes to
-   cover the remaining distance, whether or not it reaches cruise
-   speed within that distance. ---- */
+/* Exact kinematic ETA (deterministic, not an approximation): solves the
+   time to cover the remaining distance from the current speed and real
+   accel, whether or not cruise speed is reached. */
 double Simulation::kinematicEta(double currentSpeed_ms, double accel_ms2,
 								double remainingDist_m,
 								double speedLimit_ms) const
@@ -909,7 +872,7 @@ double Simulation::kinematicEta(double currentSpeed_ms, double accel_ms2,
 	return timeToLimit + remainAfterLimit / speedLimit_ms;
 }
 
-/* ---- Virtual replay of the real physics (pure, non-mutating) ---- */
+/* Pure, non-mutating replay of the real physics. */
 Simulation::VTrain Simulation::makeVTrain(const TrainState &s,
 										  double simTime) const
 {
@@ -997,7 +960,7 @@ double Simulation::replayEta(VTrain me, const VTrain *leader,
 	return t;
 }
 
-/* ---- One fused pass: who is on which directed segment, in order ---- */
+/* One pass groups trains per directed segment, in right-of-way order. */
 Simulation::SegmentState Simulation::buildSegmentState(
 	const std::vector<TrainState> &states) const
 {
@@ -1030,7 +993,6 @@ Simulation::SegmentState Simulation::buildSegmentState(
 	return seg;
 }
 
-/* ---- Profile: free-flow arrival time at each upcoming node ---- */
 void Simulation::rebuildProfile(TrainState &s, double simTime)
 {
 	s.etaProfile.clear();
@@ -1047,8 +1009,9 @@ void Simulation::rebuildProfile(TrainState &s, double simTime)
 		s.etaProfile.push_back(simTime + t);
 }
 
-/* ---- Cheap predicate every tick; expensive part only when triggered ----
-   Rule: another train is on MY segment, it is AHEAD of me, I am FASTER,
+/* Cheap predicate every tick; the expensive replay runs only when
+   triggered. Rule: another train is on MY segment, it is AHEAD of me,
+   I am FASTER,
    and its route keeps sharing my route after the next node. */
 void Simulation::considerReroute(std::vector<TrainState> &states, size_t idx,
 								 const std::vector<size_t> &group,
@@ -1247,7 +1210,6 @@ bool Simulation::evaluateDetour(TrainState &s, const TrainState &leader,
 	return true;
 }
 
-/* ---- Overtaking / blocking between trains ---- */
 void Simulation::applyBlocking(std::vector<TrainState> &states,
 							   const SegmentState &segState, double simTime)
 {
@@ -1300,7 +1262,6 @@ void Simulation::applyBlocking(std::vector<TrainState> &states,
 	}
 }
 
-/* ---- Events at a node ---- */
 std::vector<const Event *> Simulation::getEventsAtNode(
 	const std::string &nodeName) const
 {
@@ -1313,7 +1274,6 @@ std::vector<const Event *> Simulation::getEventsAtNode(
 	return result;
 }
 
-/* ---- Events on a rail segment ---- */
 std::vector<const Event *> Simulation::getEventsOnSegment(
 	const std::string &from, const std::string &to) const
 {
@@ -1322,7 +1282,6 @@ std::vector<const Event *> Simulation::getEventsOnSegment(
 	{
 		if (!event.isRailEvent())
 			continue;
-		/* Bidirectional match */
 		if ((event.getNodeName() == from && event.getNodeName2() == to)
 			|| (event.getNodeName() == to
 				&& event.getNodeName2() == from))

@@ -20,7 +20,6 @@
 #include <sstream>
 #include <thread>
 
-/* ---- ANSI helpers ---- */
 static const char *CSI       = "\033[";
 static const char *CLEAR     = "\033[2J";
 static const char *HOME      = "\033[H";
@@ -35,7 +34,6 @@ static const char *RED       = "\033[31m";
 static const char *DIM       = "\033[2m";
 static const char *WHITE     = "\033[37m";
 
-/* ---- Construction / Destruction ---- */
 TerminalAnimDisplay::TerminalAnimDisplay()
 	: _firstFrame(true), _lastLineCount(0) {}
 
@@ -46,7 +44,6 @@ void TerminalAnimDisplay::cleanup()
 	std::cout << SHOW_CUR << std::flush;
 }
 
-/* ---- Helpers ---- */
 std::string TerminalAnimDisplay::fmtTime(double seconds)
 {
 	int total = static_cast<int>(seconds);
@@ -92,7 +89,6 @@ std::string TerminalAnimDisplay::speedStr(double speed_ms)
 	return oss.str();
 }
 
-/* ---- Main render ---- */
 
 /* Box inner width: 62 visible characters between the two ║ borders. */
 static const int BOX_W = 62;
@@ -199,7 +195,6 @@ void TerminalAnimDisplay::render(double simTime,
 		const auto &s = states[i];
 		const auto &path = s.train->getPath();
 
-		/* ── Train header line ── */
 		{
 			std::ostringstream ln;
 			ln << "  ";
