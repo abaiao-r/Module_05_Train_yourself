@@ -157,7 +157,20 @@ void Simulation::applyAddEvent(const AddEventCommand &c)
 {
 	_network.findNode(c.node1);
 	if (!c.node2.empty())
+	{
 		_network.findNode(c.node2);
+		bool linked = false;
+		for (const auto &e : _network.getNeighbours(c.node1))
+			if (e.destination->getName() == c.node2)
+				linked = true;
+		for (const auto &e : _network.getNeighbours(c.node2))
+			if (e.destination->getName() == c.node1)
+				linked = true;
+		if (!linked)
+			throw std::invalid_argument("Event '" + c.name
+										+ "' references nonexistent rail '"
+										+ c.node1 + " - " + c.node2 + "'");
+	}
 	_events.emplace_back(c.name, c.probability, c.durationSeconds,
 						 c.node1, c.node2);
 	_eventGen++;
@@ -171,10 +184,11 @@ void Simulation::applyAddTrain(const AddTrainCommand &c,
 		throw std::invalid_argument(
 			"Departure time has already passed (train '" + c.name + "')");
 
-	/* Result files are keyed by name + departure time. */
+	/* Result files are keyed by name + departure minute (HHhMM). */
 	for (const auto &t : _trains)
 		if (t->getName() == c.name
-			&& std::fabs(t->getDepartureTime() - c.departureTime) < 1e-6)
+			&& std::floor(t->getDepartureTime() / 60.0)
+				   == std::floor(c.departureTime / 60.0))
 			throw std::invalid_argument(
 				"Duplicate train '" + c.name + "' with the same departure time");
 
