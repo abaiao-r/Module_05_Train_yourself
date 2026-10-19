@@ -12,6 +12,7 @@
 
 #include "TrainFactory.hpp"
 
+#include <cmath>
 #include <stdexcept>
 
 int TrainFactory::_nextId = 1;
@@ -31,6 +32,10 @@ std::unique_ptr<Train> TrainFactory::createTrain(
 		|| name.find('\0') != std::string::npos)
 		throw std::invalid_argument("Train name '" + name
 			+ "' contains forbidden path characters (/, \\ or ..)");
+	if (!std::isfinite(weight) || !std::isfinite(friction)
+		|| !std::isfinite(accelForce) || !std::isfinite(brakeForce)
+		|| !std::isfinite(departureTime) || !std::isfinite(stopDuration))
+		throw std::invalid_argument("Train parameters must be finite numbers");
 	if (weight <= 0.0)
 		throw std::invalid_argument("Weight must be positive");
 	if (friction < 0.0)

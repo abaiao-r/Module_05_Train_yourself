@@ -13,6 +13,8 @@
 #include "Event.hpp"
 #include "TestFramework.hpp"
 
+#include <limits>
+
 int main()
 {
 	Test::TestSuite suite("Event");
@@ -72,6 +74,16 @@ int main()
 
 	suite.run("throws on empty name", [](std::string &msg) {
 		ASSERT_THROWS(Event("", 0.5, 100.0, "N"),
+					  std::invalid_argument, msg);
+		return true;
+	});
+
+	suite.run("throws on nan/inf probability or duration", [](std::string &msg) {
+		const double nan = std::numeric_limits<double>::quiet_NaN();
+		const double inf = std::numeric_limits<double>::infinity();
+		ASSERT_THROWS(Event("Bad", nan, 100.0, "N"),
+					  std::invalid_argument, msg);
+		ASSERT_THROWS(Event("Bad", 0.5, inf, "N"),
 					  std::invalid_argument, msg);
 		return true;
 	});

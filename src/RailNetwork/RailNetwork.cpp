@@ -13,6 +13,7 @@
 #include "RailNetwork.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 /* ---- Canonical form ---- */
 RailNetwork::RailNetwork() {}
@@ -69,6 +70,8 @@ void RailNetwork::addConnection(const std::string &from,
 		throw NodeNotFoundException(to);
 	if (from == to)
 		throw std::invalid_argument("Cannot connect node to itself: " + from);
+	if (!std::isfinite(distance) || !std::isfinite(speedLimit))
+		throw std::invalid_argument("Distance and speed limit must be finite");
 	if (distance <= 0.0)
 		throw std::invalid_argument("Distance must be positive");
 	if (speedLimit <= 0.0)

@@ -12,6 +12,8 @@
 
 #include "Event.hpp"
 
+#include <cmath>
+
 Event::Event(const std::string &name, double probability, double duration,
 			 const std::string &nodeName, const std::string &nodeName2)
 	: _name(name), _probability(probability), _duration(duration),
@@ -19,6 +21,8 @@ Event::Event(const std::string &name, double probability, double duration,
 {
 	if (name.empty())
 		throw std::invalid_argument("Event name cannot be empty");
+	if (!std::isfinite(probability) || !std::isfinite(duration))
+		throw std::invalid_argument("Probability and duration must be finite");
 	if (probability < 0.0 || probability > 1.0)
 		throw std::invalid_argument("Probability must be in [0, 1]");
 	if (duration < 0.0)

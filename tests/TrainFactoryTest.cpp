@@ -11,6 +11,8 @@
 /* ************************************************************************** */
 
 #include "TestFramework.hpp"
+
+#include <limits>
 #include "TrainFactory.hpp"
 
 int main()
@@ -31,6 +33,24 @@ int main()
 		ASSERT_TRUE(t->getMaxAccelForce() == 356.0, msg);
 		ASSERT_TRUE(t->getMaxBrakeForce() == 30.0, msg);
 		ASSERT_TRUE(t->getStopDuration() == 600.0, msg);
+		return true;
+	});
+
+	suite.run("rejects nan/inf numeric parameters", [](std::string &msg) {
+		const double nan = std::numeric_limits<double>::quiet_NaN();
+		const double inf = std::numeric_limits<double>::infinity();
+		ASSERT_THROWS(
+			TrainFactory::createTrain("N", nan, 0.05, 356.0, 30.0,
+									  "A", "B", 0.0, 0.0),
+			std::invalid_argument, msg);
+		ASSERT_THROWS(
+			TrainFactory::createTrain("I", 80.0, 0.05, inf, 30.0,
+									  "A", "B", 0.0, 0.0),
+			std::invalid_argument, msg);
+		ASSERT_THROWS(
+			TrainFactory::createTrain("S", 80.0, 0.05, 356.0, 30.0,
+									  "A", "B", 0.0, inf),
+			std::invalid_argument, msg);
 		return true;
 	});
 
