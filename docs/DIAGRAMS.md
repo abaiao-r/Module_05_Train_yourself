@@ -1,6 +1,8 @@
 # UML Diagrams
 
 > Back to [TECHNICAL.md](TECHNICAL.md) · [README](../README.md)
+>
+> New to the project? Read [the diagrams explained in plain English](DIAGRAMS_EXPLAINED.md) or [the same with code snippets](DIAGRAMS_EXPLAINED_CODE.md).
 
 All diagrams are PlantUML sources in `docs/diagrams/`. Pre-rendered **PNG** and **SVG** versions are committed alongside.
 
