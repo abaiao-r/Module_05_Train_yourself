@@ -210,6 +210,8 @@ See [docs/TECHNICAL.md](docs/TECHNICAL.md) for the full documentation index, or 
 | [Design Patterns](docs/DESIGN_PATTERNS.md) | Strategy, Factory, Observer, Mediator · DI · Class Relationships · 6 Design Principles |
 | [Class Reference](docs/CLASS_REFERENCE.md) | Per-class API documentation |
 | [Diagrams](docs/DIAGRAMS.md) | 7 UML diagrams (class, state, sequence, activity) |
+| [Diagrams explained](docs/DIAGRAMS_EXPLAINED.md) | Plain-English walkthrough of the diagrams (no tech background needed) |
+| [Diagrams explained + code](docs/DIAGRAMS_EXPLAINED_CODE.md) | Same walkthrough with code snippets and file locations |
 | [Build & Testing](docs/BUILD_SYSTEM.md) | Makefile targets, 555 tests, CI pipeline |
 
 ### Design Patterns
