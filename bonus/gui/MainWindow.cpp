@@ -708,7 +708,7 @@ void MainWindow::buildToolbar()
 						   ev.getDuration(), ev.getNodeName(),
 						   ev.getNodeName2());
 		_scene->loadFromNetwork(_network);
-		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+		_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
 		refreshLists();
 		logInfo("Multi-line rails off: all rails collapsed to 1 line");
@@ -1437,7 +1437,7 @@ void MainWindow::onLoadNetwork()
 
 		_scene->setLayoutFile(layoutPathFor(path));
 		_scene->loadFromNetwork(_network);
-		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+		_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
 		refreshLists();
 		logSuccess("Loaded network: " + QFileInfo(path).fileName());
@@ -1542,7 +1542,7 @@ void MainWindow::onLoadPresetNetwork(int index)
 
 		_scene->setLayoutFile(layoutPathFor(path));
 		_scene->loadFromNetwork(_network);
-		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+		_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
 		refreshLists();
 		logSuccess("Loaded preset network: "
@@ -1790,7 +1790,7 @@ void MainWindow::onImportAll()
 
 		_scene->setLayoutFile(layoutPathFor(netPath));
 		_scene->loadFromNetwork(_network);
-		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+		_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
 		refreshLists();
 		logSuccess("Imported network: " + QFileInfo(netPath).fileName());
@@ -3484,7 +3484,7 @@ void MainWindow::onFitGraph()
 {
 	if (_scene->items().isEmpty())
 		return;
-	_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+	_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
 					 Qt::KeepAspectRatio);
 }
 
