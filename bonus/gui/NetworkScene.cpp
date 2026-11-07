@@ -126,10 +126,20 @@ static QString edgeLabelText(double distKm, double speedKmh,
 
 static const double LANE_GAP = 18.0;
 
-/* A network that uses lanes at all (any rail with 2+ lines) shows every
+/* Lanes mode (Multi-line rails ticked, or any rail with 2+ lines) shows every
    rail as lanes, single-line rails included (one L1 card). */
+void NetworkScene::setLaneMode(bool on)
+{
+	if (_forceLanes == on)
+		return;
+	_forceLanes = on;
+	refreshEdgeLabels();
+}
+
 bool NetworkScene::laneMode() const
 {
+	if (_forceLanes)
+		return true;
 	for (const auto &e : _edges)
 		if (e.numLines > 1)
 			return true;

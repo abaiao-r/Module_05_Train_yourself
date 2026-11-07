@@ -100,6 +100,9 @@ class NetworkScene : public QGraphicsScene
 	QStringList nodeNames() const;
 	bool hasNode(const QString &name) const;
 
+	/** Draw every rail as lanes (L1 card, colour), as with Multi-line rails. */
+	void setLaneMode(bool on);
+
   signals:
 	void nodeClicked(const QString &name);
 
@@ -172,6 +175,7 @@ class NetworkScene : public QGraphicsScene
 	void layoutLanes(EdgeVis &e);
 	void clearLanes(EdgeVis &e);
 	bool laneMode() const;
+	bool _forceLanes = false;
 	void refreshEdgeLabels();
 	void updateLaneLabels(EdgeVis &e);
 

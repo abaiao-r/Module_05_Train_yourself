@@ -670,6 +670,8 @@ void MainWindow::buildToolbar()
 		"in opposite directions (same as the CLI --lines flag).");
 	_linesCheck->setStyleSheet(_animateCheck->styleSheet());
 	optRow->addWidget(_linesCheck);
+	connect(_linesCheck, &QCheckBox::toggled, this,
+			[this](bool on) { _scene->setLaneMode(on); });
 	connect(_linesCheck, &QCheckBox::toggled, this, [this](bool on) {
 		if (on)
 			return;
