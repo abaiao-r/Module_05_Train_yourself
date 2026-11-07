@@ -62,7 +62,7 @@ class NetworkScene : public QGraphicsScene
 
 	void addNode(const QString &name, const QPointF &pos);
 	void addEdge(const QString &from, const QString &to,
-				 double distKm, double speedKmh);
+				 double distKm, double speedKmh, int numLines = 1);
 	void removeNode(const QString &name);
 	void removeEdge(const QString &from, const QString &to);
 	void renameNode(const QString &oldName, const QString &newName);
@@ -115,6 +115,7 @@ class NetworkScene : public QGraphicsScene
 		double distKm;
 		double speedKmh;
 		QString riskNames;
+		int numLines = 1;
 	};
 	struct TrainVis
 	{

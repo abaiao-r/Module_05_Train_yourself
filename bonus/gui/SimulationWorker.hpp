@@ -47,6 +47,8 @@ struct TrainSnapshot
 	size_t segmentIndex;
 	size_t pathSize;
 	double segmentLength_m;
+	int line = -1;        // line id ridden (lines mode), -1 if none
+	bool waiting = false; // standing at a station awaiting a free line
 	/* Full route (node names in order), so displays can look ahead for
 	   risk/congestion beyond just the current segment - "from"/"to"
 	   alone only cover where the train is right now. */
@@ -130,7 +132,8 @@ class SimulationWorker : public QObject
 	 */
 	bool enqueueAddNode(const QString &name);
 	bool enqueueAddRail(const QString &from, const QString &to,
-						double distanceKm, double speedLimitKmh);
+						double distanceKm, double speedLimitKmh,
+						int numLines = 1);
 	bool enqueueAddEvent(const QString &name, double probability,
 						 double durationSeconds, const QString &node1,
 						 const QString &node2);
@@ -165,7 +168,7 @@ class SimulationWorker : public QObject
 	/** A live-added node/rail was accepted — the GUI should draw it. */
 	void nodeAdded(QString name);
 	void railAdded(QString from, QString to, double distanceKm,
-				   double speedLimitKmh);
+				   double speedLimitKmh, int numLines);
 	/** A live-added event/train was accepted (no visual element to draw;
 		trains appear automatically via tick() once they depart). */
 	void mutationApplied(QString description);

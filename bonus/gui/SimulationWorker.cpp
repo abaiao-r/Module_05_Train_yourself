@@ -107,7 +107,7 @@ bool SimulationWorker::enqueueAddNode(const QString &name)
 
 bool SimulationWorker::enqueueAddRail(const QString &from, const QString &to,
 									  double distanceKm,
-									  double speedLimitKmh)
+									  double speedLimitKmh, int numLines)
 {
 	std::lock_guard<std::mutex> lk(_liveSimMutex);
 	Simulation *sim = _liveSim;
@@ -115,7 +115,7 @@ bool SimulationWorker::enqueueAddRail(const QString &from, const QString &to,
 		return false;
 	sim->enqueueMutation(AddRailCommand{from.toStdString(),
 									   to.toStdString(), distanceKm,
-									   speedLimitKmh});
+									   speedLimitKmh, numLines});
 	return true;
 }
 
@@ -218,7 +218,8 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 							emit railAdded(
 								QString::fromStdString(cmd.from),
 								QString::fromStdString(cmd.to),
-								cmd.distanceKm, cmd.speedLimitKmh);
+								cmd.distanceKm, cmd.speedLimitKmh,
+								cmd.numLines);
 					},
 					mutation);
 				emit mutationApplied(QString::fromStdString(desc));
@@ -310,6 +311,8 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 					snap.speed_ms = s.speed_ms;
 					snap.timeSinceDepart = s.timeSinceDepart;
 					snap.stopTimer = s.stopTimer;
+					snap.line = s.lineId;
+					snap.waiting = s.waiting;
 					snap.departed = s.departed;
 					snap.arrived = s.arrived;
 					snap.segmentIndex = s.segmentIndex;
@@ -499,6 +502,8 @@ void SimulationWorker::runMulti(const QString &networkFile,
 							snap.speed_ms = s.speed_ms;
 							snap.timeSinceDepart = s.timeSinceDepart;
 							snap.stopTimer = s.stopTimer;
+					snap.line = s.lineId;
+					snap.waiting = s.waiting;
 							snap.departed = s.departed;
 							snap.arrived = s.arrived;
 							snap.segmentIndex = s.segmentIndex;

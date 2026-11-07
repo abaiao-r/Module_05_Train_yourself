@@ -88,7 +88,7 @@ class MainWindow : public QMainWindow
 	void onMutationRejected(QString reason);
 	void onLiveNodeAdded(QString name);
 	void onLiveRailAdded(QString from, QString to, double distanceKm,
-						 double speedLimitKmh);
+						 double speedLimitKmh, int numLines);
 
   private:
 	void buildMenus();

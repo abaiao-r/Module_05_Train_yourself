@@ -1026,7 +1026,11 @@ void MainWindow::onSaveNetwork()
 				out << "Rail " << from << " " << to << " "
 					<< e.distance << " " << e.speedLimit;
 				if (_linesCheck->isChecked())
+					{
 					out << " " << e.numLines;
+					for (double ls : e.lineSpeeds)
+						out << " " << ls;
+				}
 				out << "\n";
 			}
 		}
@@ -1229,7 +1233,11 @@ void MainWindow::onExportAll()
 					out << "Rail " << from << " " << to << " "
 						<< e.distance << " " << e.speedLimit;
 					if (_linesCheck->isChecked())
-						out << " " << e.numLines;
+						{
+					out << " " << e.numLines;
+					for (double ls : e.lineSpeeds)
+						out << " " << ls;
+				}
 					out << "\n";
 				}
 			}
@@ -1400,6 +1408,13 @@ void MainWindow::onAddEdge()
 	speedSpin->setValue(200.0);
 	speedSpin->setSuffix(" km/h");
 
+	auto *linesSpin = new QSpinBox;
+	linesSpin->setRange(1, 16);
+	linesSpin->setValue(1);
+	linesSpin->setEnabled(_linesCheck->isChecked());
+	linesSpin->setToolTip("Parallel lines on this edge (needs the "
+						  "\"Multi-line rails\" option).");
+
 	auto *btns = new QHBoxLayout;
 	auto *okBtn = new QPushButton("Add Edge");
 	auto *cancelBtn = new QPushButton("Cancel");
@@ -1411,6 +1426,7 @@ void MainWindow::onAddEdge()
 	form->addRow("To station:", toBox);
 	form->addRow("Distance:", distSpin);
 	form->addRow("Speed limit:", speedSpin);
+	form->addRow("Lines:", linesSpin);
 	form->addRow(btns);
 
 	connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
@@ -1419,6 +1435,7 @@ void MainWindow::onAddEdge()
 	if (dlg.exec() != QDialog::Accepted)
 		return;
 
+	const int numLines = linesSpin->value();
 	QString from = fromBox->currentText();
 	QString to = toBox->currentText();
 	if (from == to)
@@ -1432,7 +1449,7 @@ void MainWindow::onAddEdge()
 	if (_simRunning)
 	{
 		if (_worker->enqueueAddRail(from, to, distSpin->value(),
-									speedSpin->value()))
+									speedSpin->value(), numLines))
 			logInfo(QString("Queued live add of edge: %1 <-> %2 "
 							"(applies on the next tick).")
 						.arg(from, to));
@@ -1460,8 +1477,10 @@ void MainWindow::onAddEdge()
 	try
 	{
 		_network.addConnection(from.toStdString(), to.toStdString(),
-							   distSpin->value(), speedSpin->value());
-		_scene->addEdge(from, to, distSpin->value(), speedSpin->value());
+							   distSpin->value(), speedSpin->value(),
+							   _linesCheck->isChecked() ? numLines : 1);
+		_scene->addEdge(from, to, distSpin->value(), speedSpin->value(),
+						_linesCheck->isChecked() ? numLines : 1);
 		refreshLists();
 		logSuccess(QString("Added edge: %1 <-> %2 (%3 km, %4 km/h)")
 					   .arg(from, to)
@@ -1800,7 +1819,8 @@ void MainWindow::onDeleteNode()
 				try
 				{
 					newNet.addConnection(n, e.destination->getName(),
-										 e.distance, e.speedLimit);
+										 e.distance, e.speedLimit,
+										 e.numLines, e.lineSpeeds);
 				}
 				catch (...)
 				{
@@ -1877,7 +1897,8 @@ void MainWindow::onDeleteEdge()
 				try
 				{
 					newNet.addConnection(n, e.destination->getName(),
-										 e.distance, e.speedLimit);
+										 e.distance, e.speedLimit,
+										 e.numLines, e.lineSpeeds);
 				}
 				catch (...)
 				{
@@ -2004,7 +2025,8 @@ void MainWindow::onEditNode()
 												: to.toStdString();
 				try
 				{
-					newNet.addConnection(f, t, e.distance, e.speedLimit);
+					newNet.addConnection(f, t, e.distance, e.speedLimit,
+										 e.numLines, e.lineSpeeds);
 				}
 				catch (...)
 				{
@@ -2151,14 +2173,17 @@ void MainWindow::onEditEdge()
 			{
 				double d = e.distance;
 				double s = e.speedLimit;
+				std::vector<double> ls = e.lineSpeeds;
 				if ((fn == from && tn == to) || (fn == to && tn == from))
 				{
 					d = newDist;
 					s = newSpeed;
+					ls.clear(); // per-line speeds no longer match the edit
 				}
 				try
 				{
-					newNet.addConnection(n, e.destination->getName(), d, s);
+					newNet.addConnection(n, e.destination->getName(), d, s,
+										 e.numLines, ls);
 				}
 				catch (...)
 				{
@@ -2664,20 +2689,21 @@ void MainWindow::onLiveNodeAdded(QString name)
 }
 
 void MainWindow::onLiveRailAdded(QString from, QString to,
-								 double distanceKm, double speedLimitKmh)
+								 double distanceKm, double speedLimitKmh,
+								 int numLines)
 {
 	if (!_scene->hasNode(from) || !_scene->hasNode(to))
 		return;  // endpoint only exists in the live sim, nothing to draw
 	try
 	{
 		_network.addConnection(from.toStdString(), to.toStdString(),
-							   distanceKm, speedLimitKmh);
+							   distanceKm, speedLimitKmh, numLines);
 	}
 	catch (const std::exception &)
 	{
 		return;  // already present in the editor's copy
 	}
-	_scene->addEdge(from, to, distanceKm, speedLimitKmh);
+	_scene->addEdge(from, to, distanceKm, speedLimitKmh, numLines);
 	refreshLists();
 }
 
@@ -2773,7 +2799,11 @@ QString MainWindow::writeTemporaryNetworkFile() const
 				out << "Rail " << from << " " << to << " "
 					<< e.distance << " " << e.speedLimit;
 				if (_linesCheck->isChecked())
+					{
 					out << " " << e.numLines;
+					for (double ls : e.lineSpeeds)
+						out << " " << ls;
+				}
 				out << "\n";
 			}
 		}
