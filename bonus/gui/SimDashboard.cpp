@@ -381,34 +381,42 @@ void SimDashboard::showCompare(const QVector<CompareRow> &rows, int runsEach)
 	html += heading(QString::fromUtf8("Mode comparison \xE2\x9C\x93"),
 					QString("%1 run%2 each").arg(runsEach)
 						.arg(runsEach == 1 ? "" : "s"));
-	QString t = QString("<table width='100%' cellspacing='0' cellpadding='5'>"
-						"<tr>");
-	for (const char *h : {"Train", "Distance", "Solo", "Adaptive"})
-		t += QString("<td><b style='color:%1;'>%2</b></td>").arg(C_CYAN, h);
-	t += "</tr>";
-	auto row = [&](const QString &label, const double v[3], bool bold) {
-		double mn = std::min({v[0], v[1], v[2]});
-		QString r = QString("<tr bgcolor='%1'><td>%2%3%4</td>")
-						.arg(bold ? C_PANEL : C_CARD, bold ? "<b>" : "",
-							 label.toHtmlEscaped(), bold ? "</b>" : "");
-		for (int m = 0; m < 3; m++)
+	auto table = [&](const QString &title, bool useDelay) {
+		QString t = QString("<p style='color:%1;'><b>%2</b></p>"
+							"<table width='100%' cellspacing='0' "
+							"cellpadding='5'><tr>").arg(C_DIM, title);
+		for (const char *h : {"Train", "Distance", "Solo", "Adaptive"})
+			t += QString("<td><b style='color:%1;'>%2</b></td>")
+					 .arg(C_CYAN, h);
+		t += "</tr>";
+		auto row = [&](const QString &label, const double v[3], bool bold) {
+			double mn = std::min({v[0], v[1], v[2]});
+			QString r = QString("<tr bgcolor='%1'><td>%2%3%4</td>")
+							.arg(bold ? C_PANEL : C_CARD, bold ? "<b>" : "",
+								 label.toHtmlEscaped(), bold ? "</b>" : "");
+			for (int m = 0; m < 3; m++)
+			{
+				bool best = v[m] <= mn + 0.5;
+				r += QString("<td style='color:%1;'>%2%3</td>")
+						 .arg(best ? C_GREEN : C_DIM, fmtTime(v[m]),
+							  best ? QString::fromUtf8(" \xE2\x98\x85")
+								   : QString());
+			}
+			t += r + "</tr>";
+		};
+		double total[3] = {0, 0, 0};
+		for (const auto &r : rows)
 		{
-			bool best = v[m] <= mn + 0.5;
-			r += QString("<td style='color:%1;'>%2%3</td>")
-					 .arg(best ? C_GREEN : C_DIM, fmtTime(v[m]),
-						  best ? QString::fromUtf8(" \xE2\x98\x85") : QString());
+			row(r.name, useDelay ? r.delay : r.avg, false);
+			for (int m = 0; m < 3; m++)
+				total[m] += useDelay ? r.delay[m] : r.avg[m];
 		}
-		t += r + "</tr>";
+		row("TOTAL", total, true);
+		return t + "</table>";
 	};
-	double total[3] = {0, 0, 0};
-	for (const auto &r : rows)
-	{
-		row(r.name, r.avg, false);
-		for (int m = 0; m < 3; m++)
-			total[m] += r.avg[m];
-	}
-	row("TOTAL", total, true);
-	html += t + "</table></body>";
+	html += table("Average travel time", false);
+	html += table("Average delay (events + waiting for other trains)", true);
+	html += "</body>";
 	setHtml(html);
 }
 

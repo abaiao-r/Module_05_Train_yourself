@@ -415,6 +415,7 @@ int main()
 				  auto r = runCmd(BIN + " " + NET + " " + TRN + " --compare");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Mode comparison"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "average delay"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "Distance"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "Adaptive"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "TOTAL (sum)"), msg);
