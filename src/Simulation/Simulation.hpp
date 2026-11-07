@@ -129,6 +129,7 @@ struct TrainState
 	bool waiting = false;
 	int lineId = -1;
 	double waitSince = 0.0;
+	bool waitEvalDone = false; // detour already judged for this wait
 };
 
 /**
@@ -184,6 +185,7 @@ class Simulation
 	unsigned _topologyGen = 0;
 	unsigned _eventGen = 0;
 	unsigned _cacheGen = ~0u;
+	const std::vector<TrainState> *_liveStates = nullptr;
 	mutable SegmentEventRisk _riskCache;
 	mutable unsigned _riskCacheGen = ~0u;
 	std::unordered_map<std::string, std::vector<std::string>> _candidateCache;
@@ -315,6 +317,7 @@ class Simulation
 		double decel;
 		double stopDur;
 		int line;      // line being ridden, -1 if none/unknown
+		bool waiting;  // standing at path[seg], not yet admitted
 		double entryT; // relative to the replay start (may be negative)
 		bool done;
 	};
@@ -341,6 +344,13 @@ class Simulation
 						 double simTime);
 	bool evaluateDetour(TrainState &s, const TrainState &leader,
 						size_t sharedLen, double simTime);
+	/** Lines mode: a train waiting for admission judges a detour around
+		the blocked edge (opposite traffic on every line). */
+	void considerWaitReroute(TrainState &s, double simTime);
+	/** Lines mode: seconds from now until a train could be admitted to
+		from->to, from the live line occupancy (0 when a line is open). */
+	double corridorWaitSec(const std::string &from,
+						   const std::string &to) const;
 	void rebuildProfile(TrainState &s, double simTime);
 
 	void rollSegmentEvents(TrainState &s, size_t trainIdx);

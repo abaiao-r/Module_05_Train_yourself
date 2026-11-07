@@ -25,7 +25,8 @@ struct Outcome
 static Outcome runLines(RailNetwork net,
 						const std::vector<std::tuple<std::string, std::string,
 													 std::string, double>> &spec,
-						bool enabled = true)
+						bool enabled = true,
+						PathWeightMode mode = PathWeightMode::Distance)
 {
 	TrainFactory::resetIdCounter();
 	std::vector<std::unique_ptr<Train>> trains;
@@ -37,7 +38,7 @@ static Outcome runLines(RailNetwork net,
 	lo.enabled = enabled;
 	Simulation sim(std::move(net), std::move(trains), {},
 				   std::make_unique<DijkstraPathfinding>(),
-				   PathWeightMode::Distance, lo);
+				   mode, lo);
 	sim.setQuiet(true);
 	Outcome out;
 	sim.setAnimCallback([&](double, const std::vector<TrainState> &st) {
@@ -324,6 +325,33 @@ int main()
 				  ASSERT_EQ(0, o.linesSeen["T2"].front(), msg);
 				  ASSERT_NEAR(ref.actual["R"], o.actual["T1"], 1.5, msg);
 				  ASSERT_TRUE(o.actual["T2"] > 1.6 * o.actual["T1"], msg);
+				  return true;
+			  });
+
+	suite.run("adaptive: a train blocked by opposite traffic detours",
+			  [](std::string &msg) {
+				  auto mk = [] {
+					  RailNetwork net;
+					  net.addNode("A");
+					  net.addNode("B");
+					  net.addNode("C");
+					  net.addConnection("A", "B", 10.0, 100.0, 1);
+					  net.addConnection("A", "C", 6.0, 100.0, 1);
+					  net.addConnection("C", "B", 6.0, 100.0, 1);
+					  return net;
+				  };
+				  std::vector<std::tuple<std::string, std::string,
+										 std::string, double>> spec
+					  = {{"TA", "A", "B", 100.0}, {"TB", "B", "A", 100.0}};
+				  auto stay = runLines(mk(), spec, true,
+									   PathWeightMode::Distance);
+				  auto det = runLines(mk(), spec, true,
+									  PathWeightMode::Adaptive);
+				  ASSERT_FALSE(det.headOn, msg);
+				  ASSERT_NEAR(2.0 * stay.actual["TA"], stay.actual["TB"],
+							  3.0, msg);
+				  ASSERT_TRUE(det.actual["TB"] + 30.0 < stay.actual["TB"],
+							  msg);
 				  return true;
 			  });
 

@@ -303,6 +303,8 @@ void Simulation::run()
 		return false;
 	};
 
+	_liveStates = &states;
+
 	while (anyActive())
 	{
 		simTime += DT;
@@ -479,6 +481,12 @@ void Simulation::run()
 		   reroute rule and the blocking rule. */
 		SegmentState segState = buildSegmentState(states);
 
+		if (_lines.enabled && _weightMode == PathWeightMode::Adaptive)
+			for (auto &st : states)
+				if (st.waiting && st.departed && !st.arrived
+					&& st.stopTimer <= 0.0)
+					considerWaitReroute(st, simTime);
+
 		if (_weightMode == PathWeightMode::Adaptive)
 		{
 			for (const auto &kv : segState)
@@ -500,6 +508,8 @@ void Simulation::run()
 		if (_animCallback)
 			_animCallback(simTime, states);
 	}
+
+	_liveStates = nullptr;
 
 	/* Drain any mutations queued right as the last train arrived, so a
 	   structural edit (e.g. AddNode) enqueued at the very last tick isn't
@@ -954,6 +964,7 @@ Simulation::VTrain Simulation::makeVTrain(const TrainState &s,
 	v.decel = s.train->getDecelRate();
 	v.stopDur = s.train->getStopDuration();
 	v.line = s.lineId;
+	v.waiting = s.waiting;
 	v.entryT = s.segmentEntryTime - simTime;
 	v.done = s.arrived;
 	return v;
@@ -973,7 +984,8 @@ double Simulation::replayEta(VTrain me, const VTrain *leader,
 	/* One virtual tick: dwell countdown, else physics plus node
 	   transition (mirrors updatePhysics/handleSegmentTransition, minus
 	   random events, which are deliberately excluded from ETAs). */
-	auto advance = [this](VTrain &v, double now,
+	const bool lines = _lines.enabled;
+	auto advance = [this, lines](VTrain &v, double now,
 						  std::vector<double> *times) {
 		if (v.done)
 			return;
@@ -1007,6 +1019,12 @@ double Simulation::replayEta(VTrain me, const VTrain *leader,
 		v.stopTimer = v.stopDur;
 		if (v.stopTimer > 0.0)
 			v.speed = 0.0;
+		if (lines)
+		{
+			double w = corridorWaitSec((*v.path)[v.seg]->getName(),
+									   (*v.path)[v.seg + 1]->getName());
+			v.stopTimer = std::max(v.stopTimer, w - now);
+		}
 	};
 
 	/* A later edge with a spare line lets `me` pick a free line at
@@ -1021,6 +1039,18 @@ double Simulation::replayEta(VTrain me, const VTrain *leader,
 				return e.numLines > 1;
 		return false;
 	};
+
+	auto entryWait = [this](VTrain &v, double now) {
+		if (!_lines.enabled)
+			return;
+		double w = corridorWaitSec((*v.path)[v.seg]->getName(),
+								   (*v.path)[v.seg + 1]->getName());
+		v.stopTimer = std::max(v.stopTimer, w - now);
+	};
+	if (me.waiting)
+		entryWait(me, 0.0);
+	if (haveLeader && lead.waiting)
+		entryWait(lead, 0.0);
 
 	double t = 0.0;
 	while (!me.done && t < REPLAY_MAX_SEC)
@@ -1192,12 +1222,129 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 
 		s.lineId = best;
 		s.waiting = false;
+		s.waitEvalDone = false;
 		s.posOnSegment_m = 0.0;
 		s.segmentEntryTime = simTime;
 		s.profileDirty = true;
 		s.train->setStatus(TrainStatus::Running);
 		rollSegmentEvents(s, idx);
 	}
+}
+
+double Simulation::corridorWaitSec(const std::string &from,
+								   const std::string &to) const
+{
+	if (!_lines.enabled || !_liveStates)
+		return 0.0;
+	int nLines = 1;
+	for (const auto &e : _network.getNeighbours(from))
+		if (e.destination->getName() == to)
+			nLines = std::max(e.numLines, 1);
+	const int dir = from < to ? 1 : -1;
+	std::vector<double> clear(nLines, 0.0);
+	std::vector<int> lineDir(nLines, 0);
+	for (const auto &st : *_liveStates)
+	{
+		if (!st.departed || st.arrived || st.waiting || st.lineId < 0
+			|| st.lineId >= nLines)
+			continue;
+		const auto &p = st.train->getPath();
+		if (st.segmentIndex + 1 >= p.size())
+			continue;
+		const std::string &a = p[st.segmentIndex]->getName();
+		const std::string &b = p[st.segmentIndex + 1]->getName();
+		if (!((a == from && b == to) || (a == to && b == from)))
+			continue;
+		double len, lim;
+		getSegmentInfo(a, b, len, lim);
+		double ov = lineSpeedMs(a, b, st.lineId);
+		if (ov > 0.0)
+			lim = ov;
+		double eta = kinematicEta(st.speed_ms, st.train->getAccelRate(),
+								  len - st.posOnSegment_m, lim);
+		lineDir[st.lineId] = a < b ? 1 : -1;
+		clear[st.lineId] = std::max(clear[st.lineId], eta);
+	}
+	double best = std::numeric_limits<double>::max();
+	for (int l = 0; l < nLines; l++)
+	{
+		if (lineDir[l] == 0 || lineDir[l] == dir)
+			return 0.0;
+		best = std::min(best, clear[l]);
+	}
+	return best;
+}
+
+void Simulation::considerWaitReroute(TrainState &s, double simTime)
+{
+	const auto &path = s.train->getPath();
+	if (s.waitEvalDone || s.segsSinceReroute < REROUTE_COOLDOWN
+		|| s.segmentIndex + 1 >= path.size())
+		return;
+	const std::string &node = path[s.segmentIndex]->getName();
+	const std::string &next = path[s.segmentIndex + 1]->getName();
+	if (corridorWaitSec(node, next) <= 0.0)
+		return;
+	s.waitEvalDone = true;
+
+	ForbiddenEdges forbidden;
+	forbidden.insert(node + "->" + next);
+	std::vector<std::string> tail;
+	try
+	{
+		for (const auto &n : _pathfinder->findConstrainedPath(
+				 node, s.train->getArrivalStation(), _network, forbidden,
+				 cachedEventRisk(), s.train->getStopDuration()))
+			tail.push_back(n->getName());
+	}
+	catch (...)
+	{
+		return;
+	}
+	if (tail.size() < 2)
+		return;
+
+	std::vector<std::shared_ptr<Node>> newPath;
+	for (size_t i = 0; i <= s.segmentIndex; i++)
+		newPath.push_back(path[i]);
+	try
+	{
+		for (size_t i = 1; i < tail.size(); i++)
+			newPath.push_back(_network.findNode(tail[i]));
+	}
+	catch (...)
+	{
+		return;
+	}
+
+	VTrain stay = makeVTrain(s, simTime);
+	VTrain det = stay;
+	det.path = &newPath;
+	double etaStay = replayEta(stay, nullptr);
+	double etaDetour = replayEta(det, nullptr);
+	if (!(etaDetour + MIN_GAIN_SEC < etaStay))
+		return;
+
+	std::string newRoute;
+	for (size_t i = s.segmentIndex; i < newPath.size(); i++)
+	{
+		if (i > s.segmentIndex)
+			newRoute += " -> ";
+		newRoute += newPath[i]->getName();
+	}
+	s.train->setPath(newPath);
+	s.train->setPathIndex(s.segmentIndex);
+	s.segsSinceReroute = 0;
+	s.routeVersion++;
+	s.profileDirty = true;
+	s.rerouteCount++;
+	s.lastRerouteReason = "blocked by opposite traffic (stay ~"
+		+ std::to_string(static_cast<int>(etaStay)) + "s vs detour ~"
+		+ std::to_string(static_cast<int>(etaDetour)) + "s)";
+	if (!_quiet)
+		_output.printReroute(*s.train, newRoute);
+	if (_rerouteCallback)
+		_rerouteCallback(s.train->getName(), node, newRoute);
 }
 
 void Simulation::rebuildProfile(TrainState &s, double simTime)
