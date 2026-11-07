@@ -753,10 +753,10 @@ void MainWindow::buildToolbar()
 	viewRow->addWidget(spdCaption);
 
 	_speedSlider = new QSlider(Qt::Horizontal);
-	_speedSlider->setRange(0, 20);   // logarithmic 0.1× … 10×
-	_speedSlider->setValue(10);       // center = 1.0×
+	_speedSlider->setRange(0, 30);   // logarithmic 0.01× … 10×
+	_speedSlider->setValue(20);       // 1.0×
 	_speedSlider->setTickPosition(QSlider::TicksBelow);
-	_speedSlider->setTickInterval(5);
+	_speedSlider->setTickInterval(10);
 	_speedSlider->setFixedWidth(200);
 	_speedSlider->setStyleSheet(
 		"QSlider::groove:horizontal {"
@@ -771,7 +771,7 @@ void MainWindow::buildToolbar()
 	viewRow->addWidget(_speedSlider);
 
 	_speedLabel = new QLabel(" 1.0×");
-	_speedLabel->setFixedWidth(48);
+	_speedLabel->setFixedWidth(56);
 	_speedLabel->setStyleSheet(
 		"QLabel { color: #22d3ee; font-weight: bold; font-size: 12px; }");
 	viewRow->addWidget(_speedLabel);
@@ -3623,10 +3623,9 @@ void MainWindow::onMultiRunFinished(QVector<TrainStatRow> stats,
 
 void MainWindow::onSpeedChanged(int value)
 {
-	/* Slider range 0–20, logarithmic:
-	   0 → 0.1×, 10 → 1.0×, 20 → 10.0×
-	   Formula: mult = 10^((value - 10) / 10)  = pow(10, (v-10)/10) */
-	double mult = std::pow(10.0, (value - 10) / 10.0);
+	/* Slider range 0–30, logarithmic:
+	   0 → 0.01×, 20 → 1.0×, 30 → 10.0×  (mult = 10^((v-20)/10)) */
+	double mult = std::pow(10.0, (value - 20) / 10.0);
 
 	/* Snap to clean values near standard points */
 	if (std::abs(mult - 1.0) < 0.05) mult = 1.0;
@@ -3635,7 +3634,7 @@ void MainWindow::onSpeedChanged(int value)
 		_worker->setSpeedMultiplier(mult);
 
 	if (mult < 1.0)
-		_speedLabel->setText(QString(" %1×").arg(mult, 0, 'f', 2));
+		_speedLabel->setText(QString(" %1×").arg(mult, 0, 'f', 3));
 	else
 		_speedLabel->setText(QString(" %1×").arg(mult, 0, 'f', 1));
 }
