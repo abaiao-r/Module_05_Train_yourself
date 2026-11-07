@@ -123,6 +123,8 @@ static QString edgeLabelText(double distKm, double speedKmh,
 	return txt;
 }
 
+static const double LANE_GAP = 14.0;
+
 void NetworkScene::addEdge(const QString &from, const QString &to,
 						   double distKm, double speedKmh, int numLines)
 {
@@ -135,11 +137,17 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 	QPointF p1 = _nodes[from].pos;
 	QPointF p2 = _nodes[to].pos;
 
-	auto *line = addLine(p1.x(), p1.y(), p2.x(), p2.y(),
-						 QPen(QColor(149, 165, 166), 2.5 + 1.5 * (numLines - 1),
-							  Qt::SolidLine,
-							  Qt::RoundCap));
+	const QPen lanePen(QColor(149, 165, 166), 2.5, Qt::SolidLine,
+					   Qt::RoundCap);
+	auto *line = addLine(p1.x(), p1.y(), p2.x(), p2.y(), lanePen);
 	line->setZValue(1);
+	QVector<QGraphicsLineItem *> extra;
+	for (int i = 1; i < numLines; i++)
+	{
+		auto *l = addLine(p1.x(), p1.y(), p2.x(), p2.y(), lanePen);
+		l->setZValue(1);
+		extra.push_back(l);
+	}
 
 	QPointF mid = (p1 + p2) / 2.0;
 	auto *label = addText(edgeLabelText(distKm, speedKmh, QString(), numLines),
@@ -149,7 +157,33 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 	label->setZValue(2);
 
 	_edges.push_back({line, label, from, to, distKm, speedKmh, QString(),
-					  numLines});
+					  numLines, extra});
+	repositionEdge(_edges.last());
+}
+
+QPointF NetworkScene::laneOffset(const EdgeVis &e, int line) const
+{
+	if (e.numLines <= 1 || line < 0 || !_nodes.contains(e.from)
+		|| !_nodes.contains(e.to))
+		return QPointF(0, 0);
+	QPointF d = _nodes[e.to].pos - _nodes[e.from].pos;
+	double len = std::sqrt(d.x() * d.x() + d.y() * d.y());
+	if (len < 1e-6)
+		return QPointF(0, 0);
+	QPointF normal(-d.y() / len, d.x() / len);
+	return normal * ((line - (e.numLines - 1) / 2.0) * LANE_GAP);
+}
+
+void NetworkScene::clearLanes(EdgeVis &e)
+{
+	removeItem(e.line);
+	delete e.line;
+	for (auto *l : e.extraLanes)
+	{
+		removeItem(l);
+		delete l;
+	}
+	e.extraLanes.clear();
 }
 
 void NetworkScene::removeNode(const QString &name)
@@ -161,9 +195,8 @@ void NetworkScene::removeNode(const QString &name)
 	{
 		if (_edges[i].from == name || _edges[i].to == name)
 		{
-			removeItem(_edges[i].line);
+			clearLanes(_edges[i]);
 			removeItem(_edges[i].label);
-			delete _edges[i].line;
 			delete _edges[i].label;
 			_edges.removeAt(i);
 		}
@@ -184,9 +217,8 @@ void NetworkScene::removeEdge(const QString &from, const QString &to)
 		if (((_edges[i].from == from && _edges[i].to == to)
 			 || (_edges[i].from == to && _edges[i].to == from)))
 		{
-			removeItem(_edges[i].line);
+			clearLanes(_edges[i]);
 			removeItem(_edges[i].label);
-			delete _edges[i].line;
 			delete _edges[i].label;
 			_edges.removeAt(i);
 			return;
@@ -259,8 +291,8 @@ void NetworkScene::nodeMoved(const QString &name, const QPointF &newPos)
 	   position instead of being left behind or discarded. */
 	for (auto &seg : _trailLines)
 	{
-		QPointF a = edgePosition(seg.fromA, seg.toA, seg.fracA);
-		QPointF b = edgePosition(seg.fromB, seg.toB, seg.fracB);
+		QPointF a = edgePosition(seg.fromA, seg.toA, seg.fracA, seg.lineA);
+		QPointF b = edgePosition(seg.fromB, seg.toB, seg.fracB, seg.lineB);
 		seg.line->setLine(a.x(), a.y(), b.x(), b.y());
 	}
 }
@@ -271,9 +303,34 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 		return;
 	QPointF p1 = _nodes[e.from].pos;
 	QPointF p2 = _nodes[e.to].pos;
-	e.line->setLine(p1.x(), p1.y(), p2.x(), p2.y());
+	for (int i = 0; i < e.numLines; i++)
+	{
+		QGraphicsLineItem *l = i == 0 ? e.line : e.extraLanes[i - 1];
+		QPointF o = laneOffset(e, i);
+		l->setLine(p1.x() + o.x(), p1.y() + o.y(), p2.x() + o.x(),
+				   p2.y() + o.y());
+	}
 	QPointF mid = (p1 + p2) / 2.0;
-	e.label->setPos(mid.x() + 4, mid.y() - e.label->boundingRect().height());
+	/* Keep the label clear of the outermost lane: push it out along the
+	   normal on the upper side, centred when the edge is flat-ish. */
+	QPointF d = p2 - p1;
+	double len = std::hypot(d.x(), d.y());
+	QRectF lb = e.label->boundingRect();
+	if (e.numLines <= 1 || len < 1e-6)
+	{
+		e.label->setPos(mid.x() + 4, mid.y() - lb.height());
+		return;
+	}
+	QPointF n(-d.y() / len, d.x() / len);
+	if (n.y() > 0 || (n.y() == 0 && n.x() < 0))
+		n = -n;
+	/* Distance so the label rectangle clears the outer lane (support
+	   function of the rectangle along the normal). */
+	double out = (e.numLines - 1) / 2.0 * LANE_GAP + 6.0
+				 + std::fabs(n.x()) * lb.width() / 2.0
+				 + std::fabs(n.y()) * lb.height() / 2.0;
+	QPointF c = mid + n * out;
+	e.label->setPos(c.x() - lb.width() / 2, c.y() - lb.height() / 2);
 }
 
 void NetworkScene::loadFromNetwork(const RailNetwork &network)
@@ -369,13 +426,19 @@ void NetworkScene::layoutForceDirected()
 }
 
 QPointF NetworkScene::edgePosition(const QString &from, const QString &to,
-								   double fraction) const
+								   double fraction, int line) const
 {
 	if (!_nodes.contains(from) || !_nodes.contains(to))
 		return QPointF(0, 0);
 	QPointF p1 = _nodes[from].pos;
 	QPointF p2 = _nodes[to].pos;
-	return p1 + (p2 - p1) * fraction;
+	QPointF pos = p1 + (p2 - p1) * fraction;
+	if (line >= 0)
+		for (const auto &e : _edges)
+			if ((e.from == from && e.to == to)
+				|| (e.from == to && e.to == from))
+				return pos + laneOffset(e, line);
+	return pos;
 }
 
 void NetworkScene::updateTrains(double /*simTime*/,
@@ -412,6 +475,14 @@ void NetworkScene::updateTrains(double /*simTime*/,
 				if (frac > 1.0) frac = 1.0;
 				if (frac < 0.0) frac = 0.0;
 				pos = p1 + (p2 - p1) * frac;
+				if (s.line >= 0)
+					for (const auto &e : _edges)
+						if ((e.from == s.from && e.to == s.to)
+							|| (e.from == s.to && e.to == s.from))
+						{
+							pos += laneOffset(e, s.line);
+							break;
+						}
 				curFrom = s.from;
 				curTo = s.to;
 				curFrac = frac;
@@ -437,7 +508,8 @@ void NetworkScene::updateTrains(double /*simTime*/,
 			auto *label = addText(s.name, QFont("Segoe UI", 8, QFont::Bold));
 			label->setDefaultTextColor(col);
 			label->setZValue(21);
-			_trains[key] = {dot, label, pos, false, curFrom, curTo, curFrac};
+			_trains[key] = {dot, label, pos, false, curFrom, curTo, curFrac,
+							s.line};
 		}
 		auto &vis = _trains[key];
 
@@ -456,7 +528,7 @@ void NetworkScene::updateTrains(double /*simTime*/,
 				seg->setZValue(5);
 				_trailLines.push_back({seg, vis.prevFrom, vis.prevTo,
 									   vis.prevFrac, curFrom, curTo,
-									   curFrac});
+									   curFrac, vis.prevLine, s.line});
 			}
 		}
 		vis.prevPos = pos;
@@ -464,6 +536,7 @@ void NetworkScene::updateTrains(double /*simTime*/,
 		vis.prevFrom = curFrom;
 		vis.prevTo = curTo;
 		vis.prevFrac = curFrac;
+		vis.prevLine = s.line;
 
 		vis.dot->setPos(pos);
 		/* Arrived trains sit on top of the node, so drop the label below
@@ -619,14 +692,18 @@ void NetworkScene::flashEvent(const QString &eventName,
 			if ((e.from == found->node1 && e.to == found->node2)
 				|| (e.from == found->node2 && e.to == found->node1))
 			{
-				QPen original = e.line->pen();
-				e.line->setPen(QPen(QColor(231, 76, 60), 4.5,
-									Qt::SolidLine, Qt::RoundCap));
-				QGraphicsLineItem *line = e.line;
-				QTimer::singleShot(900, this, [this, line, original]() {
-					if (line->scene() == this)
-						line->setPen(original);
-				});
+				QVector<QGraphicsLineItem *> lanes = e.extraLanes;
+				lanes.push_front(e.line);
+				for (auto *line : lanes)
+				{
+					QPen original = line->pen();
+					line->setPen(QPen(QColor(231, 76, 60), 4.5,
+									  Qt::SolidLine, Qt::RoundCap));
+					QTimer::singleShot(900, this, [this, line, original]() {
+						if (line->scene() == this)
+							line->setPen(original);
+					});
+				}
 			}
 		}
 	}
