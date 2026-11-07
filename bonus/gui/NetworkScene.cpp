@@ -313,6 +313,17 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 		QRectF bb = lt->boundingRect();
 		QPointF bp = edgePosition(e.from, e.to, f, i);
 		lt->setPos(bp.x() - bb.width() / 2, bp.y() - bb.height() / 2);
+		/* Run the card along its lane so it stays inside the lane's own
+		   channel instead of covering the neighbours; keep text upright. */
+		QPointF dir = edgePosition(e.from, e.to, std::min(1.0, f + 0.02), i)
+					  - edgePosition(e.from, e.to, std::max(0.0, f - 0.02), i);
+		double ang = std::atan2(dir.y(), dir.x()) * 180.0 / M_PI;
+		if (ang > 90.0)
+			ang -= 180.0;
+		else if (ang <= -90.0)
+			ang += 180.0;
+		lt->setTransformOriginPoint(bb.center());
+		lt->setRotation(ang);
 		lt->setZValue(3);
 		e.laneLabels.push_back(lt);
 	}
