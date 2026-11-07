@@ -406,6 +406,7 @@ int main()
 					  r.output, "Back          00h08m23s     00h08m23s"), msg);
 				  ASSERT_TRUE(outputContains(
 					  r.output, "Go            00h13m46s     00h13m46s"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "00h05m23s"), msg);
 				  return true;
 			  });
 

@@ -185,6 +185,10 @@ class Simulation
 	/* Traffic-aware expected time per (train name, departure), filled by
 	   a deterministic event-free dry run at the start of run(). */
 	std::map<std::pair<std::string, double>, double> _expected;
+	/* Part of the expected time spent waiting for other trains (expected
+	   minus the lone-train time), counted as delay in the results (lines mode only, so default
+	   mode output stays as the subject defines it). */
+	std::map<std::pair<std::string, double>, double> _trafficWait;
 
 	/* Monotonic counters bumped by live mutations; part of the
 	   candidate-path cache key. */
