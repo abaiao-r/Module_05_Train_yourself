@@ -1,0 +1,12 @@
+Node Hub
+Node East
+Node West
+Node North
+Node Bypass
+Event Strike 0.5 20m Hub North
+Rail Hub East 20.0 160.0 2 100.0 160.0
+Rail Hub West 20.0 160.0 1
+Rail Hub North 15.0 160.0 1
+Rail North West 15.0 160.0 1
+Rail East Bypass 12.0 160.0 1
+Rail Bypass West 12.0 160.0 1
