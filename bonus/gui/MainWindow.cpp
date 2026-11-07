@@ -2381,7 +2381,6 @@ void MainWindow::onEditEdge()
 	};
 	connect(linesSpin, qOverload<int>(&QSpinBox::valueChanged), &dlg,
 			[showLineSpeeds](int) { showLineSpeeds(); });
-	showLineSpeeds();
 
 	auto *btns = new QHBoxLayout;
 	auto *okBtn = new QPushButton("Save Changes");
@@ -2397,6 +2396,9 @@ void MainWindow::onEditEdge()
 	form->addRow("Lines:", linesSpin);
 	form->addRow(lineForm);
 	form->addRow(btns);
+	/* Only after the rows are parented, else visible spins pop up as
+	   stray top-level windows. */
+	showLineSpeeds();
 
 	connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
 	connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
