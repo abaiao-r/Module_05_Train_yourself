@@ -399,7 +399,6 @@ void SimulationWorker::runCompare(const QString &networkFile,
 
 		std::map<std::string, std::vector<double>> sums[3];
 		std::map<std::string, std::vector<double>> delays[3];
-		const int total = 3 * numRuns;
 		int done = 0;
 		for (int m = 0; m < 3; ++m)
 		{
@@ -432,7 +431,8 @@ void SimulationWorker::runCompare(const QString &networkFile,
 					sums[m][key].push_back(r.actualTime);
 					delays[m][key].push_back(r.totalDelay);
 				}
-				emit runProgress(++done, total);
+				/* Shown as "N/runs": one step = the same run in all 3 modes. */
+				emit runProgress(++done / 3, numRuns);
 			}
 		}
 
