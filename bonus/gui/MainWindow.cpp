@@ -2470,7 +2470,9 @@ void MainWindow::onEditEdge()
 					   }),
 		_eventDefs.end());
 	_scene->clearTrains();
-	_scene->updateEdge(from, to, newDist, newSpeed, newLines);
+	_scene->updateEdge(from, to, newDist, newSpeed, newLines,
+					   QVector<double>(newLineSpeeds.begin(),
+									   newLineSpeeds.end()));
 
 	refreshLists();
 	_scene->clearTrains();

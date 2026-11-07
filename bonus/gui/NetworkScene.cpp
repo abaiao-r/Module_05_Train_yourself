@@ -126,7 +126,8 @@ static QString edgeLabelText(double distKm, double speedKmh,
 static const double LANE_GAP = 14.0;
 
 void NetworkScene::addEdge(const QString &from, const QString &to,
-						   double distKm, double speedKmh, int numLines)
+						   double distKm, double speedKmh, int numLines,
+						   const QVector<double> &lineSpeeds)
 {
 	if (!_nodes.contains(from) || !_nodes.contains(to))
 		return;
@@ -157,7 +158,7 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 	label->setZValue(2);
 
 	_edges.push_back({line, label, from, to, distKm, speedKmh, QString(),
-					  numLines, extra});
+					  numLines, extra, lineSpeeds, {}});
 	repositionEdge(_edges.last());
 }
 
@@ -209,6 +210,56 @@ void NetworkScene::clearLanes(EdgeVis &e)
 		delete l;
 	}
 	e.extraLanes.clear();
+	for (auto *t : e.laneLabels)
+	{
+		removeItem(t);
+		delete t;
+	}
+	e.laneLabels.clear();
+}
+
+/* One label per lane (only on multi-line rails) with its number, its
+   speed and the events that hit that lane only. Labels are staggered
+   along the rail so neighbouring lanes never print on top of each other. */
+void NetworkScene::updateLaneLabels(EdgeVis &e)
+{
+	for (auto *t : e.laneLabels)
+	{
+		removeItem(t);
+		delete t;
+	}
+	e.laneLabels.clear();
+	if (e.numLines <= 1)
+		return;
+
+	for (int i = 0; i < e.numLines; i++)
+	{
+		double kmh = (i < e.lineSpeeds.size() && e.lineSpeeds[i] > 0.0)
+						 ? e.lineSpeeds[i] : e.speedKmh;
+		QString txt = QString("L%1 %2 km/h").arg(i + 1).arg(kmh, 0, 'f', 0);
+		QStringList evs;
+		for (const auto &ev : _events)
+			if (ev.line == i && !ev.node2.isEmpty()
+				&& ((ev.node1 == e.from && ev.node2 == e.to)
+					|| (ev.node1 == e.to && ev.node2 == e.from)))
+				evs << ev.name;
+		if (!evs.isEmpty())
+			txt += QString::fromUtf8(" \xE2\x9A\xA0 ") + evs.join(", ");
+
+		auto *t = addText("", QFont("Segoe UI", 7, QFont::Bold));
+		t->setHtml(QString("<span style=\"background-color:#2c3e50;"
+						   "color:%1;\">&nbsp;%2&nbsp;</span>")
+					   .arg(PALETTE[i % PALETTE_SIZE].name(),
+							txt.toHtmlEscaped()));
+		double frac = 0.5;
+		if (e.numLines > 1)
+			frac = 0.3 + 0.4 * i / (e.numLines - 1);
+		QPointF p = edgePosition(e.from, e.to, frac, i);
+		QRectF b = t->boundingRect();
+		t->setPos(p.x() - b.width() / 2, p.y() - b.height() / 2);
+		t->setZValue(3);
+		e.laneLabels.push_back(t);
+	}
 }
 
 void NetworkScene::removeNode(const QString &name)
@@ -271,7 +322,8 @@ void NetworkScene::renameNode(const QString &oldName, const QString &newName)
 }
 
 void NetworkScene::updateEdge(const QString &from, const QString &to,
-							  double newDist, double newSpeed, int newLines)
+							  double newDist, double newSpeed, int newLines,
+							  const QVector<double> &newLineSpeeds)
 {
 	for (auto &e : _edges)
 	{
@@ -282,7 +334,7 @@ void NetworkScene::updateEdge(const QString &from, const QString &to,
 			{
 				const QString f = e.from, t = e.to, risk = e.riskNames;
 				removeEdge(f, t);
-				addEdge(f, t, newDist, newSpeed, newLines);
+				addEdge(f, t, newDist, newSpeed, newLines, newLineSpeeds);
 				for (auto &n : _edges)
 					if (n.from == f && n.to == t)
 					{
@@ -295,8 +347,10 @@ void NetworkScene::updateEdge(const QString &from, const QString &to,
 			}
 			e.distKm = newDist;
 			e.speedKmh = newSpeed;
+			e.lineSpeeds = newLineSpeeds;
 			e.label->setPlainText(
 				edgeLabelText(newDist, newSpeed, e.riskNames, e.numLines));
+			updateLaneLabels(e);
 			return;
 		}
 	}
@@ -341,6 +395,7 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 	{
 		setLanePath(i == 0 ? e.line : e.extraLanes[i - 1], e, i);
 	}
+	updateLaneLabels(e);
 	QPointF mid = (p1 + p2) / 2.0;
 	/* Keep the label clear of the outermost lane: push it out along the
 	   normal on the upper side, centred when the edge is flat-ish. */
@@ -379,7 +434,8 @@ void NetworkScene::loadFromNetwork(const RailNetwork &network)
 		{
 			QString from = QString::fromStdString(name);
 			QString to = QString::fromStdString(e.destination->getName());
-			addEdge(from, to, e.distance, e.speedLimit, e.numLines);
+			addEdge(from, to, e.distance, e.speedLimit, e.numLines,
+				QVector<double>(e.lineSpeeds.begin(), e.lineSpeeds.end()));
 		}
 	}
 
@@ -693,6 +749,7 @@ void NetworkScene::drawEventMarkers()
 	for (auto &e : _edges)
 	{
 		QString key = e.from + "->" + e.to;
+		updateLaneLabels(e);
 		if (!edgeNames.contains(key))
 			continue;
 		e.riskNames = edgeNames[key].join(", ");

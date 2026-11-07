@@ -63,12 +63,14 @@ class NetworkScene : public QGraphicsScene
 
 	void addNode(const QString &name, const QPointF &pos);
 	void addEdge(const QString &from, const QString &to,
-				 double distKm, double speedKmh, int numLines = 1);
+				 double distKm, double speedKmh, int numLines = 1,
+				 const QVector<double> &lineSpeeds = {});
 	void removeNode(const QString &name);
 	void removeEdge(const QString &from, const QString &to);
 	void renameNode(const QString &oldName, const QString &newName);
 	void updateEdge(const QString &from, const QString &to,
-					double newDist, double newSpeed, int newLines = -1);
+					double newDist, double newSpeed, int newLines = -1,
+					const QVector<double> &newLineSpeeds = {});
 	void clear();
 
 	/** Populate from an existing RailNetwork object. */
@@ -118,6 +120,8 @@ class NetworkScene : public QGraphicsScene
 		QString riskNames;
 		int numLines = 1;
 		QVector<QGraphicsPathItem *> extraLanes; // lanes 1..N-1
+		QVector<double> lineSpeeds;  // per-line km/h, empty = rail speed
+		QVector<QGraphicsTextItem *> laneLabels; // "L1 40 km/h ..."
 	};
 	struct TrainVis
 	{
@@ -161,6 +165,7 @@ class NetworkScene : public QGraphicsScene
 	void setLanePath(QGraphicsPathItem *item, const EdgeVis &e, int line);
 	void layoutLanes(EdgeVis &e);
 	void clearLanes(EdgeVis &e);
+	void updateLaneLabels(EdgeVis &e);
 
 	static const QColor PALETTE[];
 	static const int PALETTE_SIZE;
