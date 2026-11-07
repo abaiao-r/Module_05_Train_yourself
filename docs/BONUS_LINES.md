@@ -47,7 +47,11 @@ make && ./bin/train_yourself input/railNetworkPrintFolder/railNetworkParallelLin
 
 Dijkstra only treats an edge as congested when its occupancy reaches the number of lines.
 ETA replay for detour decisions does not cap a follower behind a leader on later edges that
-have a spare line. It does not model queue waits behind opposite traffic.
+have a spare line. It also models queue waits behind opposite traffic: from the live line
+occupancy, a train entering an edge whose lines all carry opposite traffic is held until
+the first line clears. In Adaptive mode a train already waiting at a station for such an
+edge judges a detour once per wait and takes it when it saves time. Live traffic reaches
+routing only through this replay judge; the cached candidate paths ignore occupancy.
 
 ## GUI
 
