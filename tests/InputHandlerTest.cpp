@@ -343,5 +343,96 @@ int main()
 				  return true;
 			  });
 
+	LinesOptions on;
+	on.enabled = true;
+	auto loadNet = [&](const std::string &rails, const LinesOptions &o) {
+		writeFile("/tmp/lines_n.txt", "Node A\nNode B\nNode C\n" + rails);
+		writeFile("/tmp/lines_t.txt", okTrain);
+		return InputHandler::loadData("/tmp/lines_n.txt",
+									  "/tmp/lines_t.txt", o);
+	};
+	auto errorOf = [&](const std::string &rails, const LinesOptions &o) {
+		try
+		{
+			loadNet(rails, o);
+		}
+		catch (const InputHandler::ParseException &e)
+		{
+			return std::string(e.what());
+		}
+		return std::string("<no error>");
+	};
+
+	suite.run("lines on: Rail with count 3 gives an edge with 3 lines",
+			  [&](std::string &msg) {
+				  auto d = loadNet("Rail A B 10 100 3\n", on);
+				  const auto &e = d.network.getNeighbours("A")[0];
+				  ASSERT_EQ(3, e.numLines, msg);
+				  ASSERT_NEAR(10.0, e.distance, 1e-9, msg);
+				  ASSERT_EQ(3, d.network.getNeighbours("B")[0].numLines, msg);
+				  return true;
+			  });
+
+	suite.run("lines on: Rail without count has exactly 1 line",
+			  [&](std::string &msg) {
+				  auto d = loadNet("Rail A B 10 100\n", on);
+				  ASSERT_EQ(1, d.network.getNeighbours("A")[0].numLines, msg);
+				  return true;
+			  });
+
+	suite.run("lines on: bad counts name the offending line and value",
+			  [&](std::string &msg) {
+				  for (const char *bad : {"0", "-1", "1.5", "abc", "2x",
+										  "99999999999"})
+				  {
+					  std::string err = errorOf(
+						  std::string("Rail A B 10 100 ") + bad + "\n", on);
+					  ASSERT_TRUE(err.find("lines_n.txt:4:") != std::string::npos,
+								  msg);
+					  ASSERT_TRUE(err.find(std::string("Invalid line count '")
+										   + bad + "'") != std::string::npos,
+								  msg);
+				  }
+				  return true;
+			  });
+
+	suite.run("lines on: extra token after count is still rejected",
+			  [&](std::string &msg) {
+				  std::string err = errorOf("Rail A B 10 100 2 junk\n", on);
+				  ASSERT_TRUE(err.find("Unexpected trailing content")
+							  != std::string::npos, msg);
+				  return true;
+			  });
+
+	suite.run("lines off: count token errors exactly as before",
+			  [&](std::string &msg) {
+				  std::string err = errorOf("Rail A B 10 100 3\n", {});
+				  ASSERT_TRUE(err.find("lines_n.txt:4: Unexpected trailing content")
+							  != std::string::npos, msg);
+				  return true;
+			  });
+
+	suite.run("lines on: duplicate pair still throws",
+			  [&](std::string &msg) {
+				  std::string err = errorOf(
+					  "Rail A B 10 100 2\nRail B A 12 90 3\n", on);
+				  ASSERT_TRUE(err.find("lines_n.txt:5:") != std::string::npos,
+							  msg);
+				  return true;
+			  });
+
+	suite.run("sample parallel-lines file loads only with lines on",
+			  [&](std::string &msg) {
+				  const std::string f = NET + "railNetworkParallelLines.txt";
+				  ASSERT_THROWS(InputHandler::loadData(f, GOOD_TRN),
+								InputHandler::ParseException, msg);
+				  RailNetwork n;
+				  std::vector<Event> ev;
+				  InputHandler::parseNetworkFile(f, n, ev, on);
+				  ASSERT_EQ(2, n.getNeighbours("CityA")[0].numLines, msg);
+				  ASSERT_EQ(1, n.getNeighbours("CityC")[0].numLines, msg);
+				  return true;
+			  });
+
 	return suite.summarize();
 }

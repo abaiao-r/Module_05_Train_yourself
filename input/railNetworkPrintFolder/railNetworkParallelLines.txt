@@ -1,0 +1,5 @@
+Node CityA
+Node CityB
+Node CityC
+Rail CityA CityB 10.0 100.0 2
+Rail CityB CityC 10.0 100.0

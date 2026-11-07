@@ -60,7 +60,7 @@ void RailNetwork::addNode(const std::string &name)
 
 void RailNetwork::addConnection(const std::string &from,
 								const std::string &to, double distance,
-								double speedLimit)
+								double speedLimit, int numLines)
 {
 	if (!_nodes.count(from))
 		throw NodeNotFoundException(from);
@@ -74,6 +74,8 @@ void RailNetwork::addConnection(const std::string &from,
 		throw std::invalid_argument("Distance must be positive");
 	if (speedLimit <= 0.0)
 		throw std::invalid_argument("Speed limit must be positive");
+	if (numLines < 1)
+		throw std::invalid_argument("Line count must be at least 1");
 
 	for (const auto &edge : _adjacencyList[from])
 	{
@@ -81,8 +83,10 @@ void RailNetwork::addConnection(const std::string &from,
 			throw DuplicateConnectionException(from, to);
 	}
 
-	_adjacencyList[from].push_back({_nodes[to], distance, speedLimit});
-	_adjacencyList[to].push_back({_nodes[from], distance, speedLimit});
+	_adjacencyList[from].push_back(
+		{_nodes[to], distance, speedLimit, numLines});
+	_adjacencyList[to].push_back(
+		{_nodes[from], distance, speedLimit, numLines});
 }
 
 std::shared_ptr<Node> RailNetwork::findNode(const std::string &name) const

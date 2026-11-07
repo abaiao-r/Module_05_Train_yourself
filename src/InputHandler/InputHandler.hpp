@@ -43,7 +43,8 @@ class InputHandler
 	/** Parse a network file only (nodes, rails, events). No cross-validation. */
 	static void parseNetworkFile(const std::string &filepath,
 								 RailNetwork &network,
-								 std::vector<Event> &events);
+								 std::vector<Event> &events,
+								 const LinesOptions &lines = {});
 
 	/** Parse a train file only.  No station-existence validation. */
 	static std::vector<std::unique_ptr<Train>> parseTrainFile(

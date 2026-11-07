@@ -171,5 +171,34 @@ int main()
 				  return true;
 			  });
 
+	suite.run("addConnection stores line count on both directions",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("A");
+				  net.addNode("B");
+				  net.addNode("C");
+				  net.addConnection("A", "B", 10.0, 100.0, 3);
+				  net.addConnection("B", "C", 5.0, 80.0);
+				  ASSERT_EQ(3, net.getNeighbours("A")[0].numLines, msg);
+				  ASSERT_EQ(3, net.getNeighbours("B")[0].numLines, msg);
+				  ASSERT_EQ(1, net.getNeighbours("C")[0].numLines, msg);
+				  ASSERT_NEAR(10.0, net.getNeighbours("A")[0].distance,
+							  1e-9, msg);
+				  return true;
+			  });
+
+	suite.run("addConnection rejects line count below 1",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("A");
+				  net.addNode("B");
+				  ASSERT_THROWS(net.addConnection("A", "B", 1.0, 1.0, 0),
+								std::invalid_argument, msg);
+				  ASSERT_THROWS(net.addConnection("A", "B", 1.0, 1.0, -2),
+								std::invalid_argument, msg);
+				  ASSERT_EQ(0, (int)net.getNeighbours("A").size(), msg);
+				  return true;
+			  });
+
 	return suite.summarize();
 }
