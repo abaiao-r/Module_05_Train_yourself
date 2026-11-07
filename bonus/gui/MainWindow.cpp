@@ -818,6 +818,7 @@ void MainWindow::buildSidebar()
 	mainLay->addWidget(presetGroup);
 
 	auto *tabs = new QTabWidget;
+	_tabs = tabs;
 	tabs->setUsesScrollButtons(false);
 
 	auto *nodeTab = new QWidget;
@@ -931,6 +932,24 @@ void MainWindow::buildSidebar()
 	_eventList->setToolTip("Double-click to edit, Delete to remove");
 
 	mainLay->addWidget(tabs, 1);
+
+	/* Read-only inspector: every property of the selected element, plus
+	   how it connects to the rest of the network. */
+	_details = new QTextBrowser;
+	_details->setOpenLinks(false);
+	_details->setMinimumHeight(190);
+	_details->setMaximumHeight(260);
+	_details->setStyleSheet(
+		"QTextBrowser { background:#0f172a; border:1px solid #334155;"
+		" border-radius:6px; padding:6px; font-family:'Helvetica Neue',"
+		" 'Segoe UI', Arial, sans-serif; font-size:12px; }");
+	mainLay->addWidget(_details);
+	for (auto *l : {_nodeList, _edgeList, _trainList, _eventList})
+		connect(l, &QListWidget::itemSelectionChanged, this,
+				&MainWindow::updateDetails);
+	connect(tabs, &QTabWidget::currentChanged, this,
+			[this](int) { updateDetails(); });
+	updateDetails();
 	dock->setWidget(container);
 	addDockWidget(Qt::RightDockWidgetArea, dock);
 }
@@ -1010,6 +1029,170 @@ static QString presetHint(const QString &name)
 		{"Bonus4MixedSpeeds", "Multi-line: per-line speeds, fastest free line first"},
 		{"Bonus5Complex", "Multi-line: hub, opposite flows and an event"}};
 	return hints.value(name);
+}
+
+/* Property grid for the element selected on the current tab. */
+void MainWindow::updateDetails()
+{
+	if (!_details || !_tabs)
+		return;
+	const QString dim = "#94a3b8", hi = "#e2e8f0", acc = "#22d3ee";
+	QString title, rows;
+	auto row = [&](const QString &k, const QString &v) {
+		rows += QString("<tr><td style='color:%1; padding-right:10px;'>%2</td>"
+						"<td style='color:%3;'>%4</td></tr>")
+					.arg(dim, k, hi, v);
+	};
+	auto hms = [](double sec) {
+		int t = static_cast<int>(sec);
+		return QString("%1:%2:%3").arg(t / 3600, 2, 10, QChar('0'))
+			.arg((t % 3600) / 60, 2, 10, QChar('0'))
+			.arg(t % 60, 2, 10, QChar('0'));
+	};
+	auto esc = [](const std::string &s) {
+		return QString::fromStdString(s).toHtmlEscaped();
+	};
+	QListWidget *lists[] = {_nodeList, _edgeList, _trainList, _eventList};
+	int tab = _tabs->currentIndex();
+	QListWidget *list = (tab >= 0 && tab < 4) ? lists[tab] : nullptr;
+	int r = list ? list->currentRow() : -1;
+	bool sel = list && list->currentItem() && list->currentItem()->isSelected();
+
+	if (sel && tab == 0)
+	{
+		std::string n = list->currentItem()->text().toStdString();
+		title = "Station " + QString::fromStdString(n).toHtmlEscaped();
+		QStringList rails;
+		for (const auto &e : _network.getNeighbours(n))
+			rails << QString("%1 (%2 km, %3 line%4)")
+						 .arg(esc(e.destination->getName()))
+						 .arg(e.distance, 0, 'f', 1)
+						 .arg(e.numLines)
+						 .arg(e.numLines == 1 ? "" : "s");
+		row("Rails", rails.isEmpty() ? "none" : rails.join("<br>"));
+		QStringList dep, arr;
+		for (const auto &t : _trainDefs)
+		{
+			if (t->getDepartureStation() == n)
+				dep << esc(t->getName());
+			if (t->getArrivalStation() == n)
+				arr << esc(t->getName());
+		}
+		row("Trains leaving", dep.isEmpty() ? "none" : dep.join(", "));
+		row("Trains arriving", arr.isEmpty() ? "none" : arr.join(", "));
+		QStringList evs;
+		for (const auto &ev : _eventDefs)
+			if (!ev.isRailEvent() && ev.getNodeName() == n)
+				evs << esc(ev.getName());
+		row("Events here", evs.isEmpty() ? "none" : evs.join(", "));
+	}
+	else if (sel && tab == 1)
+	{
+		static const QRegularExpression re(R"(^(.+) <-> (.+?)  \()");
+		auto m = re.match(list->currentItem()->text());
+		if (m.hasMatch())
+		{
+			std::string a = m.captured(1).toStdString();
+			std::string b = m.captured(2).toStdString();
+			title = QString("Rail %1 &harr; %2").arg(esc(a), esc(b));
+			for (const auto &e : _network.getNeighbours(a))
+			{
+				if (e.destination->getName() != b)
+					continue;
+				row("Length", QString("%1 km").arg(e.distance, 0, 'f', 1));
+				row("Speed limit",
+					QString("%1 km/h").arg(e.speedLimit, 0, 'f', 0));
+				row("Lines", _linesCheck && _linesCheck->isChecked()
+								 ? QString::number(e.numLines)
+								 : "1 (multi-line off)");
+				if (_linesCheck && _linesCheck->isChecked()
+					&& e.numLines > 1)
+					for (int l = 0; l < e.numLines; l++)
+					{
+						QStringList evs;
+						for (const auto &ev : _eventDefs)
+							if (ev.isRailEvent() && ev.getLine() == l
+								&& ((ev.getNodeName() == a
+									 && ev.getNodeName2() == b)
+									|| (ev.getNodeName() == b
+										&& ev.getNodeName2() == a)))
+								evs << esc(ev.getName());
+						row(QString("&nbsp;&nbsp;Line %1").arg(l + 1),
+							QString("%1 km/h%2")
+								.arg(e.lineSpeed(l), 0, 'f', 0)
+								.arg(evs.isEmpty()
+										 ? QString()
+										 : QString::fromUtf8(" \xE2\x9A\xA0 ")
+											   + evs.join(", ")));
+					}
+				QStringList evs;
+				for (const auto &ev : _eventDefs)
+					if (ev.isRailEvent() && !ev.isLineEvent()
+						&& ((ev.getNodeName() == a && ev.getNodeName2() == b)
+							|| (ev.getNodeName() == b
+								&& ev.getNodeName2() == a)))
+						evs << esc(ev.getName());
+				row("Events (all lines)",
+					evs.isEmpty() ? "none" : evs.join(", "));
+				break;
+			}
+		}
+	}
+	else if (sel && tab == 2 && r >= 0
+			 && static_cast<size_t>(r) < _trainDefs.size())
+	{
+		const auto &t = _trainDefs[static_cast<size_t>(r)];
+		title = "Train " + esc(t->getName());
+		row("Route", esc(t->getDepartureStation()) + " &rarr; "
+						 + esc(t->getArrivalStation()));
+		row("Departure", hms(t->getDepartureTime()));
+		row("Stop at stations", QString("%1 s").arg(t->getStopDuration(), 0, 'f', 0));
+		row("Weight", QString("%1 t").arg(t->getWeight(), 0, 'f', 0));
+		row("Friction", QString::number(t->getFrictionCoefficient(), 'f', 2));
+		row("Max accel force",
+			QString("%1 kN").arg(t->getMaxAccelForce(), 0, 'f', 0));
+		row("Max brake force",
+			QString("%1 kN").arg(t->getMaxBrakeForce(), 0, 'f', 0));
+	}
+	else if (sel && tab == 3 && r >= 0
+			 && static_cast<size_t>(r) < _eventDefs.size())
+	{
+		const auto &ev = _eventDefs[static_cast<size_t>(r)];
+		title = "Event " + esc(ev.getName());
+		row("Where", ev.isRailEvent()
+						 ? QString("rail %1 &harr; %2")
+							   .arg(esc(ev.getNodeName()),
+									esc(ev.getNodeName2()))
+						 : "station " + esc(ev.getNodeName()));
+		if (ev.isRailEvent())
+			row("Applies to", ev.isLineEvent()
+								  ? QString("line %1 only").arg(ev.getLine() + 1)
+								  : QString("all lines"));
+		row("Probability",
+			QString("%1 %").arg(ev.getProbability() * 100.0, 0, 'f', 0));
+		row("Delay", QString("%1 min").arg(ev.getDuration() / 60.0, 0, 'f', 1));
+		row("Expected delay",
+			QString("%1 min per train").arg(
+				ev.getProbability() * ev.getDuration() / 60.0, 0, 'f', 1));
+	}
+
+	if (title.isEmpty())
+	{
+		static const char *what[] = {"station", "rail", "train", "event"};
+		_details->setHtml(
+			QString("<div style='color:%1;'><b style='color:%2;'>Details"
+					"</b><br>Select a %3 above to see all its properties."
+					"<br>Double-click it, or press Edit, to change them."
+					"</div>")
+				.arg(dim, hi, what[tab >= 0 && tab < 4 ? tab : 0]));
+		return;
+	}
+	_details->setHtml(
+		QString("<div style='font-size:14px; font-weight:bold; color:%1;'>"
+				"%2</div><table cellspacing='3'>%3</table>"
+				"<div style='color:%4;'>Double-click or press Edit to change."
+				"</div>")
+			.arg(acc, title, rows, dim));
 }
 
 void MainWindow::updateEditButtons()
@@ -1171,6 +1354,7 @@ void MainWindow::refreshLists()
 	}
 
 	decorateCards(_nodeList, _edgeList, _trainList, _eventList, _network);
+	updateDetails();
 	updateRunState();
 	updateEditButtons();
 	statusBar()->showMessage(

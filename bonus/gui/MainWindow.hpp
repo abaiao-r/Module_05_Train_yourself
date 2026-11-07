@@ -19,6 +19,8 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QMainWindow>
+#include <QTabWidget>
+#include <QTextBrowser>
 #include <QPushButton>
 #include <QSlider>
 #include <QSpinBox>
@@ -100,6 +102,7 @@ class MainWindow : public QMainWindow
 	void buildCentralWidget();
 	void buildSidebar();
 	void refreshLists();
+	void updateDetails();
 	void logInfo(const QString &msg);
 	void logError(const QString &msg);
 	void logSuccess(const QString &msg);
@@ -125,6 +128,8 @@ class MainWindow : public QMainWindow
 	QSplitter *_hSplit;
 	QGraphicsView *_view;
 	NetworkScene *_scene;
+	QTabWidget *_tabs = nullptr;
+	QTextBrowser *_details = nullptr;
 	QListWidget *_nodeList;
 	QListWidget *_edgeList;
 	QListWidget *_trainList;
