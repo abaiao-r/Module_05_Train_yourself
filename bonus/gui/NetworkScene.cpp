@@ -163,6 +163,16 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 	repositionEdge(_edges.last());
 }
 
+/* Each line of a multi-line rail has its own colour, used for the stroke
+   and for its card, so a card is matched to its lane by colour. */
+static QColor laneColor(int line)
+{
+	static const QColor palette[] = {
+		QColor(52, 152, 219), QColor(230, 126, 34), QColor(46, 204, 113),
+		QColor(155, 89, 182), QColor(241, 196, 15), QColor(231, 76, 60)};
+	return palette[line % 6];
+}
+
 /* Lanes fan out from the node centres and run parallel in the middle, so
    every lane touches both nodes however many there are. */
 QPointF NetworkScene::laneOffset(const EdgeVis &e, int line,
@@ -241,10 +251,9 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 	if (len <= 1e-6)
 		return;
 
-	/* One dispatcher card per lane, in the gap just right of it (travelling
-	   from -> to): "number | speed limit | events". Cards are spread along
-	   the rail so neighbouring lanes never overlap. */
-	QPointF n(-d.y() / len, d.x() / len);
+	/* One dispatcher card per lane, in the lane's own colour and sitting on
+	   it: "number | speed limit | events". Cards are spread along the rail
+	   so neighbouring cards never overlap. */
 	double ramp = std::min(0.4, 90.0 / len);
 	for (int i = 0; i < e.numLines; i++)
 	{
@@ -256,10 +265,11 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 				&& ((ev.node1 == e.from && ev.node2 == e.to)
 					|| (ev.node1 == e.to && ev.node2 == e.from)))
 				evs << ev.name;
-		QString card = QString("<span style=\"background-color:#2c3e50;"
-							   "color:#ecf0f1;\">&nbsp;<b style=\"color:"
-							   "#f1c40f;\">L%1</b> &middot; %2 km/h")
-						   .arg(i + 1).arg(kmh, 0, 'f', 0);
+		QString card = QString("<span style=\"background-color:%1;"
+							   "color:#ffffff;\">&nbsp;<b>L%2</b> &middot; "
+							   "%3 km/h")
+						   .arg(laneColor(i).name()).arg(i + 1)
+						   .arg(kmh, 0, 'f', 0);
 		if (!evs.isEmpty())
 			card += QString::fromUtf8(" &middot; \xE2\x9A\xA0 ")
 					+ evs.join(", ").toHtmlEscaped();
@@ -269,7 +279,7 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 		auto *lt = addText("", QFont("Segoe UI", 7));
 		lt->setHtml(card);
 		QRectF bb = lt->boundingRect();
-		QPointF bp = edgePosition(e.from, e.to, f, i) + n * (LANE_GAP / 2.0);
+		QPointF bp = edgePosition(e.from, e.to, f, i);
 		lt->setPos(bp.x() - bb.width() / 2, bp.y() - bb.height() / 2);
 		lt->setZValue(3);
 		e.laneLabels.push_back(lt);
@@ -407,7 +417,11 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 	QPointF p2 = _nodes[e.to].pos;
 	for (int i = 0; i < e.numLines; i++)
 	{
-		setLanePath(i == 0 ? e.line : e.extraLanes[i - 1], e, i);
+		QGraphicsPathItem *lane = i == 0 ? e.line : e.extraLanes[i - 1];
+		setLanePath(lane, e, i);
+		if (e.numLines > 1)
+			lane->setPen(QPen(laneColor(i), 3.0, Qt::SolidLine,
+							  Qt::RoundCap));
 	}
 	updateLaneLabels(e);
 	QPointF mid = (p1 + p2) / 2.0;
