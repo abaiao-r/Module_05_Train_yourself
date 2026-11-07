@@ -25,6 +25,7 @@
 #include "Event.hpp"
 #include "FileOutputObserver.hpp"
 #include "IPathfinding.hpp"
+#include "LinesOptions.hpp"
 #include "ISimulationObserver.hpp"
 #include "OutputManager.hpp"
 #include "RailNetwork.hpp"
@@ -168,6 +169,7 @@ class Simulation
 	EventTriggerCallback _eventTriggerCallback;
 	RerouteCallback _rerouteCallback;
 	bool _quiet;
+	LinesOptions _lines;
 
 	/* Monotonic counters bumped by live mutations; part of the
 	   candidate-path cache key. */
@@ -203,13 +205,15 @@ class Simulation
 			   std::vector<std::unique_ptr<Train>> trains,
 			   std::vector<Event> events,
 			   std::unique_ptr<IPathfinding> pathfinder,
-			   PathWeightMode weightMode = PathWeightMode::Distance);
+			   PathWeightMode weightMode = PathWeightMode::Distance,
+			   const LinesOptions &lines = {});
 	Simulation(const Simulation &) = delete;
 	Simulation &operator=(const Simulation &) = delete;
 	~Simulation();
 
 	void run();
 
+	const LinesOptions &getLinesOptions() const;
 	const RailNetwork &getNetwork() const;
 	const std::vector<std::unique_ptr<Train>> &getTrains() const;
 	const std::vector<TrainResult> &getResults() const;

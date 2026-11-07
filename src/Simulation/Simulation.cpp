@@ -27,17 +27,23 @@ Simulation::Simulation(RailNetwork network,
 					   std::vector<std::unique_ptr<Train>> trains,
 					   std::vector<Event> events,
 					   std::unique_ptr<IPathfinding> pathfinder,
-					   PathWeightMode weightMode)
+					   PathWeightMode weightMode,
+					   const LinesOptions &lines)
 	: _network(std::move(network)), _trains(std::move(trains)),
 	  _events(std::move(events)), _pathfinder(std::move(pathfinder)),
 	  _weightMode(weightMode), _rng(std::random_device{}()),
-	  _quiet(false)
+	  _quiet(false), _lines(lines)
 {
 	if (!_pathfinder)
 		throw std::invalid_argument("Pathfinder cannot be null");
 }
 
 Simulation::~Simulation() {}
+
+const LinesOptions &Simulation::getLinesOptions() const
+{
+	return _lines;
+}
 
 const RailNetwork &Simulation::getNetwork() const { return _network; }
 

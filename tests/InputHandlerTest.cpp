@@ -332,5 +332,16 @@ int main()
 				  return true;
 			  });
 
+	suite.run("lines option: disabled by default, carried when enabled",
+			  [](std::string &msg) {
+				  auto off = InputHandler::loadData(GOOD_NET, GOOD_TRN);
+				  ASSERT_FALSE(off.lines.enabled, msg);
+				  LinesOptions on;
+				  on.enabled = true;
+				  auto data = InputHandler::loadData(GOOD_NET, GOOD_TRN, on);
+				  ASSERT_TRUE(data.lines.enabled, msg);
+				  return true;
+			  });
+
 	return suite.summarize();
 }
