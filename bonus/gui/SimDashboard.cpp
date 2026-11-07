@@ -10,18 +10,20 @@
 /*                                                                            */
 /* ************************************************************************** */
 
+
 #include "SimDashboard.hpp"
+#include <QRegularExpression>
 #include <cmath>
 
-/* Dark-theme palette. */
-static const char *C_BORDER  = "#06b6d4"; /* cyan-400  – box borders    */
-static const char *C_TITLE   = "#e0e0e0"; /* white-ish – title text     */
-static const char *C_DIM     = "#94a3b8"; /* slate-400 – dim text       */
-static const char *C_GREEN   = "#6ee7b7"; /* emerald-300 – arrived/good */
-static const char *C_YELLOW  = "#fbbf24"; /* amber-400 – running        */
-static const char *C_RED     = "#f87171"; /* red-400   – stopped/delay  */
-static const char *C_CYAN    = "#22d3ee"; /* cyan-300  – progress bar   */
-static const char *C_BADGE   = "#334155"; /* slate-700 – badge bg       */
+static const char *C_PANEL  = "#0f172a"; /* panel background           */
+static const char *C_CARD   = "#172033"; /* card background            */
+static const char *C_TITLE  = "#e2e8f0";
+static const char *C_DIM    = "#94a3b8";
+static const char *C_GREEN  = "#6ee7b7";
+static const char *C_YELLOW = "#fbbf24";
+static const char *C_RED    = "#f87171";
+static const char *C_CYAN   = "#22d3ee";
+static const char *C_TRACK  = "#334155"; /* empty part of a progress bar */
 
 SimDashboard::SimDashboard(QWidget *parent) : QTextEdit(parent)
 {
@@ -31,142 +33,81 @@ SimDashboard::SimDashboard(QWidget *parent) : QTextEdit(parent)
 	setStyleSheet(
 		"QTextEdit {"
 		"  background: #0f172a;"
-		"  color: #e0e0e0;"
+		"  color: #e2e8f0;"
 		"  border: 1px solid #334155;"
 		"  border-radius: 6px;"
-		"  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;"
-		"  font-size: 11px;"
-		"  padding: 4px;"
+		"  font-size: 12px;"
+		"  padding: 6px;"
 		"}");
 	setMinimumWidth(200);
 	clear();
 }
-
 
 QString SimDashboard::fmtTime(double seconds)
 {
 	int total = static_cast<int>(seconds);
 	if (total < 0)
 		total = 0;
-	int h = total / 3600;
-	int m = (total % 3600) / 60;
-	int s = total % 60;
 	return QString("%1:%2:%3")
-		.arg(h, 2, 10, QChar('0'))
-		.arg(m, 2, 10, QChar('0'))
-		.arg(s, 2, 10, QChar('0'));
-}
-
-QString SimDashboard::progressBar(double fraction, int width)
-{
-	if (fraction < 0.0) fraction = 0.0;
-	if (fraction > 1.0) fraction = 1.0;
-	int filled = static_cast<int>(fraction * width);
-	QString bar;
-	for (int i = 0; i < width; i++)
-	{
-		if (i < filled)
-			bar += QChar(0x2588); // █
-		else if (i == filled)
-			bar += QChar(0x2593); // ▓
-		else
-			bar += QChar(0x2591); // ░
-	}
-	return bar;
+		.arg(total / 3600, 2, 10, QChar('0'))
+		.arg((total % 3600) / 60, 2, 10, QChar('0'))
+		.arg(total % 60, 2, 10, QChar('0'));
 }
 
 QString SimDashboard::speedStr(double speed_ms)
 {
-	double kmh = speed_ms * 3.6;
-	return QString("%1 km/h").arg(kmh, 6, 'f', 1);
+	return QString("%1 km/h").arg(speed_ms * 3.6, 0, 'f', 0);
 }
 
-QString SimDashboard::hRule(const QString &left, const QString &right, int n)
+/* Small coloured pill; QTextEdit has no padding on spans, so use nbsp. */
+QString SimDashboard::chip(const QString &text, const QString &color)
 {
-	QString bar;
-	for (int i = 0; i < n; i++)
-		bar += QChar(0x2550); // ═
-	return QString("<span style='color:%1;'>%2%3%4</span><br>")
-		.arg(C_BORDER, left, bar, right);
+	return QString("<span style='background-color:%1; color:#0f172a; "
+				   "font-weight:bold; font-size:11px;'>&nbsp;%2&nbsp;</span>")
+		.arg(color, text.toHtmlEscaped());
 }
 
-/* Count visible characters in an HTML snippet (strip tags & entities). */
-static int visLen(const QString &html)
+QString SimDashboard::heading(const QString &title, const QString &right)
 {
-	int len = 0;
-	bool inTag = false;
-	for (int i = 0; i < html.size(); i++)
-	{
-		QChar c = html[i];
-		if (c == '<')          { inTag = true; continue; }
-		if (c == '>' && inTag) { inTag = false; continue; }
-		if (inTag) continue;
-		if (c == '&')
-		{
-			/* HTML entity like &amp; &lt; etc. → 1 visible char */
-			int semi = html.indexOf(';', i + 1);
-			if (semi != -1 && semi - i < 10)
-				i = semi; /* skip to ';' */
-			len++;
-			continue;
-		}
-		len++;
-	}
-	return len;
+	return QString("<table width='100%' cellspacing='0' cellpadding='4'>"
+				   "<tr><td><span style='font-size:15px; font-weight:bold; "
+				   "color:%1;'>%2</span></td>"
+				   "<td align='right'><span style='color:%3;'>%4</span></td>"
+				   "</tr></table>")
+		.arg(C_TITLE, title.toHtmlEscaped(), C_DIM, right);
 }
 
-static constexpr int BOX_INNER = 80; /* visible chars between ║ … ║ */
-
-/* Truncate visible text to maxVis chars, preserving HTML tags. */
-static QString visTruncate(const QString &html, int maxVis)
+/* A card is a one-cell table so it gets its own background. */
+QString SimDashboard::card(const QString &inner, const QString &accent)
 {
-	QString out;
-	int vis = 0;
-	bool inTag = false;
-	for (int i = 0; i < html.size(); i++)
-	{
-		QChar c = html[i];
-		if (c == '<') { inTag = true; out += c; continue; }
-		if (c == '>' && inTag) { inTag = false; out += c; continue; }
-		if (inTag) { out += c; continue; }
-		if (c == '&')
-		{
-			int semi = html.indexOf(';', i + 1);
-			if (semi != -1 && semi - i < 10)
-			{
-				if (vis >= maxVis) break;
-				out += html.mid(i, semi - i + 1);
-				i = semi;
-				vis++;
-				continue;
-			}
-		}
-		if (vis >= maxVis) break;
-		out += c;
-		vis++;
-	}
-	return out;
+	return QString("<table width='100%' cellspacing='0' cellpadding='0'>"
+				   "<tr><td width='4' bgcolor='%1'></td>"
+				   "<td bgcolor='%2'><table width='100%' cellspacing='0' "
+				   "cellpadding='7'><tr><td>%3</td></tr></table></td></tr>"
+				   "</table><div style='font-size:5px;'>&nbsp;</div>")
+		.arg(accent, C_CARD, inner);
 }
 
-QString SimDashboard::boxRow(const QString &html)
+QString SimDashboard::bar(double fraction, const QString &color)
 {
-	QString content = html;
-	int vis = visLen(content);
-	if (vis > BOX_INNER)
-		content = visTruncate(content, BOX_INNER);
-	vis = visLen(content);
-	int pad = BOX_INNER - vis;
-	if (pad < 0) pad = 0;
-	QString spaces;
-	for (int i = 0; i < pad; i++)
-		spaces += ' ';
-	return QString("<span style='color:%1;'>%2</span>%3%4"
-				   "<span style='color:%1;'>%5</span><br>")
-		.arg(C_BORDER,
-			 QString(QChar(0x2551)), // ║
-			 content,
-			 spaces,
-			 QString(QChar(0x2551)));
+	int pct = static_cast<int>(fraction * 100.0 + 0.5);
+	if (pct < 0)
+		pct = 0;
+	if (pct > 100)
+		pct = 100;
+	QString done = pct > 0 ? QString("<td width='%1%' bgcolor='%2'>"
+									 "<span style='font-size:4px;'>&nbsp;"
+									 "</span></td>").arg(pct).arg(color)
+						   : QString();
+	QString left = pct < 100 ? QString("<td width='%1%' bgcolor='%2'>"
+									   "<span style='font-size:4px;'>&nbsp;"
+									   "</span></td>")
+									 .arg(100 - pct)
+									 .arg(C_TRACK)
+							 : QString();
+	return QString("<table width='100%' cellspacing='0' cellpadding='0'>"
+				   "<tr>%1%2</tr></table>")
+		.arg(done, left);
 }
 
 void SimDashboard::setEventInfo(const QVector<EventInfo> &events)
@@ -200,418 +141,233 @@ QStringList SimDashboard::remainingPathEventNames(const QStringList &path,
 	return names;
 }
 
-
 void SimDashboard::update(double simTime,
 						  const QVector<TrainSnapshot> &snapshots)
 {
-	QString html;
-	html += "<pre style='margin:0; line-height:1.4;'>";
+	const QString arrow = QString::fromUtf8("\xE2\x86\x92");
+	QString html = QString("<body style='background-color:%1;'>").arg(C_PANEL);
+	html += heading("Live view", QString("clock <b style='color:%1;'>%2</b>")
+									 .arg(C_CYAN, fmtTime(simTime)));
 
-	html += hRule(QString(QChar(0x2554)), QString(QChar(0x2557)), BOX_INNER);
-	html += boxRow(QString("  <b style='color:%1;'>Train Simulation "
-						   "\xe2\x80\x94 Live View</b>")
-					   .arg(C_TITLE));
-	html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)), BOX_INNER);
-
-	html += boxRow(QString("  <b style='color:%1;'>Clock:</b> %2")
-					   .arg(C_TITLE, fmtTime(simTime)));
-	html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)), BOX_INNER);
-
-	html += boxRow(QString("  <span style='color:%1;'>\xe2\x9a\xa0</span>"
-						   " risk  <span style='color:%2;'>\xe2\x97\x8f</span>"
-						   " delayed  <span style='color:%3;'>\xe2\x97\x8f</span>"
-						   " running  <span style='color:%4;'>\xe2\x97\x8f</span>"
-						   " arrived")
-					   .arg(C_YELLOW, C_RED, C_YELLOW, C_GREEN));
-	html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)), BOX_INNER);
-
-	/* Events - full details shown directly, not hidden behind hover,
-	   since a graph tooltip is easy to miss and hard to discover. */
 	if (!_events.isEmpty())
 	{
-		html += boxRow(QString("  <b style='color:%1;'>Events:</b>")
-						   .arg(C_TITLE));
-		for (const auto &ev : _events)
+		QString ev = QString("<b style='color:%1;'>Events</b><br>")
+						 .arg(C_TITLE);
+		for (const auto &e : _events)
 		{
-			QString where = ev.node2.isEmpty()
-				? QString("%1 (station)").arg(ev.node1)
-				: QString("%1 \xe2\x86\x92 %2").arg(ev.node1, ev.node2);
-			html += boxRow(
-				QString("    <span style='color:%1;'>\xe2\x9a\xa0 %2</span>"
-						" @ %3")
-					.arg(C_YELLOW, ev.name, where));
-			html += boxRow(
-				QString("      Probability: <b>%1%</b>"
-						"  Consequence: <b>%2 min delay</b>")
-					.arg(ev.probability * 100.0, 0, 'f', 0)
-					.arg(ev.durationSec / 60.0, 0, 'f', 1));
+			QString where = e.node2.isEmpty()
+				? QString("station %1").arg(e.node1)
+				: QString("%1 %2 %3%4").arg(e.node1, arrow, e.node2,
+											e.line >= 0
+												? QString(", line %1")
+													  .arg(e.line + 1)
+												: QString());
+			ev += QString("<span style='color:%1;'>\xE2\x9A\xA0 %2</span> "
+						  "<span style='color:%3;'>%4 &middot; %5% &middot; "
+						  "+%6 min</span><br>")
+					  .arg(C_YELLOW, e.name.toHtmlEscaped(), C_DIM,
+						   where.toHtmlEscaped())
+					  .arg(e.probability * 100.0, 0, 'f', 0)
+					  .arg(e.durationSec / 60.0, 0, 'f', 1);
 		}
-		html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)),
-					 BOX_INNER);
+		html += card(ev, C_YELLOW);
 	}
 
-	for (int i = 0; i < snapshots.size(); i++)
+	for (const auto &s : snapshots)
 	{
-		const auto &s = snapshots[i];
-
-		QString dot, badge, dotCol;
+		QString accent, badge;
 		if (s.arrived)
 		{
-			dot = QChar(0x25CF); // ●
-			dotCol = C_GREEN;
-			badge = QString("<span style='background:%1;color:%2;"
-							"padding:1px 4px;border-radius:3px;'>"
-							"Arrived</span>")
-						.arg(C_BADGE, C_GREEN);
+			accent = C_GREEN;
+			badge = chip("Arrived", C_GREEN);
 		}
 		else if (!s.departed)
 		{
-			dot = QChar(0x25CB); // ○
-			dotCol = C_DIM;
-			badge = QString("<span style='background:%1;color:%2;"
-							"padding:1px 4px;border-radius:3px;'>"
-							"Waiting</span>")
-						.arg(C_BADGE, C_DIM);
+			accent = C_DIM;
+			badge = chip("Not departed", C_DIM);
+		}
+		else if (s.waiting)
+		{
+			accent = C_YELLOW;
+			badge = chip("Waiting for a line", C_YELLOW);
 		}
 		else if (s.stopTimer > 0.0)
 		{
-			dot = QChar(0x25CF);
-			dotCol = C_RED;
-			badge = QString("<span style='background:%1;color:%2;"
-							"padding:1px 4px;border-radius:3px;'>"
-							"Stopped</span>")
-						.arg(C_BADGE, C_RED);
+			accent = C_RED;
+			badge = chip("Stopped", C_RED);
 		}
 		else if (s.status == QLatin1String("Delayed"))
 		{
-			dot = QChar(0x25CF);
-			dotCol = C_RED;
-			badge = QString("<span style='background:%1;color:%2;"
-							"padding:1px 4px;border-radius:3px;'>"
-							"Delayed</span>")
-						.arg(C_BADGE, C_RED);
+			accent = C_RED;
+			badge = chip("Delayed", C_RED);
 		}
 		else
 		{
-			dot = QChar(0x25CF);
-			dotCol = C_YELLOW;
-			badge = QString("<span style='background:%1;color:%2;"
-							"padding:1px 4px;border-radius:3px;'>"
-							"Running</span>")
-						.arg(C_BADGE, C_YELLOW);
+			accent = C_CYAN;
+			badge = chip("Running", C_CYAN);
 		}
 
-		html += boxRow(
-			QString("  <span style='color:%1;'>%2</span> "
-					"<b>%3%4</b>"
-					" <span style='color:%5;'>(%6 → %7)</span>  %8")
-				.arg(dotCol, dot, s.name)
-				.arg(s.id)
-				.arg(C_DIM, s.departure, s.arrival, badge));
+		QString in = QString("<table width='100%' cellspacing='0' "
+							 "cellpadding='0'><tr><td><b style='font-size:"
+							 "13px; color:%1;'>%2</b> "
+							 "<span style='color:%3;'>%4 %5 %6</span></td>"
+							 "<td align='right'>%7</td></tr></table>")
+						 .arg(C_TITLE, s.name.toHtmlEscaped(), C_DIM,
+							  s.departure, arrow, s.arrival, badge);
 
-		if (!s.departed)
+		auto muted = [&](const QString &k, const QString &v) {
+			return QString("<span style='color:%1;'>%2</span> %3&nbsp;&nbsp; ")
+				.arg(C_DIM, k, v);
+		};
+
+		if (s.arrived)
 		{
-			/* Nothing extra — badge says "Waiting" */
+			in += "<br>" + muted("Travel", fmtTime(s.timeSinceDepart));
 		}
-		else if (s.arrived)
+		else if (s.departed)
 		{
-			html += boxRow(
-				QString("    Travel: <span style='color:%1;'>%2</span>"
-						"  Delay: <span style='color:%3;'>%4</span>")
-					.arg(C_GREEN, fmtTime(s.timeSinceDepart),
-						 C_GREEN, "none"));
-		}
-		else
-		{
-			if (!s.from.isEmpty() && !s.to.isEmpty())
-			{
-				html += boxRow(
-					QString("    <span style='color:%1;'>Seg:</span>"
-							" %2 → %3")
-						.arg(C_DIM, s.from, s.to));
-			}
-
-			QString action;
-			if (s.stopTimer > 0.0)
-				action = "Stopped";
-			else if (s.speed_ms < 0.1)
-				action = "Starting";
-			else
-				action = "Moving";
-			html += boxRow(
-				QString("    <span style='color:%1;'>Spd:</span>"
-						" %2  (%3)")
-					.arg(C_DIM, speedStr(s.speed_ms), action));
-
 			double frac = 0.5;
 			if (s.pathSize > 1)
 			{
-				double segCount = static_cast<double>(s.pathSize - 1);
-				double withinSeg = 0.0;
-				if (s.segmentLength_m > 0.0)
-					withinSeg = s.posOnSegment_m / s.segmentLength_m;
-				if (withinSeg < 0.0) withinSeg = 0.0;
-				if (withinSeg > 1.0) withinSeg = 1.0;
-				frac = (static_cast<double>(s.segmentIndex) + withinSeg)
-					   / segCount;
-				if (frac > 1.0)
-					frac = 1.0;
+				double within = s.segmentLength_m > 0.0
+					? std::min(1.0, std::max(0.0, s.posOnSegment_m
+												  / s.segmentLength_m))
+					: 0.0;
+				frac = std::min(1.0, (static_cast<double>(s.segmentIndex)
+									  + within)
+										 / static_cast<double>(s.pathSize - 1));
 			}
-			int pct = static_cast<int>(frac * 100.0);
-			html += boxRow(
-				QString("    <span style='color:%1;'>%2</span>"
-						" <b>%3%</b>")
-					.arg(C_CYAN, progressBar(frac, 30))
-					.arg(pct));
-
-			html += boxRow(
-					QString("    <span style='color:%1;'>Time:</span> %2")
-					.arg(C_DIM, fmtTime(s.timeSinceDepart)));
+			in += "<div style='font-size:4px;'>&nbsp;</div>"
+				  + bar(frac, accent);
+			QString where = s.from.isEmpty() ? QString()
+				: QString("%1 %2 %3").arg(s.from, arrow, s.to);
+			if (s.line >= 0)
+				where += QString("  <b style='color:%1;'>line %2</b>")
+							 .arg(C_CYAN)
+							 .arg(s.line + 1);
+			in += QString("<br>%1%2%3%4")
+					  .arg(where.isEmpty() ? QString()
+										   : muted("On", where))
+					  .arg(muted("Speed", speedStr(s.speed_ms)))
+					  .arg(muted("Elapsed", fmtTime(s.timeSinceDepart)))
+					  .arg(muted("Done", QString("%1%")
+											 .arg(static_cast<int>(
+												 frac * 100.0))));
 
 			if (!s.blockedByName.isEmpty())
-			{
-				html += boxRow(
-					QString("    <span style='color:%1;'>Blocked by:"
-							"</span> %2")
-						.arg(C_RED, s.blockedByName));
-			}
-
-			/* Reroute count + reason */
+				in += QString("<br><span style='color:%1;'>Blocked by %2"
+							  "</span>")
+						  .arg(C_RED, s.blockedByName.toHtmlEscaped());
 			if (s.rerouteCount > 0)
-			{
-				html += boxRow(
-					QString("    <span style='color:%1;'>Rerouted:"
-							"</span> %2x")
-						.arg(C_CYAN)
-						.arg(s.rerouteCount));
-				if (!s.lastRerouteReason.isEmpty())
-				{
-					html += boxRow(
-						QString("    <span style='color:%1;'>Reason:"
-								"</span> %2")
-							.arg(C_DIM, s.lastRerouteReason));
-				}
-			}
-
-			/* Event risk: current segment (if any) plus a summary of
-			   everything still ahead on the route, so it's visible
-			   well before the train actually reaches a risky segment.
-			   Named explicitly (full details are in the Events section
-			   above) rather than a bare number with no context. */
+				in += QString("<br><span style='color:%1;'>Rerouted %2x"
+							  "%3</span>")
+						  .arg(C_CYAN)
+						  .arg(s.rerouteCount)
+						  .arg(s.lastRerouteReason.isEmpty()
+								   ? QString()
+								   : ": " + s.lastRerouteReason
+												.toHtmlEscaped());
+			QStringList risk;
 			if (!s.from.isEmpty() && !s.to.isEmpty())
-			{
-				QStringList here = segmentEventNames(s.from, s.to);
-				if (!here.isEmpty())
-				{
-					html += boxRow(
-						QString("    <span style='color:%1;'>"
-								"\xe2\x9a\xa0 Here:</span> %2")
-							.arg(C_YELLOW, here.join(", ")));
-				}
-			}
+				risk << segmentEventNames(s.from, s.to);
 			if (!s.path.isEmpty())
-			{
-				/* +1 so this doesn't repeat the current segment,
-				   already shown above as "Here". */
-				QStringList ahead = remainingPathEventNames(
+				risk << remainingPathEventNames(
 					s.path, static_cast<size_t>(s.segmentIndex) + 1);
-				if (!ahead.isEmpty())
-				{
-					html += boxRow(
-						QString("    <span style='color:%1;'>"
-								"\xe2\x9a\xa0 Ahead:</span> %2")
-							.arg(C_YELLOW, ahead.join(", ")));
-				}
-			}
-
-			html += boxRow(
-				QString("    <span style='color:%1;'>Weight:</span>"
-						" %2t  <span style='color:%1;'>Accel:</span>"
-						" %3 m/s\xC2\xB2")
-					.arg(C_DIM)
-					.arg(s.weightTons, 0, 'f', 0)
-					.arg(s.accelRate_ms2, 0, 'f', 2));
-			html += boxRow(
-				QString("    <span style='color:%1;'>Friction:</span>"
-						" %2  <span style='color:%1;'>Decel:</span>"
-						" %3 m/s\xC2\xB2")
-					.arg(C_DIM)
-					.arg(s.frictionCoeff, 0, 'f', 2)
-					.arg(s.decelRate_ms2, 0, 'f', 2));
+			if (!risk.isEmpty())
+				in += QString("<br><span style='color:%1;'>\xE2\x9A\xA0 risk "
+							  "ahead: %2</span>")
+						  .arg(C_YELLOW, risk.join(", ").toHtmlEscaped());
+			in += QString("<br><span style='color:%1; font-size:11px;'>"
+						  "%2 t &middot; accel %3 &middot; decel %4 m/s&sup2;"
+						  "</span>")
+					  .arg(C_DIM)
+					  .arg(s.weightTons, 0, 'f', 0)
+					  .arg(s.accelRate_ms2, 0, 'f', 2)
+					  .arg(s.decelRate_ms2, 0, 'f', 2);
 		}
-
-		if (i + 1 < snapshots.size())
-		{
-			QString sep;
-			for (int j = 0; j < BOX_INNER - 2; j++)
-				sep += QChar(0x2500); // ─
-			html += boxRow(QString("  <span style='color:%1;'>%2</span>")
-							   .arg(C_DIM, sep));
-		}
+		html += card(in, accent);
 	}
-
-	html += hRule(QString(QChar(0x255A)), QString(QChar(0x255D)), BOX_INNER);
-	html += "</pre>";
-
+	html += "</body>";
 	setHtml(html);
 }
-
 
 void SimDashboard::showResults(const QStringList &results)
 {
-	QString html;
-	html += "<pre style='margin:0; line-height:1.4;'>";
-	html += hRule(QString(QChar(0x2554)), QString(QChar(0x2557)), BOX_INNER);
-	html += boxRow(QString("  <b style='color:%1;'>Simulation Complete "
-						   "\xe2\x9c\x93</b>")
-					   .arg(C_GREEN));
-	html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)), BOX_INNER);
-
+	static const QRegularExpression re(
+		R"(^(.+?) : (\S+) \(delay: (\S+)\)(?: \S+ (.+))?$)");
+	QString html = QString("<body style='background-color:%1;'>").arg(C_PANEL);
+	html += heading(QString::fromUtf8("Simulation complete \xE2\x9C\x93"),
+					QString("%1 train%2")
+						.arg(results.size())
+						.arg(results.size() == 1 ? "" : "s"));
+	QString t = QString("<table width='100%' cellspacing='0' cellpadding='5'>"
+						"<tr><td><b style='color:%1;'>Train</b></td>"
+						"<td><b style='color:%1;'>Trip</b></td>"
+						"<td><b style='color:%1;'>Delay</b></td>"
+						"<td><b style='color:%1;'>Cause</b></td></tr>")
+					.arg(C_CYAN);
 	for (const auto &r : results)
-		html += boxRow("  " + r.toHtmlEscaped());
-
-	html += hRule(QString(QChar(0x255A)), QString(QChar(0x255D)), BOX_INNER);
-	html += "</pre>";
-
+	{
+		auto m = re.match(r);
+		if (!m.hasMatch())
+		{
+			t += QString("<tr><td colspan='4'>%1</td></tr>")
+					 .arg(r.toHtmlEscaped());
+			continue;
+		}
+		bool late = m.captured(3) != QLatin1String("00:00")
+					&& m.captured(3) != QLatin1String("00:00:00");
+		t += QString("<tr bgcolor='%1'><td><b>%2</b></td><td>%3</td>"
+					 "<td><span style='color:%4;'>%5</span></td>"
+					 "<td><span style='color:%6;'>%7</span></td></tr>")
+				 .arg(C_CARD, m.captured(1).toHtmlEscaped(),
+					  m.captured(2), late ? C_RED : C_GREEN,
+					  m.captured(3), C_YELLOW,
+					  m.captured(4).toHtmlEscaped());
+	}
+	html += t + "</table></body>";
 	setHtml(html);
 }
-
 
 void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
 									 int completedRuns)
 {
-	/* The stats table needs more width than the normal live view.
-	   Compute the box width dynamically:
-	   2 margin + 14 name + 5*(8 time + 2 gap) + 2 = 68 inner chars */
-	static constexpr int STAT_BOX = 72;
-
-	auto sHRule = [](const QString &left, const QString &right, int n) -> QString {
-		QString bar;
-		for (int i = 0; i < n; i++)
-			bar += QChar(0x2550);
-		return QString("<span style='color:%1;'>%2%3%4</span><br>")
-			.arg(C_BORDER, left, bar, right);
-	};
-
-	auto sBoxRow = [](const QString &html, int boxW) -> QString {
-		int vis = 0;
-		bool inTag = false;
-		for (int i = 0; i < html.size(); i++)
-		{
-			QChar c = html[i];
-			if (c == '<')          { inTag = true; continue; }
-			if (c == '>' && inTag) { inTag = false; continue; }
-			if (inTag) continue;
-			if (c == '&') {
-				int semi = html.indexOf(';', i + 1);
-				if (semi != -1 && semi - i < 10) i = semi;
-			}
-			vis++;
-		}
-		int pad = boxW - vis;
-		if (pad < 0) pad = 0;
-		QString spaces(pad, ' ');
-		return QString("<span style='color:%1;'>%2</span>%3%4"
-					   "<span style='color:%1;'>%5</span><br>")
-			.arg(C_BORDER,
-				 QString(QChar(0x2551)),
-				 html,
-				 spaces,
-				 QString(QChar(0x2551)));
-	};
-
-	QString html;
-	html += "<pre style='margin:0; line-height:1.4;'>";
-
-	html += sHRule(QString(QChar(0x2554)), QString(QChar(0x2557)), STAT_BOX);
-	html += sBoxRow(
-		QString("  <b style='color:%1;'>Multi-Run Statistics "
-				"\xe2\x9c\x93</b>  "
-				"<span style='color:%2;'>(%3 runs)</span>")
-			.arg(C_GREEN, C_DIM)
-			.arg(completedRuns),
-		STAT_BOX);
-	html += sHRule(QString(QChar(0x2560)), QString(QChar(0x2563)), STAT_BOX);
-
-	/* Column headers — fixed widths:
-	   2 margin + 14 name + 10 est + 10 avg + 10 min + 10 max + 10 delay = 66 */
-	QString hdr = QString(
-		"  <b style='color:%1;'>%-14s%-10s%-10s%-10s%-10s%-10s</b>")
-		.arg(C_CYAN);
-	/* Can't use %-14s with QString, so build manually */
-	auto pad = [](const QString &s, int w) -> QString {
-		if (s.length() >= w) return s.left(w);
-		return s + QString(w - s.length(), ' ');
-	};
-
-	html += sBoxRow(
-		QString("  <b style='color:%1;'>%2%3%4%5%6%7</b>")
-			.arg(C_CYAN)
-			.arg(pad("Train", 14))
-			.arg(pad("Est.", 10))
-			.arg(pad("Avg", 10))
-			.arg(pad("Min", 10))
-			.arg(pad("Max", 10))
-		+ QString("<b style='color:%1;'>%2</b>").arg(C_CYAN, pad("Delay", 8)),
-		STAT_BOX);
-
-	QString sep;
-	for (int i = 0; i < STAT_BOX - 2; i++)
-		sep += QChar(0x2500);
-	html += sBoxRow(QString("  <span style='color:%1;'>%2</span>")
-					   .arg(C_DIM, sep), STAT_BOX);
-
+	QString html = QString("<body style='background-color:%1;'>").arg(C_PANEL);
+	html += heading(QString::fromUtf8("Multi-run statistics \xE2\x9C\x93"),
+					QString("%1 runs").arg(completedRuns));
+	QString t = QString("<table width='100%' cellspacing='0' cellpadding='5'>"
+						"<tr>");
+	for (const char *h : {"Train", "Est.", "Avg", "Min", "Max", "Delay"})
+		t += QString("<td><b style='color:%1;'>%2</b></td>").arg(C_CYAN, h);
+	t += "</tr>";
 	for (const auto &s : stats)
 	{
-		QString name = s.name;
-		if (name.length() > 12)
-			name = name.left(11) + QChar(0x2026); /* … */
-
-		const char *delayCol = C_GREEN;
-		if (s.avgDelay > 600)
-			delayCol = C_RED;
-		else if (s.avgDelay > 60)
-			delayCol = C_YELLOW;
-
-		html += sBoxRow(
-			QString("  <b>%1</b>"
-					"<span style='color:%2;'>%3</span>"
-					"<span style='color:%4;'>%5</span>"
-					"<span style='color:%6;'>%7</span>"
-					"<span style='color:%8;'>%9</span>"
-					"<span style='color:%10;'>%11</span>")
-				.arg(pad(name, 14))
-				.arg(C_DIM,     pad(fmtTime(s.estimated), 10))
-				.arg(C_YELLOW,  pad(fmtTime(s.avgActual), 10))
-				.arg(C_GREEN,   pad(fmtTime(s.minActual), 10))
-				.arg(C_RED,     pad(fmtTime(s.maxActual), 10))
-				.arg(delayCol,  pad(fmtTime(s.avgDelay), 8)),
-			STAT_BOX);
+		const char *delayCol = s.avgDelay > 600 ? C_RED
+							   : s.avgDelay > 60 ? C_YELLOW : C_GREEN;
+		t += QString("<tr bgcolor='%1'><td><b>%2</b></td>"
+					 "<td style='color:%3;'>%4</td>"
+					 "<td style='color:%5;'>%6</td>"
+					 "<td style='color:%7;'>%8</td>"
+					 "<td style='color:%9;'>%10</td>"
+					 "<td style='color:%11;'>%12</td></tr>")
+				 .arg(C_CARD, s.name.toHtmlEscaped(), C_DIM,
+					  fmtTime(s.estimated), C_YELLOW, fmtTime(s.avgActual))
+				 .arg(C_GREEN, fmtTime(s.minActual), C_RED,
+					  fmtTime(s.maxActual), delayCol, fmtTime(s.avgDelay));
 	}
-
-	html += sHRule(QString(QChar(0x255A)), QString(QChar(0x255D)), STAT_BOX);
-	html += "</pre>";
-
+	html += t + "</table></body>";
 	setHtml(html);
 }
 
-
 void SimDashboard::clear()
 {
-	QString html;
-	html += "<pre style='margin:0; line-height:1.4;'>";
-	html += hRule(QString(QChar(0x2554)), QString(QChar(0x2557)), BOX_INNER);
-	html += boxRow(QString("  <b style='color:%1;'>Train Simulation "
-						   "\xe2\x80\x94 Dashboard</b>")
-					   .arg(C_TITLE));
-	html += hRule(QString(QChar(0x2560)), QString(QChar(0x2563)), BOX_INNER);
-	html += boxRow(QString("  <span style='color:%1;'>"
-						   "Run a simulation to see</span>")
-					   .arg(C_DIM));
-	html += boxRow(QString("  <span style='color:%1;'>"
-						   "live train status here.</span>")
-					   .arg(C_DIM));
-	html += hRule(QString(QChar(0x255A)), QString(QChar(0x255D)), BOX_INNER);
-	html += "</pre>";
+	QString html = QString("<body style='background-color:%1;'>").arg(C_PANEL);
+	html += heading("Dashboard", QString());
+	html += card(QString("<span style='color:%1;'>Run a simulation to see "
+						 "live train status here.<br>Each train gets a card "
+						 "with progress, speed, line and risks.</span>")
+					 .arg(C_DIM),
+				 C_CYAN);
+	html += "</body>";
 	setHtml(html);
 }

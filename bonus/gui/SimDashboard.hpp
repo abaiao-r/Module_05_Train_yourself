@@ -18,9 +18,8 @@
 #include "SimulationWorker.hpp"
 
 /**
- * A styled read-only panel that mirrors the terminal --animate dashboard
- * inside the Qt GUI.  Shows a box-drawing-style live view of all trains
- * with progress bars, speed, segment, and timing info.
+ * A styled read-only panel that shows a live card per train
+ * (status chip, progress bar, speed, line, risks) plus result tables.
  *
  * Usage: call update() from the main-thread simulation tick handler.
  *        call clear() when the simulation ends or is reset.
@@ -47,12 +46,11 @@ class SimDashboard : public QTextEdit
 
   private:
 	static QString fmtTime(double seconds);
-	static QString progressBar(double fraction, int width);
 	static QString speedStr(double speed_ms);
-
-	/** Build an HTML table row with the box-drawing left/right borders. */
-	static QString boxRow(const QString &html);
-	static QString hRule(const QString &left, const QString &right, int n);
+	static QString chip(const QString &text, const QString &color);
+	static QString heading(const QString &title, const QString &right);
+	static QString card(const QString &inner, const QString &accent);
+	static QString bar(double fraction, const QString &color);
 	/** Names of events bound to a from→to segment or its destination
 		node - named explicitly rather than a bare number, since a
 		vague risk figure with no context isn't actually transparent. */
