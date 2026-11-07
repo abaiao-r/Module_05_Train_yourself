@@ -99,6 +99,7 @@ Options:
   --graph <file.dot>  Export network + paths as Graphviz DOT file
   --animate           Show live terminal animation of the simulation
   --runs N            Run simulation N times and report average travel times
+  --compare           Run all three modes and print them side by side
 
 === Network file format (.txt) ===
   Node <name>              Declares a station/junction

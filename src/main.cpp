@@ -62,6 +62,8 @@ static void printHelp()
 		<< "the simulation\n"
 		<< "  --runs N            Run simulation N times and report "
 		<< "average travel times\n"
+		<< "  --compare           Run all three modes (with --runs N each) and\n"
+		<< "                      print their travel times side by side\n"
 		<< "  --lines             Bonus: rails may hold several lines "
 		<< "(optional\n"
 		<< "                      trailing count on Rail); opposite-"
@@ -169,11 +171,11 @@ int main(int argc, char **argv)
 			return EXIT_SUCCESS;
 		}
 	}
-	if (argc < 3 || argc > 10)
+	if (argc < 3 || argc > 12)
 	{
 		std::cerr << "Usage: " << argv[0]
 				  << " <network_file> <train_file> [--distance|--solo|--adaptive] "
-				     "[--graph file.dot] [--animate] [--runs N] [--lines]"
+				     "[--graph file.dot] [--animate] [--runs N] [--compare] [--lines]"
 				  << std::endl;
 		std::cerr << "Use --help for detailed format information."
 				  << std::endl;
@@ -197,6 +199,7 @@ int main(int argc, char **argv)
 	bool weightModeSet = false;
 	std::string graphFile;
 	bool animate = false;
+	bool compare = false;
 	LinesOptions lines;
 	int numRuns = 1;
 	for (int i = 3; i < argc; i++)
@@ -238,6 +241,8 @@ int main(int argc, char **argv)
 			animate = true;
 		else if (std::strcmp(argv[i], "--lines") == 0)
 			lines.enabled = true;
+		else if (std::strcmp(argv[i], "--compare") == 0)
+			compare = true;
 		else if (std::strcmp(argv[i], "--runs") == 0)
 		{
 			if (i + 1 >= argc)
@@ -268,71 +273,144 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (compare && weightModeSet)
+	{
+		std::cerr << "Error: --compare runs every mode; do not combine it "
+					 "with --distance, --solo or --adaptive" << std::endl;
+		return EXIT_FAILURE;
+	}
+
 	try
 	{
-		/* trainName -> actual travel time of each run. */
-		std::map<std::string, std::vector<double>> statActual;
-		std::map<std::string, std::vector<double>> statDelay;
-		std::map<std::string, double> statEstimated;
-
-		for (int run = 0; run < numRuns; run++)
+		struct Stats
 		{
-			TrainFactory::resetIdCounter();
-			auto data = InputHandler::loadData(argv[1], argv[2], lines);
-			auto pathfinder = std::make_unique<DijkstraPathfinding>();
+			std::map<std::string, std::vector<double>> actual;
+			std::map<std::string, std::vector<double>> delay;
+			std::map<std::string, double> estimated;
+		};
 
-			Simulation sim(std::move(data.network),
-						   std::move(data.trains),
-						   std::move(data.events),
-						   std::move(pathfinder), weightMode,
-						   data.lines);
-
-			/* Suppress stdout on repeated runs (keep first run
-			   verbose, or if --animate is on suppress all text) */
-			if (numRuns > 1 && run > 0)
-				sim.setQuiet(true);
-			if (animate && numRuns == 1)
-				sim.setQuiet(true);
-
-			/* Attach animation display on the first (or only) run */
-			TerminalAnimDisplay animDisplay;
-			if (animate && run == 0)
+		/* Runs the simulation numRuns times in one mode. Only the
+		   primary pass prints, animates and exports the graph. */
+		auto collect = [&](PathWeightMode mode, bool primary, Stats &st) {
+			for (int run = 0; run < numRuns; run++)
 			{
-				sim.setAnimCallback(
-					[&animDisplay](double t,
-								   const std::vector<TrainState> &s) {
-						animDisplay.render(t, s);
-					});
+				TrainFactory::resetIdCounter();
+				auto data = InputHandler::loadData(argv[1], argv[2], lines);
+				auto pathfinder = std::make_unique<DijkstraPathfinding>();
+
+				Simulation sim(std::move(data.network),
+							   std::move(data.trains),
+							   std::move(data.events),
+							   std::move(pathfinder), mode, data.lines);
+
+				if (!primary || (numRuns > 1 && run > 0))
+					sim.setQuiet(true);
+				if (primary && animate && numRuns == 1)
+					sim.setQuiet(true);
+
+				TerminalAnimDisplay animDisplay;
+				if (primary && animate && run == 0)
+				{
+					sim.setAnimCallback(
+						[&animDisplay](double t,
+									   const std::vector<TrainState> &s) {
+							animDisplay.render(t, s);
+						});
+				}
+
+				sim.run();
+
+				if (primary && animate && run == 0)
+					animDisplay.cleanup();
+
+				/* Same-named trains (different departures) get separate
+				   rows: results keep load order, so the Nth duplicate is
+				   stable. */
+				std::map<std::string, int> seen;
+				for (const auto &r : sim.getResults())
+				{
+					int n = seen[r.name]++;
+					std::string key = n ? r.name + " #" + std::to_string(n + 1)
+										: r.name;
+					st.actual[key].push_back(r.actualTime);
+					st.delay[key].push_back(r.totalDelay);
+					st.estimated[key] = r.estimatedTime;
+				}
+
+				if (primary && run == 0 && !graphFile.empty())
+				{
+					std::filesystem::create_directories("output/graphs");
+					if (graphFile.find('/') == std::string::npos)
+						graphFile = "output/graphs/" + graphFile;
+					GraphExporter::exportDot(graphFile, sim.getNetwork(),
+											 sim.getTrains());
+				}
 			}
+		};
 
-			sim.run();
+		if (compare)
+		{
+			const PathWeightMode modes[3] = {PathWeightMode::Distance,
+											 PathWeightMode::Solo,
+											 PathWeightMode::Adaptive};
+			const char *names[3] = {"Distance", "Solo", "Adaptive"};
+			Stats res[3];
+			for (int m = 0; m < 3; m++)
+				collect(modes[m], false, res[m]);
 
-			if (animate && run == 0)
-				animDisplay.cleanup();
+			auto avgOf = [](const std::vector<double> &v) {
+				double t = 0;
+				for (double x : v)
+					t += x;
+				return t / v.size();
+			};
+			std::cout << "=== Mode comparison (" << numRuns
+					  << (numRuns == 1 ? " run" : " runs")
+					  << " each, average travel time, * = fastest) ==="
+					  << std::endl;
+			std::cout << std::string(68, '-') << std::endl;
+			std::cout << std::left << std::setw(20) << "Train";
+			for (int m = 0; m < 3; m++)
+				std::cout << std::setw(16) << names[m];
+			std::cout << std::endl << std::string(68, '-') << std::endl;
 
-			/* Same-named trains (different departures) get separate rows:
-			   results keep load order, so the Nth duplicate is stable. */
-			std::map<std::string, int> seen;
-			for (const auto &r : sim.getResults())
+			auto printRow = [&](const std::string &label, const double v[3]) {
+				int best = 0;
+				for (int m = 1; m < 3; m++)
+					if (v[m] < v[best] - 0.5)
+						best = m;
+				std::cout << std::left << std::setw(20) << label;
+				for (int m = 0; m < 3; m++)
+				{
+					bool star = v[m] <= v[best] + 0.5;
+					std::cout << std::setw(16)
+							  << (fmtTimeStat(v[m]) + (star ? " *" : ""));
+				}
+				std::cout << std::endl;
+			};
+			double total[3] = {0, 0, 0};
+			for (const auto &pair : res[0].actual)
 			{
-				int n = seen[r.name]++;
-				std::string key = n ? r.name + " #" + std::to_string(n + 1)
-									: r.name;
-				statActual[key].push_back(r.actualTime);
-				statDelay[key].push_back(r.totalDelay);
-				statEstimated[key] = r.estimatedTime;
+				double v[3];
+				for (int m = 0; m < 3; m++)
+				{
+					auto it = res[m].actual.find(pair.first);
+					v[m] = it == res[m].actual.end() ? 0.0 : avgOf(it->second);
+					total[m] += v[m];
+				}
+				printRow(pair.first, v);
 			}
-
-			/* Export graph only on first run */
-			if (run == 0 && !graphFile.empty())
-			{
-				std::filesystem::create_directories("output/graphs");
-				if (graphFile.find('/') == std::string::npos)
-					graphFile = "output/graphs/" + graphFile;
-				GraphExporter::exportDot(graphFile, sim.getNetwork(),
-										 sim.getTrains());
-			}
+			std::cout << std::string(68, '-') << std::endl;
+			printRow("TOTAL (sum)", total);
+			std::cout << std::string(68, '-') << std::endl;
+			return EXIT_SUCCESS;
 		}
+
+		Stats stats;
+		collect(weightMode, true, stats);
+		auto &statActual = stats.actual;
+		auto &statDelay = stats.delay;
+		auto &statEstimated = stats.estimated;
 
 		if (numRuns > 1)
 		{
@@ -376,6 +454,33 @@ int main(int argc, char **argv)
 						  << std::setw(14) << fmtTimeStat(mx)
 						  << fmtTimeStat(avgDelay) << std::endl;
 			}
+			std::cout << std::string(72, '-') << std::endl;
+
+			/* Sum over all trains; min/max use each run's own total. */
+			double tEst = 0, tAvg = 0, tDelay = 0;
+			std::vector<double> perRun(numRuns, 0.0);
+			for (const auto &pair : statActual)
+			{
+				tEst += statEstimated[pair.first];
+				for (size_t r = 0; r < pair.second.size(); r++)
+				{
+					perRun[r] += pair.second[r];
+					tAvg += pair.second[r] / numRuns;
+					tDelay += statDelay[pair.first][r] / numRuns;
+				}
+			}
+			double tMin = perRun[0], tMax = perRun[0];
+			for (double t : perRun)
+			{
+				if (t < tMin) tMin = t;
+				if (t > tMax) tMax = t;
+			}
+			std::cout << std::left << std::setw(14) << "TOTAL (sum)"
+					  << std::setw(14) << fmtTimeStat(tEst)
+					  << std::setw(14) << fmtTimeStat(tAvg)
+					  << std::setw(14) << fmtTimeStat(tMin)
+					  << std::setw(14) << fmtTimeStat(tMax)
+					  << fmtTimeStat(tDelay) << std::endl;
 			std::cout << std::string(72, '-') << std::endl;
 		}
 	}

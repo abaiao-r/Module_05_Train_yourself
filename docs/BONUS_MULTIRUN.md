@@ -31,6 +31,21 @@ make run-multi    # runs 1000 by default (editable in Makefile)
 
 Validation: missing argument → error; N < 1 → error.
 
+The table ends with a `TOTAL (sum)` row: the sum over all trains of the estimated time, the average
+delay and the average actual time. Its min/max are the best and worst single run's total.
+
+### Comparing the three modes (`--compare`)
+
+```
+--compare   Run Distance, Solo and Adaptive (N runs each with --runs N) and print
+            the average travel time per train side by side, with a TOTAL row.
+            The fastest mode per row is starred. Cannot be combined with
+            --distance, --solo or --adaptive.
+```
+
+In the GUI pick **Compare all** in the Path box; it runs the three modes `Runs` times each and
+shows the same table in the dashboard. The multi-run table there also gets a TOTAL row.
+
 ---
 
 ## How It Works

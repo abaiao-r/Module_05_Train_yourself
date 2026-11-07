@@ -391,6 +391,27 @@ int main()
 					  msg);
 				  ASSERT_TRUE(outputContains(r.output, "Avg Actual"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "Avg Delay"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "TOTAL (sum)"), msg);
+				  return true;
+			  });
+
+	suite.run("--compare -> side-by-side table of the three modes",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN + " " + NET + " " + TRN + " --compare");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "Mode comparison"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "Distance"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "Adaptive"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "TOTAL (sum)"), msg);
+				  return true;
+			  });
+
+	suite.run("--compare with --solo -> exit 1",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --compare --solo");
+				  ASSERT_EQ(1, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "--compare"), msg);
 				  return true;
 			  });
 
