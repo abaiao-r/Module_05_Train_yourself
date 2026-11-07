@@ -565,6 +565,13 @@ void Simulation::run()
 									 states[i].timeSinceDepart);
 	}
 
+	for (auto &t : _trains)
+	{
+		auto w = _trafficWait.find({t->getName(), t->getDepartureTime()});
+		if (w != _trafficWait.end())
+			t->recordDelay(w->second);
+	}
+
 	if (!_quiet)
 		_output.printResult(_trains);
 
@@ -636,6 +643,7 @@ void Simulation::computePaths()
 void Simulation::computeExpectedTimes()
 {
 	_expected.clear();
+	_trafficWait.clear();
 	if (_dryRun || _trains.empty())
 		return;
 	try
@@ -652,12 +660,24 @@ void Simulation::computeExpectedTimes()
 		const auto &res = dry.getResults();
 		const auto &tr = dry.getTrains();
 		for (size_t i = 0; i < res.size() && i < tr.size(); i++)
-			_expected[{tr[i]->getName(), tr[i]->getDepartureTime()}]
-				= res[i].actualTime;
+		{
+			std::pair<std::string, double> key{tr[i]->getName(),
+											   tr[i]->getDepartureTime()};
+			_expected[key] = res[i].actualTime;
+			for (const auto &t : _trains)
+				if (t->getName() == key.first
+					&& t->getDepartureTime() == key.second)
+				{
+					double w = res[i].actualTime - estimateTravelTime(*t);
+					if (_lines.enabled && w >= 1.0)
+						_trafficWait[key] = w;
+				}
+		}
 	}
 	catch (const std::exception &)
 	{
 		_expected.clear();
+		_trafficWait.clear();
 	}
 }
 
