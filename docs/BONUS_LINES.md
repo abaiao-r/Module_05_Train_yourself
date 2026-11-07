@@ -63,6 +63,15 @@ thicker stroke, and each train's label and tooltip show its line (`L2`) or `(wai
 Editing or rebuilding the network keeps line counts and per-line speeds; saved files write
 per-line speeds after the line count.
 
+## Diagrams
+
+![Lines class diagram](diagrams/class_lines.png)
+
+![Line admission sequence](diagrams/sequence_line_admission.png)
+
+Sources: [class_lines.puml](diagrams/class_lines.puml),
+[sequence_line_admission.puml](diagrams/sequence_line_admission.puml).
+
 ## Tests
 
 `tests/LinesTest.cpp` (admission, serialisation, overtaking, fairness, adversarial cases),

@@ -1,0 +1,56 @@
+@startuml class_lines
+
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+title Bonus: Multiple Lines per Edge (--lines)
+
+class LinesOptions {
+  +enabled : bool = false
+}
+
+class Edge {
+  +destination : shared_ptr<Node>
+  +distance : double
+  +speedLimit : double
+  +numLines : int = 1
+  +lineSpeeds : vector<double>
+  +lineSpeed(line : int) : double
+}
+
+class RailNetwork {
+  +addConnection(from, to, km, kmh, numLines, lineSpeeds)
+}
+
+class TrainState {
+  +waiting : bool
+  +lineId : int
+  +waitSince : double
+  +waitEvalDone : bool
+}
+
+class Simulation {
+  -_lines : LinesOptions
+  -admitWaiting()
+  -corridorWaitSec(from, to) : double
+  -considerWaitReroute(s, t)
+  -replayEta(me, leader) : double
+}
+
+class DijkstraPathfinding {
+  congested only if occupancy >= numLines
+}
+
+RailNetwork "1" *-- "*" Edge
+Simulation o-- LinesOptions
+Simulation "1" *-- "*" TrainState
+Simulation ..> RailNetwork : reads lines
+Simulation ..> DijkstraPathfinding : uses
+note right of TrainState
+  A waiting train owns no line,
+  so opposite trains serialise
+  and never deadlock.
+end note
+
+@enduml
