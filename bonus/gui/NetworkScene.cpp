@@ -114,11 +114,11 @@ void NetworkScene::addNode(const QString &name, const QPointF &pos)
 static QString edgeLabelText(double distKm, double speedKmh,
 							 const QString &riskNames, int numLines = 1)
 {
-	QString txt = QString("%1 km | %2 km/h")
-					  .arg(distKm, 0, 'f', 1)
-					  .arg(speedKmh, 0, 'f', 0);
-	if (numLines > 1)
-		txt += QString(" | %1 lines").arg(numLines);
+	/* Multi-line rails show speed per line on the lane cards instead. */
+	QString txt = numLines > 1
+		? QString("%1 km").arg(distKm, 0, 'f', 1)
+		: QString("%1 km | %2 km/h").arg(distKm, 0, 'f', 1)
+							.arg(speedKmh, 0, 'f', 0);
 	if (!riskNames.isEmpty())
 		txt += QString::fromUtf8(" \xE2\x9A\xA0 ") + riskNames;
 	return txt;
@@ -241,24 +241,11 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 	if (len <= 1e-6)
 		return;
 
-	/* Each lane gets its own tags in the gap just right of it (travelling
-	   from -> to): the number near the start and "number, speed, events"
-	   further along, staggered between neighbouring lanes. */
+	/* One dispatcher card per lane, in the gap just right of it (travelling
+	   from -> to): "number | speed limit | events". Cards are spread along
+	   the rail so neighbouring lanes never overlap. */
 	QPointF n(-d.y() / len, d.x() / len);
-	double ramp = std::min(0.5, 90.0 / len);
-	auto addTag = [&](const QString &html, double f, int lane, bool bold)
-	{
-		f = std::min(std::max(f, ramp), 1.0 - ramp);
-		auto *t = addText("", QFont("Segoe UI", 7,
-									bold ? QFont::Bold : QFont::Normal));
-		t->setHtml(QString("<span style=\"background-color:#ecf0f1;"
-						   "color:#2c3e50;\">&nbsp;%1&nbsp;</span>").arg(html));
-		QRectF bb = t->boundingRect();
-		QPointF bp = edgePosition(e.from, e.to, f, lane) + n * (LANE_GAP / 2.0);
-		t->setPos(bp.x() - bb.width() / 2, bp.y() - bb.height() / 2);
-		t->setZValue(3);
-		e.laneLabels.push_back(t);
-	};
+	double ramp = std::min(0.4, 90.0 / len);
 	for (int i = 0; i < e.numLines; i++)
 	{
 		double kmh = (i < e.lineSpeeds.size() && e.lineSpeeds[i] > 0.0)
@@ -269,13 +256,23 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 				&& ((ev.node1 == e.from && ev.node2 == e.to)
 					|| (ev.node1 == e.to && ev.node2 == e.from)))
 				evs << ev.name;
-		QString info = QString("<b>%1</b> &middot; %2 km/h")
+		QString card = QString("<span style=\"background-color:#2c3e50;"
+							   "color:#ecf0f1;\">&nbsp;<b style=\"color:"
+							   "#f1c40f;\">L%1</b> &middot; %2 km/h")
 						   .arg(i + 1).arg(kmh, 0, 'f', 0);
 		if (!evs.isEmpty())
-			info += QString::fromUtf8(" \xE2\x9A\xA0 ")
+			card += QString::fromUtf8(" &middot; \xE2\x9A\xA0 ")
 					+ evs.join(", ").toHtmlEscaped();
-		addTag(QString::number(i + 1), 0.25, i, true);
-		addTag(info, 0.6 + 0.15 * (i % 2), i, false);
+		card += "&nbsp;</span>";
+		double t = e.numLines > 1 ? double(i) / (e.numLines - 1) : 0.5;
+		double f = ramp + t * (1.0 - 2.0 * ramp);
+		auto *lt = addText("", QFont("Segoe UI", 7));
+		lt->setHtml(card);
+		QRectF bb = lt->boundingRect();
+		QPointF bp = edgePosition(e.from, e.to, f, i) + n * (LANE_GAP / 2.0);
+		lt->setPos(bp.x() - bb.width() / 2, bp.y() - bb.height() / 2);
+		lt->setZValue(3);
+		e.laneLabels.push_back(lt);
 	}
 }
 
