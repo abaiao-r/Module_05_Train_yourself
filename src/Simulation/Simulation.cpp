@@ -609,46 +609,29 @@ void Simulation::computePaths()
 		std::cout << std::endl;
 }
 
+/* The estimate replays the real physics on an empty network, so a train
+   that meets no traffic and no event arrives exactly at its estimate
+   (the closed-form time ignores the 1-second tick quantisation). */
 double Simulation::estimateTravelTime(const Train &train) const
 {
 	const auto &path = train.getPath();
 	if (path.size() < 2)
 		return 0.0;
 
-	double totalTime = 0.0;
-	double accel = train.getAccelRate();
-	double decel = train.getDecelRate();
-
-	for (size_t i = 0; i < path.size() - 1; i++)
-	{
-		double segLen_m, speedLim_ms;
-		getSegmentInfo(path[i]->getName(), path[i + 1]->getName(),
-					   segLen_m, speedLim_ms);
-
-		double tAccel = speedLim_ms / accel;
-		double dAccel = 0.5 * accel * tAccel * tAccel;
-
-		double tBrake = speedLim_ms / decel;
-		double dBrake = 0.5 * decel * tBrake * tBrake;
-
-		if (dAccel + dBrake > segLen_m)
-		{
-			/* Segment too short to reach full speed */
-			double vMax = std::sqrt(
-				2.0 * segLen_m * accel * decel / (accel + decel));
-			totalTime += vMax / accel + vMax / decel;
-		}
-		else
-		{
-			double dMaintain = segLen_m - dAccel - dBrake;
-			double tMaintain = dMaintain / speedLim_ms;
-			totalTime += tAccel + tMaintain + tBrake;
-		}
-
-		if (i < path.size() - 2)
-			totalTime += train.getStopDuration();
-	}
-	return totalTime;
+	VTrain v{};
+	v.path = &path;
+	v.seg = 0;
+	v.pos = 0.0;
+	v.speed = 0.0;
+	v.stopTimer = 0.0;
+	v.accel = train.getAccelRate();
+	v.decel = train.getDecelRate();
+	v.stopDur = train.getStopDuration();
+	v.line = -1;
+	v.waiting = false;
+	v.entryT = 0.0;
+	v.done = false;
+	return replayEta(v, nullptr);
 }
 
 void Simulation::getSegmentInfo(const std::string &from,
