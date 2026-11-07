@@ -1,0 +1,29 @@
+@startuml sequence_line_admission
+
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+title Line Admission (lines mode, each tick)
+
+participant "Simulation" as Sim
+participant "TrainState (A->B)" as TA
+participant "TrainState (B->A)" as TB
+participant "Edge A-B" as E
+
+Sim -> Sim : admitWaiting() before physics
+Sim -> E : read numLines
+Sim -> TA : waiting, waitSince
+Sim -> TB : waiting, waitSince
+note over Sim : order by waitSince, then name
+Sim -> Sim : pick line empty or same direction\n(fastest, then lowest id)
+alt a line is admissible
+  Sim -> TA : lineId = L, waiting = false
+else every line carries opposite traffic
+  Sim -> TB : stays waiting (corridorWaitSec > 0)
+  opt Adaptive mode
+    Sim -> Sim : considerWaitReroute() once per wait
+  end
+end
+Sim -> Sim : physicsStep() for admitted trains only
+@enduml
