@@ -26,8 +26,8 @@
 
 static const std::string BIN = "./bin/train_yourself";
 static const std::string NET =
-	"input/railNetworkPrintFolder/railNetworkPrintGood.txt";
-static const std::string TRN = "input/trainPrintFolder/trainPrintGood.txt";
+	"tests/fixtures/railNetworkPrintFolder/railNetworkPrintGood.txt";
+static const std::string TRN = "tests/fixtures/trainPrintFolder/trainPrintGood.txt";
 
 
 /**
@@ -146,9 +146,9 @@ int main()
 				  {
 					  std::string name(n);
 					  auto r = runCmd(
-						  BIN + " input/railNetworkPrintFolder/"
+						  BIN + " tests/fixtures/railNetworkPrintFolder/"
 								"railNetworkScenario" + name
-						  + ".txt input/trainPrintFolder/"
+						  + ".txt tests/fixtures/trainPrintFolder/"
 							"trainPrintScenario" + name + ".txt");
 					  std::ifstream f("tests/golden/scenario" + name
 									  + ".out");
@@ -477,7 +477,7 @@ int main()
 			  [](std::string &msg) {
 				  auto r = runCmd(
 					  BIN + " " + NET
-					  + " input/trainPrintFolder/trainPrintBadStation.txt");
+					  + " tests/fixtures/trainPrintFolder/trainPrintBadStation.txt");
 				  ASSERT_EQ(1, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Error"), msg);
 				  return true;
@@ -488,7 +488,7 @@ int main()
 				  cleanupE2E();
 				  auto r = runCmd(
 					  BIN + " " + NET
-					  + " input/trainPrintFolder/trainPrintEmpty.txt");
+					  + " tests/fixtures/trainPrintFolder/trainPrintEmpty.txt");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  return true;
 			  });
@@ -498,7 +498,7 @@ int main()
 				  cleanupE2E();
 				  auto r = runCmd(
 					  BIN
-					  + " input/railNetworkPrintFolder/"
+					  + " tests/fixtures/railNetworkPrintFolder/"
 					    "railNetworkDisconnected.txt "
 					  + TRN);
 				  ASSERT_EQ(1, r.exitCode, msg);
@@ -512,9 +512,9 @@ int main()
 				  cleanupE2E();
 				  auto r = runCmd(
 					  BIN
-					  + " input/railNetworkPrintFolder/"
+					  + " tests/fixtures/railNetworkPrintFolder/"
 					    "railNetworkFrance.txt"
-					  + " input/trainPrintFolder/trainPrintFrance.txt");
+					  + " tests/fixtures/trainPrintFolder/trainPrintFrance.txt");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
 				  return true;
@@ -525,9 +525,9 @@ int main()
 				  cleanupE2E();
 				  auto r = runCmd(
 					  BIN
-					  + " input/railNetworkPrintFolder/"
+					  + " tests/fixtures/railNetworkPrintFolder/"
 					    "railNetworkEurope.txt"
-					  + " input/trainPrintFolder/trainPrintEurope.txt");
+					  + " tests/fixtures/trainPrintFolder/trainPrintEurope.txt");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
 				  return true;
@@ -538,9 +538,9 @@ int main()
 				  cleanupE2E();
 				  auto r = runCmd(
 					  BIN
-					  + " input/railNetworkPrintFolder/"
+					  + " tests/fixtures/railNetworkPrintFolder/"
 					    "railNetworkPortugal.txt"
-					  + " input/trainPrintFolder/trainPrintPortugal.txt");
+					  + " tests/fixtures/trainPrintFolder/trainPrintPortugal.txt");
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(r.output, "Arrived"), msg);
 				  return true;

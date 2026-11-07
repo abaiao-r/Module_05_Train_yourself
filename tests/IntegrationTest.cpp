@@ -35,9 +35,9 @@ int main()
 			  [](std::string &msg) {
 				  cleanupResults();
 				  auto data = InputHandler::loadData(
-					  "input/railNetworkPrintFolder/"
+					  "tests/fixtures/railNetworkPrintFolder/"
 					  "railNetworkPrintGood.txt",
-					  "input/trainPrintFolder/trainPrintGood.txt");
+					  "tests/fixtures/trainPrintFolder/trainPrintGood.txt");
 				  Simulation sim(
 					  std::move(data.network), std::move(data.trains),
 					  std::move(data.events),
@@ -51,9 +51,9 @@ int main()
 			  [](std::string &msg) {
 				  cleanupResults();
 				  auto data = InputHandler::loadData(
-					  "input/railNetworkPrintFolder/"
+					  "tests/fixtures/railNetworkPrintFolder/"
 					  "railNetworkPrintGood.txt",
-					  "input/trainPrintFolder/trainPrintGood.txt");
+					  "tests/fixtures/trainPrintFolder/trainPrintGood.txt");
 				  std::vector<Train *> refs;
 				  for (auto &t : data.trains)
 					  refs.push_back(t.get());
@@ -73,9 +73,9 @@ int main()
 			  [](std::string &msg) {
 				  cleanupResults();
 				  auto data = InputHandler::loadData(
-					  "input/railNetworkPrintFolder/"
+					  "tests/fixtures/railNetworkPrintFolder/"
 					  "railNetworkPrintGood.txt",
-					  "input/trainPrintFolder/trainPrintGood.txt");
+					  "tests/fixtures/trainPrintFolder/trainPrintGood.txt");
 				  std::vector<Train *> refs;
 				  for (auto &t : data.trains)
 					  refs.push_back(t.get());
@@ -95,9 +95,9 @@ int main()
 			  [](std::string &msg) {
 				  cleanupResults();
 				  auto data = InputHandler::loadData(
-					  "input/railNetworkPrintFolder/"
+					  "tests/fixtures/railNetworkPrintFolder/"
 					  "railNetworkPrintGood.txt",
-					  "input/trainPrintFolder/trainPrintGood.txt");
+					  "tests/fixtures/trainPrintFolder/trainPrintGood.txt");
 				  std::vector<Train *> refs;
 				  for (auto &t : data.trains)
 					  refs.push_back(t.get());
@@ -119,9 +119,9 @@ int main()
 			  [](std::string &msg) {
 				  cleanupResults();
 				  auto data = InputHandler::loadData(
-					  "input/railNetworkPrintFolder/"
+					  "tests/fixtures/railNetworkPrintFolder/"
 					  "railNetworkPrintGood.txt",
-					  "input/trainPrintFolder/trainPrintGood.txt");
+					  "tests/fixtures/trainPrintFolder/trainPrintGood.txt");
 				  std::vector<Train *> refs;
 				  for (auto &t : data.trains)
 					  refs.push_back(t.get());
@@ -141,9 +141,9 @@ int main()
 			  [](std::string &msg) {
 				  cleanupResults();
 				  auto data = InputHandler::loadData(
-					  "input/railNetworkPrintFolder/"
+					  "tests/fixtures/railNetworkPrintFolder/"
 					  "railNetworkPrintGood.txt",
-					  "input/trainPrintFolder/trainPrintGood.txt");
+					  "tests/fixtures/trainPrintFolder/trainPrintGood.txt");
 				  Simulation sim(
 					  std::move(data.network), std::move(data.trains),
 					  std::move(data.events),
@@ -162,9 +162,9 @@ int main()
 			  [](std::string &msg) {
 				  cleanupResults();
 				  auto data = InputHandler::loadData(
-					  "input/railNetworkPrintFolder/"
+					  "tests/fixtures/railNetworkPrintFolder/"
 					  "railNetworkPrintGood.txt",
-					  "input/trainPrintFolder/trainPrintGood.txt");
+					  "tests/fixtures/trainPrintFolder/trainPrintGood.txt");
 				  Simulation sim(
 					  std::move(data.network), std::move(data.trains),
 					  std::move(data.events),
@@ -185,9 +185,9 @@ int main()
 	suite.run("simulation carries the lines option (off by default)",
 			  [](std::string &msg) {
 				  const std::string net =
-					  "input/railNetworkPrintFolder/railNetworkPrintGood.txt";
+					  "tests/fixtures/railNetworkPrintFolder/railNetworkPrintGood.txt";
 				  const std::string trn =
-					  "input/trainPrintFolder/trainPrintGood.txt";
+					  "tests/fixtures/trainPrintFolder/trainPrintGood.txt";
 				  auto a = InputHandler::loadData(net, trn);
 				  Simulation off(std::move(a.network), std::move(a.trains),
 								 std::move(a.events),

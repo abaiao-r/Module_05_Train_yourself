@@ -15,8 +15,8 @@
 #include "TestFramework.hpp"
 #include <fstream>
 
-static const std::string NET = "input/railNetworkPrintFolder/";
-static const std::string TRN = "input/trainPrintFolder/";
+static const std::string NET = "tests/fixtures/railNetworkPrintFolder/";
+static const std::string TRN = "tests/fixtures/trainPrintFolder/";
 static const std::string GOOD_NET = NET + "railNetworkPrintGood.txt";
 static const std::string GOOD_TRN = TRN + "trainPrintGood.txt";
 

@@ -36,8 +36,8 @@
 #include "TestFramework.hpp"
 
 
-static const std::string NET_DIR = "input/railNetworkPrintFolder/";
-static const std::string TRN_DIR = "input/trainPrintFolder/";
+static const std::string NET_DIR = "tests/fixtures/railNetworkPrintFolder/";
+static const std::string TRN_DIR = "tests/fixtures/trainPrintFolder/";
 
 
 static const std::vector<std::string> NETWORK_FILES = {
