@@ -1141,6 +1141,7 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 	{
 		int dir = 0; // 0 free, +1 low->high name, -1 high->low name
 		double tailPos = 0.0;
+		double clearSec = 0.0; // time until the last occupant leaves
 	};
 	auto dirOf = [](const std::string &a, const std::string &b) {
 		return a < b ? 1 : -1;
@@ -1162,6 +1163,15 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 		if (u.dir == 0 || st.posOnSegment_m < u.tailPos)
 			u.tailPos = st.posOnSegment_m;
 		u.dir = dirOf(a, b);
+		double len, lim;
+		getSegmentInfo(a, b, len, lim);
+		double ov = lineSpeedMs(a, b, st.lineId);
+		if (ov > 0.0)
+			lim = ov;
+		u.clearSec = std::max(
+			u.clearSec,
+			kinematicEta(st.speed_ms, st.train->getAccelRate(),
+						 len - st.posOnSegment_m, lim));
 	}
 
 	std::vector<size_t> ready;
@@ -1211,13 +1221,28 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 		bool bestFree = false;
 		double bestTail = 0.0;
 		double bestCost = 0.0;
+		double waitCost = -1.0;
 		const auto segEvents = getEventsOnSegment(a, b);
 		for (int l = 0; l < nLines; l++)
 		{
 			auto it = use.find({key, l});
 			bool free = (it == use.end() || it->second.dir == 0);
 			if (!free && it->second.dir != dir)
+			{
+				/* Opposite traffic: remember what waiting for this
+				   line would cost (clear time + its own trip time). */
+				double w = it->second.clearSec;
+				for (const auto &e : _network.getNeighbours(a))
+					if (e.destination->getName() == b
+						&& e.lineSpeed(l) > 0.0)
+						w += e.distance / e.lineSpeed(l) * 3600.0;
+				for (const auto *ev : segEvents)
+					if (!ev->isLineEvent() || ev->getLine() == l)
+						w += ev->getProbability() * ev->getDuration();
+				if (waitCost < 0.0 || w < waitCost)
+					waitCost = w;
 				continue;
+			}
 			double tail = free ? 0.0 : it->second.tailPos;
 			double cost = 0.0;
 			for (const auto &e : _network.getNeighbours(a))
@@ -1243,6 +1268,10 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 			reservedBy.emplace(key, dir);
 			continue;
 		}
+		/* A free line may be so slow or risky that waiting for a better
+		   line that is busy with opposite traffic pays off. */
+		if (bestFree && waitCost >= 0.0 && waitCost + MIN_GAIN_SEC < bestCost)
+			continue;
 
 		LineUse &u = use[{key, best}];
 		u.dir = dir;

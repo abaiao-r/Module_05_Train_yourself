@@ -1070,6 +1070,7 @@ static QString presetHint(const QString &name)
 		{"Bonus08Fairness", "Starvation guard: the opposite train is not kept waiting forever"},
 		{"Bonus09Hub", "Hub with mixed flows, a 2-line rail and an event"},
 		{"Bonus10RushHour", "Rush hour: 3-line, 2-line and 1-line rails, line events"},
+		{"Bonus12WaitOrGo", "A train waits for the fast busy line instead of taking a free slow one"},
 		{"Bonus11LisbonMetro", "Lisbon metro: 4 lines, real stations and layout, 12 trains"}};
 	return hints.value(name);
 }

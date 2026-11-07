@@ -42,6 +42,8 @@ make && ./bin/train_yourself input/railNetworkPrintFolder/railNetworkBonus05Line
    train cannot wait at a station after already entering the next line.
 7. Same-direction following on a line is unchanged (200 m safe distance, no mid-edge
    overtaking). A faster train overtakes by taking a different free line at admission.
+   If every free line is slower (or riskier) than waiting for a line busy with opposite traffic
+   (its clear time + trip time + expected event delay, with a 30 s margin), the train waits.
 
 ## Pathfinding
 

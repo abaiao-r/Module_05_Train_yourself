@@ -1,6 +1,6 @@
 # Demo inputs
 
-One normal pair and eleven bonus pairs. Run from the repo root after `make`.
+One normal pair and twelve bonus pairs. Run from the repo root after `make`.
 Full test fixtures live in `tests/fixtures/`.
 
 ## Normal (no flags needed)
@@ -24,6 +24,7 @@ Full test fixtures live in `tests/fixtures/`.
 | 09 | `Bonus09Hub` | Hub, mixed lines, opposite flows, an event | `--adaptive` avoids the 20 min strike |
 | 10 | `Bonus10RushHour` | 3-, 2- and 1-line rails, line and rail events | busiest case |
 | 11 | `Bonus11LisbonMetro` | Lisbon metro: 4 lines, interchanges, real station names | drawn with the real geography (see below) |
+| 12 | `Bonus12WaitOrGo` | Wait or go | `Go` waits ~5 min for the busy 160 km/h line instead of taking the free 30 km/h one (arrives 08:16 instead of 08:43) |
 
 Events are random, so event cases (06, 09, 10, 11) vary run to run; use `--runs N` for averages.
 
