@@ -14,6 +14,7 @@
 #define SIMULATION_HPP
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <random>
@@ -180,6 +181,10 @@ class Simulation
 	RerouteCallback _rerouteCallback;
 	bool _quiet;
 	LinesOptions _lines;
+	bool _dryRun = false;
+	/* Traffic-aware expected time per (train name, departure), filled by
+	   a deterministic event-free dry run at the start of run(). */
+	std::map<std::pair<std::string, double>, double> _expected;
 
 	/* Monotonic counters bumped by live mutations; part of the
 	   candidate-path cache key. */
@@ -286,6 +291,8 @@ class Simulation
 	void computePaths();
 	void staticPreAssign();
 	double estimateTravelTime(const Train &train) const;
+	void computeExpectedTimes();
+	double expectedTime(const Train &train) const;
 	void getSegmentInfo(const std::string &from, const std::string &to,
 						double &length_m, double &speedLimit_ms) const;
 	double totalRemainingDistance(const TrainState &s) const;
