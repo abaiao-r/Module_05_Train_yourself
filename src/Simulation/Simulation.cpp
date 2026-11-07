@@ -1203,12 +1203,15 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 			if (e.destination->getName() == b)
 				nLines = std::max(e.numLines, 1);
 
-		/* Empty line first (fastest wins); else the same-direction line
-		   whose last train is furthest ahead. Lowest id wins ties. */
+		/* Empty line first (lowest expected trip time wins: travel time
+		   plus probability-weighted event delays on that line); else the
+		   same-direction line whose last train is furthest ahead.
+		   Lowest id wins ties. */
 		int best = -1;
 		bool bestFree = false;
 		double bestTail = 0.0;
-		double bestSpeed = 0.0;
+		double bestCost = 0.0;
+		const auto segEvents = getEventsOnSegment(a, b);
 		for (int l = 0; l < nLines; l++)
 		{
 			auto it = use.find({key, l});
@@ -1216,18 +1219,23 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 			if (!free && it->second.dir != dir)
 				continue;
 			double tail = free ? 0.0 : it->second.tailPos;
-			double spd = 0.0;
+			double cost = 0.0;
 			for (const auto &e : _network.getNeighbours(a))
 				if (e.destination->getName() == b)
-					spd = e.lineSpeed(l);
+					cost = e.lineSpeed(l) > 0.0
+							   ? e.distance / e.lineSpeed(l) * 3600.0
+							   : 0.0;
+			for (const auto *ev : segEvents)
+				if (!ev->isLineEvent() || ev->getLine() == l)
+					cost += ev->getProbability() * ev->getDuration();
 			if (best < 0 || (free && !bestFree)
 				|| (free == bestFree && !free && tail > bestTail)
-				|| (free && bestFree && spd > bestSpeed))
+				|| (free && bestFree && cost < bestCost - 1e-9))
 			{
 				best = l;
 				bestFree = free;
 				bestTail = tail;
-				bestSpeed = spd;
+				bestCost = cost;
 			}
 		}
 		if (best < 0)
