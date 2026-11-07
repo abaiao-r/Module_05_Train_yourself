@@ -123,7 +123,7 @@ static QString edgeLabelText(double distKm, double speedKmh,
 	return txt;
 }
 
-static const double LANE_GAP = 14.0;
+static const double LANE_GAP = 18.0;
 
 void NetworkScene::addEdge(const QString &from, const QString &to,
 						   double distKm, double speedKmh, int numLines,
@@ -238,7 +238,7 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 	   run left to right as seen travelling from -> to, matching the
 	   lanes' physical order. */
 	QString rows = QString("<span style=\"color:#95a5a6;\">%1 \xE2\x86\x92 %2 "
-						   "(left to right)</span>")
+						   "(number sits right of its lane)</span>")
 					   .arg(e.from.toHtmlEscaped(), e.to.toHtmlEscaped());
 	for (int i = 0; i < e.numLines; i++)
 	{
@@ -272,7 +272,7 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 		if (n.y() > 0 || (n.y() == 0 && n.x() < 0))
 			n = -n;
 		n = -n; /* lower side; the summary label takes the upper one */
-		double out = (e.numLines - 1) / 2.0 * LANE_GAP + 8.0
+		double out = (e.numLines - 1) / 2.0 * LANE_GAP + 18.0
 					 + std::fabs(n.x()) * b.width() / 2.0
 					 + std::fabs(n.y()) * b.height() / 2.0;
 		mid += n * out;
@@ -280,6 +280,30 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 	t->setPos(mid.x() - b.width() / 2, mid.y() - b.height() / 2);
 	t->setZValue(3);
 	e.laneLabels.push_back(t);
+
+	/* Small numbers in the gap just right of each lane (travelling
+	   from -> to), twice along the rail, so every lane can be read
+	   without text on top of a stroke. */
+	if (len > 1e-6)
+	{
+		QPointF n(-d.y() / len, d.x() / len);
+		double ramp = std::min(0.5, 90.0 / len);
+		for (int i = 0; i < e.numLines; i++)
+			for (double f : {0.3, 0.7})
+			{
+				f = std::min(std::max(f, ramp), 1.0 - ramp);
+				auto *bt = addText("", QFont("Segoe UI", 7, QFont::Bold));
+				bt->setHtml(QString("<span style=\"background-color:#ecf0f1;"
+									"color:#2c3e50;\">&nbsp;%1&nbsp;</span>")
+								.arg(i + 1));
+				QRectF bb = bt->boundingRect();
+				QPointF bp = edgePosition(e.from, e.to, f, i)
+							 + n * (LANE_GAP / 2.0);
+				bt->setPos(bp.x() - bb.width() / 2, bp.y() - bb.height() / 2);
+				bt->setZValue(3);
+				e.laneLabels.push_back(bt);
+			}
+	}
 }
 
 void NetworkScene::removeNode(const QString &name)
@@ -432,7 +456,7 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 		n = -n;
 	/* Distance so the label rectangle clears the outer lane (support
 	   function of the rectangle along the normal). */
-	double out = (e.numLines - 1) / 2.0 * LANE_GAP + 6.0
+	double out = (e.numLines - 1) / 2.0 * LANE_GAP + 16.0
 				 + std::fabs(n.x()) * lb.width() / 2.0
 				 + std::fabs(n.y()) * lb.height() / 2.0;
 	QPointF c = mid + n * out;
