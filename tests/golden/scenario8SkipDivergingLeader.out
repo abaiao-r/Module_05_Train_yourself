@@ -1,0 +1,31 @@
+=== Rail Network ===
+  AltA -> Fork (6km, 200km/h), Dest (6km, 200km/h)
+  Dest -> MainA (3km, 200km/h), AltA (6km, 200km/h)
+  Fork -> Origin (3km, 200km/h), MainA (8km, 200km/h), AltA (6km, 200km/h), SideB (2km, 200km/h)
+  MainA -> Fork (8km, 200km/h), Dest (3km, 200km/h)
+  Origin -> Fork (3km, 200km/h)
+  SideB -> Fork (2km, 200km/h)
+
+=== Paths ===
+SlowA path: Origin -> Fork -> MainA -> Dest
+DivB path: Origin -> Fork -> SideB
+FastC path: Origin -> Fork -> MainA -> Dest
+
+=== Simulation ===
+[08:00:00] SlowA departs from Origin
+[08:01:00] DivB departs from Origin
+[08:02:00] FastC departs from Origin
+  [08:03:55] -> Fork
+  [08:04:00] -> Fork
+  [08:04:07] -> Fork
+  [08:05:15] -> SideB
+  [08:07:29] -> MainA
+  [08:07:33] -> MainA
+  [08:08:56] -> Dest
+  [08:09:11] -> Dest
+
+=== Results ===
+SlowA: Arrived | Arrival: 08:08:56 | Delay: 0 min
+DivB: Arrived | Arrival: 08:05:15 | Delay: 0 min
+FastC: Arrived | Arrival: 08:09:11 | Delay: 0 min
+[?25h

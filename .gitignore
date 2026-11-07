@@ -30,3 +30,4 @@ bonus/gui/.qmake.stash
 **/moc_*
 **/*.app/
 objs/gui/
+!tests/golden/*.out
