@@ -15,7 +15,9 @@ Rail <A> <B> <distance_km> <speed_kmh> [numLines]
 
 - `numLines` is only accepted with `--lines`; it must be an integer >= 1 (default 1).
   Anything else fails with `file:line: Invalid line count 'X' (expected an integer >= 1)`.
-- Lines share the edge's distance and speed. Rail events affect every line of the edge.
+- Lines share the edge's distance; speed defaults to the edge speed. Rail events affect every line.
+- Optional per-line speeds: `Rail A B km kmh N s1 ... sN` (exactly N positive km/h values). A free
+  line is chosen fastest-first, and the train runs at that line's speed.
 - Without `--lines` an extra token is rejected as before.
 
 Example: `input/railNetworkPrintFolder/railNetworkParallelLines.txt`

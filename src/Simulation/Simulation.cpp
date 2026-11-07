@@ -409,6 +409,12 @@ void Simulation::run()
 						p[s.segmentIndex + 1]->getName();
 					double sLen_m, sSp_ms;
 					getSegmentInfo(from, to, sLen_m, sSp_ms);
+					if (_lines.enabled)
+					{
+						double ov = lineSpeedMs(from, to, s.lineId);
+						if (ov > 0.0)
+							sSp_ms = ov;
+					}
 					int segKm = static_cast<int>(std::ceil(
 						sLen_m / 1000.0));
 					if (segKm < 1)
@@ -666,17 +672,42 @@ void Simulation::updatePhysics(TrainState &s)
 	auto &path = s.train->getPath();
 	if (path.size() < 2 || s.segmentIndex + 1 >= path.size())
 		return;
+	double override_ms = _lines.enabled
+		? lineSpeedMs(path[s.segmentIndex]->getName(),
+					  path[s.segmentIndex + 1]->getName(), s.lineId)
+		: -1.0;
 	physicsStep(path, s.segmentIndex, s.posOnSegment_m, s.speed_ms,
-				s.train->getAccelRate(), s.train->getDecelRate());
+				s.train->getAccelRate(), s.train->getDecelRate(),
+				override_ms);
+}
+
+double Simulation::lineSpeedMs(const std::string &from,
+							   const std::string &to, int line) const
+{
+	for (const auto &e : _network.getNeighbours(from))
+	{
+		if (e.destination->getName() != to || e.lineSpeeds.empty())
+			continue;
+		if (line >= 0)
+			return e.lineSpeed(line) / 3.6;
+		double best = 0.0;
+		for (double v : e.lineSpeeds)
+			best = std::max(best, v);
+		return best / 3.6;
+	}
+	return -1.0;
 }
 
 void Simulation::physicsStep(const std::vector<std::shared_ptr<Node>> &path,
 							 size_t segIdx, double &pos, double &speed,
-							 double accel, double decel) const
+							 double accel, double decel,
+							 double speedOverride_ms) const
 {
 	double segLen_m, speedLim_ms;
 	getSegmentInfo(path[segIdx]->getName(), path[segIdx + 1]->getName(),
 				   segLen_m, speedLim_ms);
+	if (speedOverride_ms > 0.0)
+		speedLim_ms = speedOverride_ms;
 
 	double distToEnd = segLen_m - pos;
 
@@ -922,6 +953,7 @@ Simulation::VTrain Simulation::makeVTrain(const TrainState &s,
 	v.accel = s.train->getAccelRate();
 	v.decel = s.train->getDecelRate();
 	v.stopDur = s.train->getStopDuration();
+	v.line = s.lineId;
 	v.entryT = s.segmentEntryTime - simTime;
 	v.done = s.arrived;
 	return v;
@@ -950,7 +982,11 @@ double Simulation::replayEta(VTrain me, const VTrain *leader,
 			v.stopTimer = std::max(0.0, v.stopTimer - DT);
 			return;
 		}
-		physicsStep(*v.path, v.seg, v.pos, v.speed, v.accel, v.decel);
+		double ov = _lines.enabled
+			? lineSpeedMs((*v.path)[v.seg]->getName(),
+						  (*v.path)[v.seg + 1]->getName(), v.line)
+			: -1.0;
+		physicsStep(*v.path, v.seg, v.pos, v.speed, v.accel, v.decel, ov);
 		double len, spd;
 		getSegmentInfo((*v.path)[v.seg]->getName(),
 					   (*v.path)[v.seg + 1]->getName(), len, spd);
@@ -965,6 +1001,7 @@ double Simulation::replayEta(VTrain me, const VTrain *leader,
 			return;
 		}
 		v.seg++;
+		v.line = -1;
 		v.pos = 0.0;
 		v.entryT = now;
 		v.stopTimer = v.stopDur;
@@ -1116,11 +1153,12 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 			if (e.destination->getName() == b)
 				nLines = std::max(e.numLines, 1);
 
-		/* Empty line first; else the same-direction line whose last
-		   train is furthest ahead. Lowest id wins ties. */
+		/* Empty line first (fastest wins); else the same-direction line
+		   whose last train is furthest ahead. Lowest id wins ties. */
 		int best = -1;
 		bool bestFree = false;
 		double bestTail = 0.0;
+		double bestSpeed = 0.0;
 		for (int l = 0; l < nLines; l++)
 		{
 			auto it = use.find({key, l});
@@ -1128,12 +1166,18 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 			if (!free && it->second.dir != dir)
 				continue;
 			double tail = free ? 0.0 : it->second.tailPos;
+			double spd = 0.0;
+			for (const auto &e : _network.getNeighbours(a))
+				if (e.destination->getName() == b)
+					spd = e.lineSpeed(l);
 			if (best < 0 || (free && !bestFree)
-				|| (free == bestFree && !free && tail > bestTail))
+				|| (free == bestFree && !free && tail > bestTail)
+				|| (free && bestFree && spd > bestSpeed))
 			{
 				best = l;
 				bestFree = free;
 				bestTail = tail;
+				bestSpeed = spd;
 			}
 		}
 		if (best < 0)

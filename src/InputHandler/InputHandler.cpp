@@ -67,6 +67,24 @@ static int parseLineCount(const std::string &str)
 	return value;
 }
 
+static double parseLineSpeed(const std::string &str)
+{
+	double value = 0.0;
+	size_t used = 0;
+	try
+	{
+		value = std::stod(str, &used);
+	}
+	catch (const std::exception &)
+	{
+		used = 0;
+	}
+	if (used != str.size() || !std::isfinite(value) || value <= 0.0)
+		throw InputHandler::ParseException(
+			"Invalid line speed '" + str + "' (expected a number > 0)");
+	return value;
+}
+
 static double parseDuration(const std::string &str)
 {
 	if (str.empty())
@@ -202,15 +220,25 @@ void InputHandler::parseNetworkFile(const std::string &filepath,
 				if (iss.fail() || from.empty() || to.empty())
 					throw ParseException("Invalid rail line");
 				int numLines = 1;
+				std::vector<double> lineSpeeds;
 				if (lines.enabled)
 				{
 					std::string count;
 					if (iss >> count)
 						numLines = parseLineCount(count);
+					std::string tok;
+					while (iss >> tok)
+						lineSpeeds.push_back(parseLineSpeed(tok));
+					if (!lineSpeeds.empty()
+						&& lineSpeeds.size() != static_cast<size_t>(numLines))
+						throw ParseException(
+							"Expected " + std::to_string(numLines)
+							+ " line speeds, got "
+							+ std::to_string(lineSpeeds.size()));
 				}
 				requireEndOfLine(iss);
 				network.addConnection(from, to, distance, speedLimit,
-									  numLines);
+									  numLines, lineSpeeds);
 			}
 			else
 			{
