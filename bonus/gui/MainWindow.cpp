@@ -505,6 +505,14 @@ void MainWindow::buildToolbar()
 		"border-color: #059669; }");
 	tb->addWidget(_animateCheck);
 
+	_linesCheck = new QCheckBox("Multi-line rails");
+	_linesCheck->setChecked(false);
+	_linesCheck->setToolTip(
+		"Bonus: rails may hold several lines; trains never share a line\n"
+		"in opposite directions (same as the CLI --lines flag).");
+	_linesCheck->setStyleSheet(_animateCheck->styleSheet());
+	tb->addWidget(_linesCheck);
+
 	tb->addSeparator();
 
 	auto *pathCaption = new QLabel("  Path: ");
@@ -1014,8 +1022,13 @@ void MainWindow::onSaveNetwork()
 			QString from = quoteIfNeeded(name);
 			QString to = quoteIfNeeded(e.destination->getName());
 			if (from < to)
+			{
 				out << "Rail " << from << " " << to << " "
-					<< e.distance << " " << e.speedLimit << "\n";
+					<< e.distance << " " << e.speedLimit;
+				if (_linesCheck->isChecked())
+					out << " " << e.numLines;
+				out << "\n";
+			}
 		}
 	}
 	for (const auto &ev : _eventDefs)
@@ -1145,8 +1158,9 @@ void MainWindow::onImportAll()
 		QString tmpTrain = trainPath.isEmpty()
 								? writeTemporaryTrainFile()
 								: trainPath;
-		auto data = InputHandler::loadData(netPath.toStdString(),
-										   tmpTrain.toStdString());
+		auto data = InputHandler::loadData(
+			netPath.toStdString(), tmpTrain.toStdString(),
+			LinesOptions{_linesCheck->isChecked()});
 		_network = std::move(data.network);
 		_eventDefs = std::move(data.events);
 		_networkFilePath = netPath;
@@ -1211,8 +1225,13 @@ void MainWindow::onExportAll()
 				QString to = quoteIfNeeded(
 					e.destination->getName());
 				if (from < to)
+				{
 					out << "Rail " << from << " " << to << " "
-						<< e.distance << " " << e.speedLimit << "\n";
+						<< e.distance << " " << e.speedLimit;
+					if (_linesCheck->isChecked())
+						out << " " << e.numLines;
+					out << "\n";
+				}
 			}
 		}
 		for (const auto &ev : _eventDefs)
@@ -2515,7 +2534,8 @@ void MainWindow::onRunSimulation()
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
 			Q_ARG(int, _weightMode),
 			Q_ARG(int, numRuns),
-			Q_ARG(bool, animate));
+			Q_ARG(bool, animate),
+			Q_ARG(bool, _linesCheck->isChecked()));
 	}
 	else
 	{
@@ -2523,7 +2543,8 @@ void MainWindow::onRunSimulation()
 		QMetaObject::invokeMethod(
 			_worker, "runSimulation", Qt::QueuedConnection,
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
-			Q_ARG(int, _weightMode));
+			Q_ARG(int, _weightMode),
+			Q_ARG(bool, _linesCheck->isChecked()));
 	}
 }
 
@@ -2748,8 +2769,13 @@ QString MainWindow::writeTemporaryNetworkFile() const
 			QString from = quoteIfNeeded(name);
 			QString to = quoteIfNeeded(e.destination->getName());
 			if (from < to)
+			{
 				out << "Rail " << from << " " << to << " "
-					<< e.distance << " " << e.speedLimit << "\n";
+					<< e.distance << " " << e.speedLimit;
+				if (_linesCheck->isChecked())
+					out << " " << e.numLines;
+				out << "\n";
+			}
 		}
 	}
 	for (const auto &ev : _eventDefs)

@@ -144,7 +144,8 @@ class SimulationWorker : public QObject
   public slots:
 	void runSimulation(const QString &networkFile,
 					   const QString &trainFile,
-					   int weightMode);
+					   int weightMode,
+					   bool multiLines = false);
 
 	/** Run N simulations, optionally animating the first run.
 	    Emits runProgress() after each run, then multiRunFinished(). */
@@ -152,7 +153,8 @@ class SimulationWorker : public QObject
 				  const QString &trainFile,
 				  int weightMode,
 				  int numRuns,
-				  bool animateFirst);
+				  bool animateFirst,
+				  bool multiLines = false);
 
   signals:
 	void tick(double simTime, QVector<TrainSnapshot> snapshots);

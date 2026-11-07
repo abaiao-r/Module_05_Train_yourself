@@ -136,6 +136,7 @@ class MainWindow : public QMainWindow
 	QLabel *_speedLabel;
 	QSpinBox *_runsSpinBox;
 	QCheckBox *_animateCheck;
+	QCheckBox *_linesCheck;
 	QComboBox *_pathWeightCombo;
 
 	QComboBox *_presetNetworkCombo;
