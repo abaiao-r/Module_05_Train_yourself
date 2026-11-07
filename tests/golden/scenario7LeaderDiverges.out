@@ -20,5 +20,5 @@ FastB path: Origin -> Fork -> MainA -> Dest
 
 === Results ===
 SlowA: Arrived | Arrival: 08:07:17 | Delay: 0 min
-FastB: Arrived | Arrival: 08:07:57 | Delay: 0 min
+FastB: Arrived | Arrival: 08:07:57 | Delay: 2 min
 [?25h

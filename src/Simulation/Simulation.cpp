@@ -669,7 +669,7 @@ void Simulation::computeExpectedTimes()
 					&& t->getDepartureTime() == key.second)
 				{
 					double w = res[i].actualTime - estimateTravelTime(*t);
-					if (_lines.enabled && w >= 1.0)
+					if (w >= 1.0)
 						_trafficWait[key] = w;
 				}
 		}
