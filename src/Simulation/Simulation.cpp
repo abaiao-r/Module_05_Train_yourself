@@ -1090,6 +1090,11 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 		return states[a].train->getName() < states[b].train->getName();
 	});
 
+	/* Starvation guard: an opposite-direction train that has been waiting
+	   longer reserves the corridor, so later same-direction trains may
+	   not keep joining the occupied lines ahead of it. */
+	std::map<std::string, int> reservedBy;
+
 	for (size_t idx : ready)
 	{
 		TrainState &s = states[idx];
@@ -1100,6 +1105,10 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 		const std::string &b = p[s.segmentIndex + 1]->getName();
 		int dir = dirOf(a, b);
 		std::string key = pairKey(a, b);
+
+		auto res = reservedBy.find(key);
+		if (res != reservedBy.end() && res->second != dir)
+			continue;
 
 		int nLines = 1;
 		for (const auto &e : _network.getNeighbours(a))
@@ -1127,7 +1136,10 @@ void Simulation::admitWaiting(std::vector<TrainState> &states,
 			}
 		}
 		if (best < 0)
+		{
+			reservedBy.emplace(key, dir);
 			continue;
+		}
 
 		LineUse &u = use[{key, best}];
 		u.dir = dir;
