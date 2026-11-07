@@ -117,6 +117,33 @@ int main()
 				  return true;
 			  });
 
+	suite.run("--lines on a legacy network gives identical output",
+			  [](std::string &msg) {
+				  std::ofstream("/tmp/e2e_lines_net.txt")
+					  << "Node A\nNode B\nNode C\nRail A B 10 100\n"
+						 "Rail B C 10 100\n";
+				  std::ofstream("/tmp/e2e_lines_trn.txt")
+					  << "T 80 0.05 356 30 A C 14h10 00h05\n";
+				  auto plain = runCmd(BIN + " /tmp/e2e_lines_net.txt "
+											"/tmp/e2e_lines_trn.txt");
+				  auto lines = runCmd(BIN + " /tmp/e2e_lines_net.txt "
+											"/tmp/e2e_lines_trn.txt --lines");
+				  ASSERT_EQ(0, plain.exitCode, msg);
+				  ASSERT_EQ(0, lines.exitCode, msg);
+				  ASSERT_TRUE(outputContains(plain.output, "Arrival: "), msg);
+				  ASSERT_STR_EQ(plain.output, lines.output, msg);
+				  return true;
+			  });
+
+	suite.run("unknown option is still rejected",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN + " /tmp/e2e_lines_net.txt "
+										"/tmp/e2e_lines_trn.txt --line");
+				  ASSERT_EQ(1, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "Unknown option"), msg);
+				  return true;
+			  });
+
 	suite.run("no arguments -> exit 1 + usage message",
 			  [](std::string &msg) {
 				  auto r = runCmd(BIN);
@@ -135,6 +162,7 @@ int main()
 				  ASSERT_TRUE(outputContains(r.output, "--graph"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--animate"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "--runs"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "--lines"), msg);
 				  ASSERT_TRUE(outputContains(r.output,
 							  "mutually exclusive"), msg);
 				  return true;

@@ -62,6 +62,11 @@ static void printHelp()
 		<< "the simulation\n"
 		<< "  --runs N            Run simulation N times and report "
 		<< "average travel times\n"
+		<< "  --lines             Bonus: rails may hold several lines "
+		<< "(optional\n"
+		<< "                      trailing count on Rail); opposite-"
+		<< "direction trains\n"
+		<< "                      never share a line\n"
 		<< "  --help              Show this help message\n\n"
 		<< "=== Build targets ===\n"
 		<< "  make                Build the CLI binary (./bin/train_yourself)\n"
@@ -126,6 +131,8 @@ static void printHelp()
 		<< "bars\n"
 		<< "  --runs N        Monte-Carlo statistics across N "
 		<< "simulation runs\n"
+		<< "  --lines         Multi-line rails with head-on collision "
+		<< "avoidance\n"
 		<< "  make bonus      Qt 6 GUI with CRUD, drag-and-drop, "
 		<< "dark theme,\n"
 		<< "                  presets, import/export, and live "
@@ -166,7 +173,7 @@ int main(int argc, char **argv)
 	{
 		std::cerr << "Usage: " << argv[0]
 				  << " <network_file> <train_file> [--distance|--solo|--adaptive] "
-				     "[--graph file.dot] [--animate] [--runs N]"
+				     "[--graph file.dot] [--animate] [--runs N] [--lines]"
 				  << std::endl;
 		std::cerr << "Use --help for detailed format information."
 				  << std::endl;
@@ -190,6 +197,7 @@ int main(int argc, char **argv)
 	bool weightModeSet = false;
 	std::string graphFile;
 	bool animate = false;
+	LinesOptions lines;
 	int numRuns = 1;
 	for (int i = 3; i < argc; i++)
 	{
@@ -228,6 +236,8 @@ int main(int argc, char **argv)
 		}
 		else if (std::strcmp(argv[i], "--animate") == 0)
 			animate = true;
+		else if (std::strcmp(argv[i], "--lines") == 0)
+			lines.enabled = true;
 		else if (std::strcmp(argv[i], "--runs") == 0)
 		{
 			if (i + 1 >= argc)
@@ -268,13 +278,14 @@ int main(int argc, char **argv)
 		for (int run = 0; run < numRuns; run++)
 		{
 			TrainFactory::resetIdCounter();
-			auto data = InputHandler::loadData(argv[1], argv[2]);
+			auto data = InputHandler::loadData(argv[1], argv[2], lines);
 			auto pathfinder = std::make_unique<DijkstraPathfinding>();
 
 			Simulation sim(std::move(data.network),
 						   std::move(data.trains),
 						   std::move(data.events),
-						   std::move(pathfinder), weightMode);
+						   std::move(pathfinder), weightMode,
+						   data.lines);
 
 			/* Suppress stdout on repeated runs (keep first run
 			   verbose, or if --animate is on suppress all text) */

@@ -118,9 +118,11 @@ static double parseTime(const std::string &str)
 }
 
 SimulationData InputHandler::loadData(const std::string &networkFile,
-									  const std::string &trainFile)
+									  const std::string &trainFile,
+									  const LinesOptions &lines)
 {
 	SimulationData data;
+	data.lines = lines;
 	parseNetworkFile(networkFile, data.network, data.events);
 	data.trains = parseTrainFile(trainFile);
 	validateData(networkFile, trainFile, data);

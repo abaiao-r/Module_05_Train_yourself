@@ -182,6 +182,28 @@ int main()
 				  return true;
 			  });
 
+	suite.run("simulation carries the lines option (off by default)",
+			  [](std::string &msg) {
+				  const std::string net =
+					  "input/railNetworkPrintFolder/railNetworkPrintGood.txt";
+				  const std::string trn =
+					  "input/trainPrintFolder/trainPrintGood.txt";
+				  auto a = InputHandler::loadData(net, trn);
+				  Simulation off(std::move(a.network), std::move(a.trains),
+								 std::move(a.events),
+								 std::make_unique<DijkstraPathfinding>());
+				  ASSERT_FALSE(off.getLinesOptions().enabled, msg);
+				  LinesOptions on;
+				  on.enabled = true;
+				  auto b = InputHandler::loadData(net, trn, on);
+				  Simulation sim(std::move(b.network), std::move(b.trains),
+								 std::move(b.events),
+								 std::make_unique<DijkstraPathfinding>(),
+								 PathWeightMode::Distance, b.lines);
+				  ASSERT_TRUE(sim.getLinesOptions().enabled, msg);
+				  return true;
+			  });
+
 	cleanupResults();
 	return suite.summarize();
 }

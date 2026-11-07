@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "Event.hpp"
+#include "LinesOptions.hpp"
 #include "RailNetwork.hpp"
 #include "Train.hpp"
 
@@ -27,6 +28,7 @@ struct SimulationData
 	RailNetwork network;
 	std::vector<std::unique_ptr<Train>> trains;
 	std::vector<Event> events;
+	LinesOptions lines;
 };
 
 class InputHandler
@@ -35,7 +37,8 @@ class InputHandler
 	InputHandler() = delete;
 
 	static SimulationData loadData(const std::string &networkFile,
-								   const std::string &trainFile);
+								   const std::string &trainFile,
+								   const LinesOptions &lines = {});
 
 	/** Parse a network file only (nodes, rails, events). No cross-validation. */
 	static void parseNetworkFile(const std::string &filepath,
