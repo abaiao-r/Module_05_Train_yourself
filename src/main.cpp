@@ -365,45 +365,53 @@ int main(int argc, char **argv)
 					t += x;
 				return t / v.size();
 			};
-			std::cout << "=== Mode comparison (" << numRuns
-					  << (numRuns == 1 ? " run" : " runs")
-					  << " each, average travel time, * = fastest) ==="
-					  << std::endl;
-			std::cout << std::string(68, '-') << std::endl;
-			std::cout << std::left << std::setw(20) << "Train";
-			for (int m = 0; m < 3; m++)
-				std::cout << std::setw(16) << names[m];
-			std::cout << std::endl << std::string(68, '-') << std::endl;
+			auto printTable = [&](const char *title,
+								  std::map<std::string, std::vector<double>>
+									  Stats::*field) {
+				std::cout << "=== " << title << " (" << numRuns
+						  << (numRuns == 1 ? " run" : " runs")
+						  << " each, * = best) ===" << std::endl;
+				std::cout << std::string(68, '-') << std::endl;
+				std::cout << std::left << std::setw(20) << "Train";
+				for (int m = 0; m < 3; m++)
+					std::cout << std::setw(16) << names[m];
+				std::cout << std::endl << std::string(68, '-') << std::endl;
 
-			auto printRow = [&](const std::string &label, const double v[3]) {
-				int best = 0;
-				for (int m = 1; m < 3; m++)
-					if (v[m] < v[best] - 0.5)
-						best = m;
-				std::cout << std::left << std::setw(20) << label;
-				for (int m = 0; m < 3; m++)
+				auto printRow = [&](const std::string &label,
+									const double v[3]) {
+					int best = 0;
+					for (int m = 1; m < 3; m++)
+						if (v[m] < v[best] - 0.5)
+							best = m;
+					std::cout << std::left << std::setw(20) << label;
+					for (int m = 0; m < 3; m++)
+					{
+						bool star = v[m] <= v[best] + 0.5;
+						std::cout << std::setw(16)
+								  << (fmtTimeStat(v[m]) + (star ? " *" : ""));
+					}
+					std::cout << std::endl;
+				};
+				double total[3] = {0, 0, 0};
+				for (const auto &pair : res[0].actual)
 				{
-					bool star = v[m] <= v[best] + 0.5;
-					std::cout << std::setw(16)
-							  << (fmtTimeStat(v[m]) + (star ? " *" : ""));
+					double v[3];
+					for (int m = 0; m < 3; m++)
+					{
+						auto &mp = res[m].*field;
+						auto it = mp.find(pair.first);
+						v[m] = it == mp.end() ? 0.0 : avgOf(it->second);
+						total[m] += v[m];
+					}
+					printRow(pair.first, v);
 				}
-				std::cout << std::endl;
+				std::cout << std::string(68, '-') << std::endl;
+				printRow("TOTAL (sum)", total);
+				std::cout << std::string(68, '-') << std::endl;
 			};
-			double total[3] = {0, 0, 0};
-			for (const auto &pair : res[0].actual)
-			{
-				double v[3];
-				for (int m = 0; m < 3; m++)
-				{
-					auto it = res[m].actual.find(pair.first);
-					v[m] = it == res[m].actual.end() ? 0.0 : avgOf(it->second);
-					total[m] += v[m];
-				}
-				printRow(pair.first, v);
-			}
-			std::cout << std::string(68, '-') << std::endl;
-			printRow("TOTAL (sum)", total);
-			std::cout << std::string(68, '-') << std::endl;
+			printTable("Mode comparison: average travel time", &Stats::actual);
+			std::cout << std::endl;
+			printTable("Mode comparison: average delay", &Stats::delay);
 			return EXIT_SUCCESS;
 		}
 

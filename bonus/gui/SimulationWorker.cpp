@@ -398,6 +398,7 @@ void SimulationWorker::runCompare(const QString &networkFile,
 		QDir::setCurrent(projectRoot.absolutePath());
 
 		std::map<std::string, std::vector<double>> sums[3];
+		std::map<std::string, std::vector<double>> delays[3];
 		const int total = 3 * numRuns;
 		int done = 0;
 		for (int m = 0; m < 3; ++m)
@@ -429,6 +430,7 @@ void SimulationWorker::runCompare(const QString &networkFile,
 					std::string key = n ? r.name + " #" + std::to_string(n + 1)
 										: r.name;
 					sums[m][key].push_back(r.actualTime);
+					delays[m][key].push_back(r.totalDelay);
 				}
 				emit runProgress(++done, total);
 			}
@@ -446,6 +448,12 @@ void SimulationWorker::runCompare(const QString &networkFile,
 				for (double x : v)
 					t += x;
 				row.avg[m] = v.empty() ? 0.0 : t / static_cast<double>(v.size());
+				double d = 0.0;
+				const auto &dv = delays[m][pair.first];
+				for (double x : dv)
+					d += x;
+				row.delay[m] = dv.empty()
+					? 0.0 : d / static_cast<double>(dv.size());
 			}
 			rows.push_back(row);
 		}

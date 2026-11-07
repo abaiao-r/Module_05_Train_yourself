@@ -38,13 +38,14 @@ delay and the average actual time. Its min/max are the best and worst single run
 
 ```
 --compare   Run Distance, Solo and Adaptive (N runs each with --runs N) and print
-            the average travel time per train side by side, with a TOTAL row.
+            the average travel time and the average delay per train side by
+            side, each with a TOTAL row.
             The fastest mode per row is starred. Cannot be combined with
             --distance, --solo or --adaptive.
 ```
 
 In the GUI pick **Compare all** in the Path box; it runs the three modes `Runs` times each and
-shows the same table in the dashboard. The multi-run table there also gets a TOTAL row.
+shows the same two tables (travel time, delay) in the dashboard. The multi-run table there also gets a TOTAL row.
 
 ---
 

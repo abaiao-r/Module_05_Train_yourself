@@ -108,6 +108,7 @@ struct CompareRow
 {
 	QString name;
 	double avg[3];
+	double delay[3];
 };
 
 Q_DECLARE_METATYPE(QVector<CompareRow>)
