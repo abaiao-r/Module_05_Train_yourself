@@ -246,13 +246,28 @@ void NetworkScene::renameNode(const QString &oldName, const QString &newName)
 }
 
 void NetworkScene::updateEdge(const QString &from, const QString &to,
-							  double newDist, double newSpeed)
+							  double newDist, double newSpeed, int newLines)
 {
 	for (auto &e : _edges)
 	{
 		if ((e.from == from && e.to == to)
 			|| (e.from == to && e.to == from))
 		{
+			if (newLines > 0 && newLines != e.numLines)
+			{
+				const QString f = e.from, t = e.to, risk = e.riskNames;
+				removeEdge(f, t);
+				addEdge(f, t, newDist, newSpeed, newLines);
+				for (auto &n : _edges)
+					if (n.from == f && n.to == t)
+					{
+						n.riskNames = risk;
+						n.label->setPlainText(edgeLabelText(
+							newDist, newSpeed, risk, newLines));
+						repositionEdge(n);
+					}
+				return;
+			}
 			e.distKm = newDist;
 			e.speedKmh = newSpeed;
 			e.label->setPlainText(

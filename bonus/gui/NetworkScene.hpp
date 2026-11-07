@@ -67,7 +67,7 @@ class NetworkScene : public QGraphicsScene
 	void removeEdge(const QString &from, const QString &to);
 	void renameNode(const QString &oldName, const QString &newName);
 	void updateEdge(const QString &from, const QString &to,
-					double newDist, double newSpeed);
+					double newDist, double newSpeed, int newLines = -1);
 	void clear();
 
 	/** Populate from an existing RailNetwork object. */

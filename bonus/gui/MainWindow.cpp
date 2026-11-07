@@ -840,10 +840,12 @@ void MainWindow::refreshLists()
 			QString to = QString::fromStdString(e.destination->getName());
 			if (from < to)
 				_edgeList->addItem(
-					QString("%1 <-> %2  (%3 km, %4 km/h)")
+					QString("%1 <-> %2  (%3 km, %4 km/h%5)")
 						.arg(from, to)
 						.arg(e.distance, 0, 'f', 1)
-						.arg(e.speedLimit, 0, 'f', 0));
+						.arg(e.speedLimit, 0, 'f', 0)
+						.arg(e.numLines > 1 ? QString(", %1 lines").arg(e.numLines)
+											: QString()));
 		}
 	}
 
@@ -2188,12 +2190,14 @@ void MainWindow::onEditEdge()
 
 	double curDist = 10.0;
 	double curSpeed = 200.0;
+	int curLines = 1;
 	for (const auto &e : _network.getNeighbours(from.toStdString()))
 	{
 		if (e.destination->getName() == to.toStdString())
 		{
 			curDist = e.distance;
 			curSpeed = e.speedLimit;
+			curLines = e.numLines;
 			break;
 		}
 	}
@@ -2215,6 +2219,10 @@ void MainWindow::onEditEdge()
 	speedSpin->setRange(1.0, 999.0);
 	speedSpin->setValue(curSpeed);
 	speedSpin->setSuffix(" km/h");
+	auto *linesSpin = new QSpinBox;
+	linesSpin->setRange(1, 16);
+	linesSpin->setValue(curLines);
+	linesSpin->setEnabled(_linesCheck->isChecked());
 
 	auto *btns = new QHBoxLayout;
 	auto *okBtn = new QPushButton("Save Changes");
@@ -2227,6 +2235,7 @@ void MainWindow::onEditEdge()
 	form->addRow("To:", toLabel);
 	form->addRow("Distance:", distSpin);
 	form->addRow("Speed limit:", speedSpin);
+	form->addRow("Lines:", linesSpin);
 	form->addRow(btns);
 
 	connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
@@ -2235,6 +2244,7 @@ void MainWindow::onEditEdge()
 	if (dlg.exec() != QDialog::Accepted)
 		return;
 
+	const int newLines = linesSpin->value();
 	double newDist = distSpin->value();
 	double newSpeed = speedSpin->value();
 
@@ -2252,16 +2262,18 @@ void MainWindow::onEditEdge()
 				double d = e.distance;
 				double s = e.speedLimit;
 				std::vector<double> ls = e.lineSpeeds;
+				int nl = e.numLines;
 				if ((fn == from && tn == to) || (fn == to && tn == from))
 				{
 					d = newDist;
 					s = newSpeed;
 					ls.clear(); // per-line speeds no longer match the edit
+					nl = newLines;
 				}
 				try
 				{
 					newNet.addConnection(n, e.destination->getName(), d, s,
-										 e.numLines, ls);
+										 nl, ls);
 				}
 				catch (...)
 				{
@@ -2271,7 +2283,7 @@ void MainWindow::onEditEdge()
 	}
 	_network = std::move(newNet);
 
-	_scene->updateEdge(from, to, newDist, newSpeed);
+	_scene->updateEdge(from, to, newDist, newSpeed, newLines);
 
 	refreshLists();
 	logSuccess(QString("Updated edge: %1 <-> %2 (%3 km, %4 km/h)")
