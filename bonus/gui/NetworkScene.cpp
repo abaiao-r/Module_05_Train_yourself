@@ -236,7 +236,7 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 	{
 		double kmh = (i < e.lineSpeeds.size() && e.lineSpeeds[i] > 0.0)
 						 ? e.lineSpeeds[i] : e.speedKmh;
-		QString txt = QString("L%1 %2 km/h").arg(i + 1).arg(kmh, 0, 'f', 0);
+		QString txt = QString("%1 \xC2\xB7 %2 km/h").arg(i + 1).arg(kmh, 0, 'f', 0);
 		QStringList evs;
 		for (const auto &ev : _events)
 			if (ev.line == i && !ev.node2.isEmpty()
@@ -255,27 +255,21 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 			frac = 0.3 + 0.4 * i / (e.numLines - 1);
 		QPointF p = edgePosition(e.from, e.to, frac, i);
 		QRectF b = t->boundingRect();
+		/* Sit beside the lane (outer side), never on top of the strokes
+		   or the station names. */
+		QPointF d = _nodes[e.to].pos - _nodes[e.from].pos;
+		double len = std::hypot(d.x(), d.y());
+		if (len > 1e-6)
+		{
+			QPointF n(-d.y() / len, d.x() / len);
+			double side = (i < (e.numLines - 1) / 2.0) ? -1.0 : 1.0;
+			double off = 6.0 + std::fabs(n.x()) * b.width() / 2.0
+						 + std::fabs(n.y()) * b.height() / 2.0;
+			p += n * (side * off);
+		}
 		t->setPos(p.x() - b.width() / 2, p.y() - b.height() / 2);
 		t->setZValue(3);
 		e.laneLabels.push_back(t);
-
-		/* Numbered badges where the lanes are fully fanned out, near
-		   both stations, so a lane is identifiable anywhere along it. */
-		QPointF d = _nodes[e.to].pos - _nodes[e.from].pos;
-		double len = std::hypot(d.x(), d.y());
-		double bf = len > 1e-6 ? std::min(0.5, 90.0 / len) : 0.5;
-		for (double f : {bf, 1.0 - bf})
-		{
-			auto *bt = addText("", QFont("Segoe UI", 8, QFont::Bold));
-			bt->setHtml(QString("<span style=\"background-color:#ecf0f1;"
-								"color:#2c3e50;\">&nbsp;%1&nbsp;</span>")
-							.arg(i + 1));
-			QPointF bp = edgePosition(e.from, e.to, f, i);
-			QRectF bb = bt->boundingRect();
-			bt->setPos(bp.x() - bb.width() / 2, bp.y() - bb.height() / 2);
-			bt->setZValue(3);
-			e.laneLabels.push_back(bt);
-		}
 	}
 }
 
@@ -429,7 +423,10 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 		n = -n;
 	/* Distance so the label rectangle clears the outer lane (support
 	   function of the rectangle along the normal). */
-	double out = (e.numLines - 1) / 2.0 * LANE_GAP + 6.0
+	double laneLabelW = 0.0;
+	for (auto *t : e.laneLabels)
+		laneLabelW = std::max(laneLabelW, t->boundingRect().width());
+	double out = (e.numLines - 1) / 2.0 * LANE_GAP + 6.0 + laneLabelW
 				 + std::fabs(n.x()) * lb.width() / 2.0
 				 + std::fabs(n.y()) * lb.height() / 2.0;
 	QPointF c = mid + n * out;
