@@ -312,8 +312,8 @@ $(BINDIR)/AdaptiveRerouteTest: $(TESTDIR)/AdaptiveRerouteTest.cpp $(LIB_OBJS)
 #                                   UTILITY                                    #
 # ============================================================================ #
 
-NETWORK	= input/railNetworkPrintFolder/railNetworkDemo1Basic.txt
-TRAINS	= input/trainPrintFolder/trainPrintDemo1Basic.txt
+NETWORK	= input/railNetworkPrintFolder/railNetworkNormal3Events.txt
+TRAINS	= input/trainPrintFolder/trainPrintNormal3Events.txt
 
 run: all
 	./$(BINDIR)/$(NAME) $(NETWORK) $(TRAINS)
