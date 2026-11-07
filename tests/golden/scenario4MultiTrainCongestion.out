@@ -24,14 +24,14 @@ FastD path: Origin -> Fork -> MainA -> Dest
   [08:07:33] -> MainA
   [08:07:36] -> MainA
   [08:07:40] -> MainA
-  [08:08:56] -> Dest
-  [08:09:11] -> Dest
-  [08:09:28] -> Dest
-  [08:09:43] -> Dest
+  [08:09:04] -> Dest
+  [08:09:36] -> Dest
+  [08:10:08] -> Dest
+  [08:10:40] -> Dest
 
 === Results ===
-SlowA: Arrived | Arrival: 08:08:56 | Delay: 0 min
-FastB: Arrived | Arrival: 08:09:11 | Delay: 0 min
-FastC: Arrived | Arrival: 08:09:28 | Delay: 0 min
-FastD: Arrived | Arrival: 08:09:43 | Delay: 0 min
+SlowA: Arrived | Arrival: 08:09:04 | Delay: 0 min
+FastB: Arrived | Arrival: 08:09:36 | Delay: 0 min
+FastC: Arrived | Arrival: 08:10:08 | Delay: 0 min
+FastD: Arrived | Arrival: 08:10:40 | Delay: 0 min
 [?25h

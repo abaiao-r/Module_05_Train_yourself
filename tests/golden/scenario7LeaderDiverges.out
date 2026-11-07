@@ -15,10 +15,10 @@ FastB path: Origin -> Fork -> MainA -> Dest
   [08:03:55] -> Fork
   [08:04:00] -> Fork
   [08:06:25] -> MainA
-  [08:07:12] -> AltA
-  [08:07:49] -> Dest
+  [08:07:17] -> AltA
+  [08:07:57] -> Dest
 
 === Results ===
-SlowA: Arrived | Arrival: 08:07:12 | Delay: 0 min
-FastB: Arrived | Arrival: 08:07:49 | Delay: 0 min
+SlowA: Arrived | Arrival: 08:07:17 | Delay: 0 min
+FastB: Arrived | Arrival: 08:07:57 | Delay: 0 min
 [?25h
