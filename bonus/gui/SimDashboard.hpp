@@ -39,6 +39,7 @@ class SimDashboard : public QTextEdit
 	void showResults(const QStringList &results);
 
 	/** Show aggregated multi-run statistics table. */
+	void showCompare(const QVector<CompareRow> &rows, int runsEach);
 	void showMultiRunStats(const QVector<TrainStatRow> &stats,
 						   int completedRuns);
 

@@ -335,6 +335,7 @@ MainWindow::MainWindow(QWidget *parent)
 	qRegisterMetaType<QVector<TrainSnapshot>>("QVector<TrainSnapshot>");
 	qRegisterMetaType<QVector<TrainStatRow>>("QVector<TrainStatRow>");
 	qRegisterMetaType<QVector<EventInfo>>("QVector<EventInfo>");
+	qRegisterMetaType<QVector<CompareRow>>("QVector<CompareRow>");
 
 	connect(&_simThread, &QThread::finished, _worker, &QObject::deleteLater);
 	connect(_worker, &SimulationWorker::tick,
@@ -347,6 +348,8 @@ MainWindow::MainWindow(QWidget *parent)
 			this, &MainWindow::onRunProgress);
 	connect(_worker, &SimulationWorker::multiRunFinished,
 			this, &MainWindow::onMultiRunFinished);
+	connect(_worker, &SimulationWorker::compareFinished,
+			this, &MainWindow::onCompareFinished);
 	connect(_worker, &SimulationWorker::mutationApplied,
 			this, &MainWindow::onMutationApplied);
 	connect(_worker, &SimulationWorker::mutationRejected,
@@ -705,7 +708,7 @@ void MainWindow::buildToolbar()
 						   ev.getDuration(), ev.getNodeName(),
 						   ev.getNodeName2());
 		_scene->loadFromNetwork(_network);
-		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+		_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
 		refreshLists();
 		logInfo("Multi-line rails off: all rails collapsed to 1 line");
@@ -719,6 +722,7 @@ void MainWindow::buildToolbar()
 	_pathWeightCombo->addItem("Distance");
 	_pathWeightCombo->addItem("Solo");
 	_pathWeightCombo->addItem("Adaptive");
+	_pathWeightCombo->addItem("Compare all");
 	_pathWeightCombo->setCurrentIndex(0);
 	_pathWeightCombo->setToolTip(
 		"Pathfinding weight:\n"
@@ -727,8 +731,10 @@ void MainWindow::buildToolbar()
 		"(ignores traffic & events)\n"
 		"  Adaptive   — ultimate mode: reroutes around live traffic "
 		"AND avoids\n"
-		"               routes prone to costly random events");
-	_pathWeightCombo->setFixedWidth(100);
+		"               routes prone to costly random events\n"
+		"  Compare all — runs all three (Runs each) and shows them "
+		"side by side");
+	_pathWeightCombo->setFixedWidth(115);
 	_pathWeightCombo->setStyleSheet(
 		"QComboBox { background: #1e293b; color: #e0e0e0; "
 		"border: 1px solid #334155; border-radius: 4px; padding: 4px 8px; "
@@ -1431,7 +1437,7 @@ void MainWindow::onLoadNetwork()
 
 		_scene->setLayoutFile(layoutPathFor(path));
 		_scene->loadFromNetwork(_network);
-		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+		_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
 		refreshLists();
 		logSuccess("Loaded network: " + QFileInfo(path).fileName());
@@ -1536,7 +1542,7 @@ void MainWindow::onLoadPresetNetwork(int index)
 
 		_scene->setLayoutFile(layoutPathFor(path));
 		_scene->loadFromNetwork(_network);
-		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+		_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
 		refreshLists();
 		logSuccess("Loaded preset network: "
@@ -1784,7 +1790,7 @@ void MainWindow::onImportAll()
 
 		_scene->setLayoutFile(layoutPathFor(netPath));
 		_scene->loadFromNetwork(_network);
-		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+		_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
 		refreshLists();
 		logSuccess("Imported network: " + QFileInfo(netPath).fileName());
@@ -3369,7 +3375,19 @@ void MainWindow::onRunSimulation()
 	int numRuns = _runsSpinBox->value();
 	bool animate = _animateCheck->isChecked();
 
-	if (numRuns > 1)
+	if (_weightMode == 3)
+	{
+		logInfo(QString("--- Comparing Distance, Solo and Adaptive "
+						"(%1 run%2 each) ---")
+					.arg(numRuns).arg(numRuns == 1 ? "" : "s"));
+		_runBtn->setText(QString("  Run 0/%1...  ").arg(3 * numRuns));
+		QMetaObject::invokeMethod(
+			_worker, "runCompare", Qt::QueuedConnection,
+			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
+			Q_ARG(int, numRuns),
+			Q_ARG(bool, _linesCheck->isChecked()));
+	}
+	else if (numRuns > 1)
 	{
 		logInfo(QString("--- Starting multi-run (%1 runs, animate first: %2) ---")
 					.arg(numRuns).arg(animate ? "yes" : "no"));
@@ -3466,7 +3484,7 @@ void MainWindow::onFitGraph()
 {
 	if (_scene->items().isEmpty())
 		return;
-	_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+	_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
 					 Qt::KeepAspectRatio);
 }
 
@@ -3525,6 +3543,41 @@ void MainWindow::onLiveRailAdded(QString from, QString to,
 	}
 	_scene->addEdge(from, to, distanceKm, speedLimitKmh, numLines);
 	refreshLists();
+}
+
+void MainWindow::onCompareFinished(QVector<CompareRow> rows, int runsEach)
+{
+	_runBtn->setEnabled(true);
+	_runBtn->setText("  Run Simulation  ");
+	_stopBtn->setEnabled(false);
+	_stopBtn->setText("  Stop  ");
+	_simRunning = false;
+
+	if (rows.isEmpty())
+	{
+		logInfo("--- Comparison stopped ---");
+		_dashboard->clear();
+		statusBar()->showMessage("Comparison stopped by user");
+		return;
+	}
+	double total[3] = {0, 0, 0};
+	for (const auto &r : rows)
+		for (int m = 0; m < 3; m++)
+			total[m] += r.avg[m];
+	logSuccess(QString("--- Comparison complete (%1 run%2 each) ---")
+				   .arg(runsEach).arg(runsEach == 1 ? "" : "s"));
+	logInfo(QString("  Total travel time: Distance=%1s  Solo=%2s  Adaptive=%3s")
+				.arg(static_cast<int>(total[0]))
+				.arg(static_cast<int>(total[1]))
+				.arg(static_cast<int>(total[2])));
+	_dashboard->showCompare(rows, runsEach);
+	QList<int> sizes = _hSplit->sizes();
+	if (sizes.size() == 2 && sizes[1] < DASH_STATS_W)
+	{
+		int t = sizes[0] + sizes[1];
+		_hSplit->setSizes({t - DASH_STATS_W, DASH_STATS_W});
+	}
+	statusBar()->showMessage("Comparison finished");
 }
 
 void MainWindow::onMultiRunFinished(QVector<TrainStatRow> stats,

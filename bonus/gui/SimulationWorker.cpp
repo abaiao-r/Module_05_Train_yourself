@@ -387,6 +387,80 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 	}
 }
 
+void SimulationWorker::runCompare(const QString &networkFile,
+								  const QString &trainFile, int numRuns,
+								  bool multiLines)
+{
+	_stopRequested.store(false, std::memory_order_relaxed);
+	try
+	{
+		QDir projectRoot = projectRootDir();
+		QDir::setCurrent(projectRoot.absolutePath());
+
+		std::map<std::string, std::vector<double>> sums[3];
+		const int total = 3 * numRuns;
+		int done = 0;
+		for (int m = 0; m < 3; ++m)
+		{
+			for (int run = 0; run < numRuns; ++run)
+			{
+				if (_stopRequested.load(std::memory_order_relaxed))
+					throw SimulationStopException();
+				TrainFactory::resetIdCounter();
+				auto data = InputHandler::loadData(
+					networkFile.toStdString(), trainFile.toStdString(),
+					LinesOptions{multiLines});
+				Simulation sim(std::move(data.network),
+							   std::move(data.trains),
+							   std::move(data.events),
+							   std::make_unique<DijkstraPathfinding>(),
+							   intToWeightMode(m), data.lines);
+				sim.setQuiet(true);
+				sim.setAnimCallback(
+					[this](double, const std::vector<TrainState> &) {
+						if (_stopRequested.load(std::memory_order_relaxed))
+							throw SimulationStopException();
+					});
+				sim.run();
+				std::map<std::string, int> seen;
+				for (const auto &r : sim.getResults())
+				{
+					int n = seen[r.name]++;
+					std::string key = n ? r.name + " #" + std::to_string(n + 1)
+										: r.name;
+					sums[m][key].push_back(r.actualTime);
+				}
+				emit runProgress(++done, total);
+			}
+		}
+
+		QVector<CompareRow> rows;
+		for (const auto &pair : sums[0])
+		{
+			CompareRow row;
+			row.name = QString::fromStdString(pair.first);
+			for (int m = 0; m < 3; ++m)
+			{
+				double t = 0.0;
+				const auto &v = sums[m][pair.first];
+				for (double x : v)
+					t += x;
+				row.avg[m] = v.empty() ? 0.0 : t / static_cast<double>(v.size());
+			}
+			rows.push_back(row);
+		}
+		emit compareFinished(rows, numRuns);
+	}
+	catch (const SimulationStopException &)
+	{
+		emit compareFinished(QVector<CompareRow>(), 0);
+	}
+	catch (const std::exception &e)
+	{
+		emit error(QString::fromStdString(e.what()));
+	}
+}
+
 void SimulationWorker::runMulti(const QString &networkFile,
 								const QString &trainFile,
 								int weightMode,

@@ -90,6 +90,7 @@ class MainWindow : public QMainWindow
 	void onSpeedChanged(int value);
 	void onFitGraph();
 	void onRunProgress(int currentRun, int totalRuns);
+	void onCompareFinished(QVector<CompareRow> rows, int runsEach);
 	void onMultiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
 	void onMutationApplied(QString description);
 	void onMutationRejected(QString reason);
@@ -122,7 +123,7 @@ class MainWindow : public QMainWindow
 	std::vector<Event> _eventDefs;
 	QString _networkFilePath;
 	QString _trainFilePath;
-	int _weightMode;  // 0 = Distance, 1 = Solo, 2 = Adaptive
+	int _weightMode;  // 0 = Distance, 1 = Solo, 2 = Adaptive, 3 = compare all
 	bool _simRunning;
 	double _lastSimTime = 0.0;  // seconds from midnight, updated on each tick
 

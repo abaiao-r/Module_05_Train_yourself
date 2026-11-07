@@ -103,6 +103,15 @@ struct TrainStatRow
 
 Q_DECLARE_METATYPE(QVector<TrainStatRow>)
 
+/** Average travel time of one train under Distance / Solo / Adaptive. */
+struct CompareRow
+{
+	QString name;
+	double avg[3];
+};
+
+Q_DECLARE_METATYPE(QVector<CompareRow>)
+
 /**
  * Runs a simulation in a background thread, emitting per-tick snapshots
  * via a Qt signal so the GUI can update without blocking.
@@ -160,7 +169,15 @@ class SimulationWorker : public QObject
 				  bool animateFirst,
 				  bool multiLines = false);
 
+	/** Run every path mode numRuns times each (quietly) and emit
+	    compareFinished() with the average travel time per train. */
+	void runCompare(const QString &networkFile,
+					const QString &trainFile,
+					int numRuns,
+					bool multiLines = false);
+
   signals:
+	void compareFinished(QVector<CompareRow> rows, int runsEach);
 	void tick(double simTime, QVector<TrainSnapshot> snapshots);
 	void finished(QStringList results);
 	void error(const QString &message);

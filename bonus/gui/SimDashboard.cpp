@@ -13,6 +13,7 @@
 
 #include "SimDashboard.hpp"
 #include <QRegularExpression>
+#include <algorithm>
 #include <cmath>
 
 static const char *C_PANEL  = "#0f172a"; /* panel background           */
@@ -355,6 +356,58 @@ void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
 				 .arg(C_GREEN, fmtTime(s.minActual), C_RED,
 					  fmtTime(s.maxActual), delayCol, fmtTime(s.avgDelay));
 	}
+	/* Sum over all trains (min/max are not summable per train, so omitted). */
+	double tEst = 0, tAvg = 0, tDelay = 0;
+	for (const auto &s : stats)
+	{
+		tEst += s.estimated;
+		tAvg += s.avgActual;
+		tDelay += s.avgDelay;
+	}
+	t += QString("<tr bgcolor='%1'><td><b>TOTAL</b></td>"
+				 "<td style='color:%2;'><b>%3</b></td>"
+				 "<td style='color:%4;'><b>%5</b></td>"
+				 "<td></td><td></td>"
+				 "<td style='color:%2;'><b>%6</b></td></tr>")
+			 .arg(C_PANEL, C_DIM, fmtTime(tEst), C_YELLOW, fmtTime(tAvg),
+				  fmtTime(tDelay));
+	html += t + "</table></body>";
+	setHtml(html);
+}
+
+void SimDashboard::showCompare(const QVector<CompareRow> &rows, int runsEach)
+{
+	QString html = QString("<body style='background-color:%1;'>").arg(C_PANEL);
+	html += heading(QString::fromUtf8("Mode comparison \xE2\x9C\x93"),
+					QString("%1 run%2 each").arg(runsEach)
+						.arg(runsEach == 1 ? "" : "s"));
+	QString t = QString("<table width='100%' cellspacing='0' cellpadding='5'>"
+						"<tr>");
+	for (const char *h : {"Train", "Distance", "Solo", "Adaptive"})
+		t += QString("<td><b style='color:%1;'>%2</b></td>").arg(C_CYAN, h);
+	t += "</tr>";
+	auto row = [&](const QString &label, const double v[3], bool bold) {
+		double mn = std::min({v[0], v[1], v[2]});
+		QString r = QString("<tr bgcolor='%1'><td>%2%3%4</td>")
+						.arg(bold ? C_PANEL : C_CARD, bold ? "<b>" : "",
+							 label.toHtmlEscaped(), bold ? "</b>" : "");
+		for (int m = 0; m < 3; m++)
+		{
+			bool best = v[m] <= mn + 0.5;
+			r += QString("<td style='color:%1;'>%2%3</td>")
+					 .arg(best ? C_GREEN : C_DIM, fmtTime(v[m]),
+						  best ? QString::fromUtf8(" \xE2\x98\x85") : QString());
+		}
+		t += r + "</tr>";
+	};
+	double total[3] = {0, 0, 0};
+	for (const auto &r : rows)
+	{
+		row(r.name, r.avg, false);
+		for (int m = 0; m < 3; m++)
+			total[m] += r.avg[m];
+	}
+	row("TOTAL", total, true);
 	html += t + "</table></body>";
 	setHtml(html);
 }
