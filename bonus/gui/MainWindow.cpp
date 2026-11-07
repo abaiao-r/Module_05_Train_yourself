@@ -33,6 +33,8 @@
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QShortcut>
+#include <QStyledItemDelegate>
+#include <QPainter>
 #include <QScrollArea>
 #include <QSpinBox>
 #include <algorithm>
@@ -158,6 +160,7 @@ QPushButton:pressed { background: #4c1d95; }
 QPushButton:disabled { background: #374151; color: #6b7280; }
 QPushButton[danger="true"] { background: #dc2626; }
 QPushButton[danger="true"]:hover { background: #ef4444; }
+QPushButton[danger="true"]:disabled { background: #374151; color: #6b7280; }
 QListWidget { background: #1e293b; color: #e0e0e0; border: 1px solid #334155;
               border-radius: 6px; padding: 4px; font-size: 12px;
               selection-background-color: #533483; outline: none; }
@@ -173,7 +176,7 @@ QGroupBox { color: #e0e0e0; font-weight: bold; border: 1px solid #334155;
 QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 6px; }
 QTabWidget::pane { border: 1px solid #334155; border-radius: 0 0 6px 6px;
                    background: #1e293b; }
-QTabBar::tab { background: #1e293b; color: #94a3b8; padding: 8px 16px;
+QTabBar::tab { background: #1e293b; color: #94a3b8; padding: 8px 10px;
                border-top-left-radius: 6px; border-top-right-radius: 6px;
                font-weight: bold; font-size: 11px; min-width: 60px; }
 QTabBar::tab:selected { background: #533483; color: white; }
@@ -205,6 +208,93 @@ QScrollBar::handle:vertical:hover { background: #533483; }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QGraphicsView { border: 1px solid #334155; border-radius: 6px; }
 )";
+
+/* Paints list rows as small cards (title, muted subtitle, chips) from the
+   roles set by decorateList(); the item text is left untouched because the
+   edit/delete handlers still parse it. */
+namespace
+{
+enum CardRole { TitleRole = Qt::UserRole + 10, SubRole, ChipsRole };
+
+class CardDelegate : public QStyledItemDelegate
+{
+public:
+	using QStyledItemDelegate::QStyledItemDelegate;
+
+	QSize sizeHint(const QStyleOptionViewItem &,
+				   const QModelIndex &) const override
+	{
+		return QSize(100, 50);
+	}
+
+	void paint(QPainter *p, const QStyleOptionViewItem &opt,
+			   const QModelIndex &idx) const override
+	{
+		if (!idx.data(TitleRole).isValid())
+		{
+			QStyledItemDelegate::paint(p, opt, idx);
+			return;
+		}
+		p->save();
+		p->setRenderHint(QPainter::Antialiasing);
+		QRectF r = QRectF(opt.rect).adjusted(2, 3, -2, -3);
+		bool sel = opt.state & QStyle::State_Selected;
+		bool hov = opt.state & QStyle::State_MouseOver;
+		p->setPen(QPen(sel ? QColor("#a78bfa") : QColor("#334155"), 1));
+		p->setBrush(sel ? QColor("#533483")
+					   : hov ? QColor("#2b3a52") : QColor("#172033"));
+		p->drawRoundedRect(r, 6, 6);
+
+		/* Chips on the right, then title/subtitle in the space left. */
+		QFont chipFont = opt.font;
+		chipFont.setPointSizeF(8.5);
+		chipFont.setBold(true);
+		QFontMetrics cfm(chipFont);
+		double x = r.right() - 8;
+		const QStringList chips = idx.data(ChipsRole).toStringList();
+		for (int i = chips.size() - 1; i >= 0; --i)
+		{
+			double w = cfm.horizontalAdvance(chips[i]) + 14;
+			QRectF c(x - w, r.center().y() - 10, w, 20);
+			p->setPen(Qt::NoPen);
+			p->setBrush(QColor("#0f766e"));
+			p->drawRoundedRect(c, 10, 10);
+			p->setFont(chipFont);
+			p->setPen(Qt::white);
+			p->drawText(c, Qt::AlignCenter, chips[i]);
+			x -= w + 5;
+		}
+		QRectF tr(r.left() + 10, r.top() + 5, x - r.left() - 14, 20);
+		QFont tf = opt.font;
+		tf.setBold(true);
+		tf.setPointSizeF(11);
+		p->setFont(tf);
+		p->setPen(Qt::white);
+		p->drawText(tr, Qt::AlignVCenter | Qt::AlignLeft,
+					QFontMetrics(tf).elidedText(
+						idx.data(TitleRole).toString(), Qt::ElideRight,
+						static_cast<int>(tr.width())));
+		QFont sf = opt.font;
+		sf.setPointSizeF(9);
+		p->setFont(sf);
+		p->setPen(sel ? QColor("#e9d5ff") : QColor("#94a3b8"));
+		QRectF sr(r.left() + 10, r.top() + 25, r.width() - 20, 18);
+		p->drawText(sr, Qt::AlignVCenter | Qt::AlignLeft,
+					QFontMetrics(sf).elidedText(
+						idx.data(SubRole).toString(), Qt::ElideRight,
+						static_cast<int>(sr.width())));
+		p->restore();
+	}
+};
+
+void setCard(QListWidgetItem *it, const QString &title, const QString &sub,
+			 const QStringList &chips = {})
+{
+	it->setData(TitleRole, title);
+	it->setData(SubRole, sub);
+	it->setData(ChipsRole, chips);
+}
+} // namespace
 
 static QString presetHint(const QString &name);
 
@@ -462,13 +552,33 @@ void MainWindow::buildToolbar()
 	tb->setMovable(false);
 	tb->setIconSize(QSize(16, 16));
 
+	/* Controls are grouped under small captions: RUN, OPTIONS, VIEW. */
+	auto makeGroup = [](const QString &title, QHBoxLayout *&row) {
+		auto *w = new QWidget;
+		auto *v = new QVBoxLayout(w);
+		v->setContentsMargins(12, 3, 12, 3);
+		v->setSpacing(3);
+		auto *cap = new QLabel(title);
+		cap->setStyleSheet("QLabel { color: #64748b; font-size: 9px; "
+						   "font-weight: bold; letter-spacing: 2px; }");
+		row = new QHBoxLayout;
+		row->setSpacing(8);
+		v->addWidget(cap);
+		v->addLayout(row);
+		return w;
+	};
+	QHBoxLayout *runRow = nullptr, *optRow = nullptr, *viewRow = nullptr;
+	QWidget *runGroup = makeGroup("RUN", runRow);
+	QWidget *optGroup = makeGroup("OPTIONS", optRow);
+	QWidget *viewGroup = makeGroup("VIEW", viewRow);
+
 	_runBtn = new QPushButton("  Run Simulation  ");
 	_runBtn->setStyleSheet(
 		"QPushButton { background: #059669; font-size: 13px; padding: 8px 20px; }"
 		"QPushButton:hover { background: #10b981; }"
 		"QPushButton:disabled { background: #374151; color: #6b7280; }");
 	connect(_runBtn, &QPushButton::clicked, this, &MainWindow::onRunSimulation);
-	tb->addWidget(_runBtn);
+	runRow->addWidget(_runBtn);
 
 	_stopBtn = new QPushButton("  Stop  ");
 	_stopBtn->setStyleSheet(
@@ -477,13 +587,11 @@ void MainWindow::buildToolbar()
 		"QPushButton:disabled { background: #374151; color: #6b7280; }");
 	_stopBtn->setEnabled(false);
 	connect(_stopBtn, &QPushButton::clicked, this, &MainWindow::onStopSimulation);
-	tb->addWidget(_stopBtn);
-
-	tb->addSeparator();
+	runRow->addWidget(_stopBtn);
 
 	auto *runsCaption = new QLabel("  Runs: ");
 	runsCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
-	tb->addWidget(runsCaption);
+	optRow->addWidget(runsCaption);
 
 	_runsSpinBox = new QSpinBox;
 	_runsSpinBox->setRange(1, 100000);
@@ -495,7 +603,7 @@ void MainWindow::buildToolbar()
 		"border: 1px solid #334155; border-radius: 4px; padding: 4px; "
 		"font-size: 12px; }"
 		"QSpinBox:focus { border-color: #533483; }");
-	tb->addWidget(_runsSpinBox);
+	optRow->addWidget(_runsSpinBox);
 
 	_animateCheck = new QCheckBox("Animate");
 	_animateCheck->setChecked(true);
@@ -509,7 +617,7 @@ void MainWindow::buildToolbar()
 		"QCheckBox::indicator:unchecked { background: #1e293b; }"
 		"QCheckBox::indicator:checked { background: #059669; "
 		"border-color: #059669; }");
-	tb->addWidget(_animateCheck);
+	optRow->addWidget(_animateCheck);
 
 	_linesCheck = new QCheckBox("Multi-line rails");
 	_linesCheck->setChecked(false);
@@ -517,7 +625,7 @@ void MainWindow::buildToolbar()
 		"Bonus: rails may hold several lines; trains never share a line\n"
 		"in opposite directions (same as the CLI --lines flag).");
 	_linesCheck->setStyleSheet(_animateCheck->styleSheet());
-	tb->addWidget(_linesCheck);
+	optRow->addWidget(_linesCheck);
 	connect(_linesCheck, &QCheckBox::toggled, this, [this](bool on) {
 		if (on)
 			return;
@@ -562,11 +670,9 @@ void MainWindow::buildToolbar()
 		logInfo("Multi-line rails off: all rails collapsed to 1 line");
 	});
 
-	tb->addSeparator();
-
 	auto *pathCaption = new QLabel("  Path: ");
 	pathCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
-	tb->addWidget(pathCaption);
+	optRow->addWidget(pathCaption);
 
 	_pathWeightCombo = new QComboBox;
 	_pathWeightCombo->addItem("Distance");
@@ -593,13 +699,11 @@ void MainWindow::buildToolbar()
 		"selection-background-color: #533483; border: 1px solid #334155; }");
 	connect(_pathWeightCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
 			this, [this](int idx) { _weightMode = idx; });
-	tb->addWidget(_pathWeightCombo);
-
-	tb->addSeparator();
+	optRow->addWidget(_pathWeightCombo);
 
 	auto *spdCaption = new QLabel("  Speed: ");
 	spdCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
-	tb->addWidget(spdCaption);
+	viewRow->addWidget(spdCaption);
 
 	_speedSlider = new QSlider(Qt::Horizontal);
 	_speedSlider->setRange(0, 20);   // logarithmic 0.1× … 10×
@@ -617,22 +721,25 @@ void MainWindow::buildToolbar()
 		"  background: #0891b2; border-radius: 3px; }");
 	connect(_speedSlider, &QSlider::valueChanged,
 			this, &MainWindow::onSpeedChanged);
-	tb->addWidget(_speedSlider);
+	viewRow->addWidget(_speedSlider);
 
 	_speedLabel = new QLabel(" 1.0×");
 	_speedLabel->setFixedWidth(48);
 	_speedLabel->setStyleSheet(
 		"QLabel { color: #22d3ee; font-weight: bold; font-size: 12px; }");
-	tb->addWidget(_speedLabel);
-
-	tb->addSeparator();
+	viewRow->addWidget(_speedLabel);
 
 	auto *fitBtn = new QPushButton("  Fit Graph  ");
 	fitBtn->setStyleSheet(
 		"QPushButton { background: #3b82f6; font-size: 13px; padding: 8px 16px; }"
 		"QPushButton:hover { background: #60a5fa; }");
 	connect(fitBtn, &QPushButton::clicked, this, &MainWindow::onFitGraph);
-	tb->addWidget(fitBtn);
+	viewRow->addWidget(fitBtn);
+	tb->addWidget(runGroup);
+	tb->addSeparator();
+	tb->addWidget(optGroup);
+	tb->addSeparator();
+	tb->addWidget(viewGroup);
 }
 
 void MainWindow::buildCentralWidget()
@@ -711,6 +818,7 @@ void MainWindow::buildSidebar()
 	mainLay->addWidget(presetGroup);
 
 	auto *tabs = new QTabWidget;
+	tabs->setUsesScrollButtons(false);
 
 	auto *nodeTab = new QWidget;
 	auto *nodeLay = new QVBoxLayout(nodeTab);
@@ -938,6 +1046,67 @@ void MainWindow::updateRunState()
 	_runBtn->setToolTip(why.isEmpty() ? "Run the simulation" : why);
 }
 
+
+/* Turn the plain "name ..." item texts into card roles. */
+static void decorateCards(QListWidget *nodes, QListWidget *edges,
+						  QListWidget *trains, QListWidget *events,
+						  const RailNetwork &net)
+{
+	for (auto *l : {nodes, edges, trains, events})
+		if (!dynamic_cast<CardDelegate *>(l->itemDelegate()))
+			l->setItemDelegate(new CardDelegate(l));
+
+	for (int i = 0; i < nodes->count(); i++)
+	{
+		auto *it = nodes->item(i);
+		size_t deg = net.getNeighbours(it->text().toStdString()).size();
+		setCard(it, it->text(), "Station",
+				{QString("%1 rail%2").arg(deg).arg(deg == 1 ? "" : "s")});
+	}
+	static const QRegularExpression edgeRe(
+		R"(^(.+) <-> (.+?)  \((.+) km, (.+) km/h(?:, (\d+) lines)?\)$)");
+	for (int i = 0; i < edges->count(); i++)
+	{
+		auto *it = edges->item(i);
+		auto m = edgeRe.match(it->text());
+		if (!m.hasMatch())
+			continue;
+		QStringList chips;
+		QString sub = m.captured(3) + " km"
+					  + QString::fromUtf8("  \xC2\xB7  ") + m.captured(4)
+					  + " km/h";
+		if (!m.captured(5).isEmpty())
+			chips << m.captured(5) + " lines";
+		setCard(it, m.captured(1) + QString::fromUtf8("  \xE2\x86\x94  ")
+						+ m.captured(2),
+				sub, chips);
+	}
+	static const QRegularExpression trainRe(
+		R"(^\[\d+\] (.+?) : (.+?) -> (.+?) @ (\d+)h(\d+).*$)");
+	for (int i = 0; i < trains->count(); i++)
+	{
+		auto *it = trains->item(i);
+		auto m = trainRe.match(it->text());
+		if (!m.hasMatch())
+			continue;
+		setCard(it, m.captured(1),
+				m.captured(2) + QString::fromUtf8("  \xE2\x86\x92  ")
+					+ m.captured(3),
+				{QString("%1:%2").arg(m.captured(4), m.captured(5))});
+	}
+	static const QRegularExpression evRe(
+		R"(^\[\d+\] (.+?) \(p=([\d.]+), ([\d.]+)min\) at (.+)$)");
+	for (int i = 0; i < events->count(); i++)
+	{
+		auto *it = events->item(i);
+		auto m = evRe.match(it->text());
+		if (!m.hasMatch())
+			continue;
+		setCard(it, m.captured(1), m.captured(4),
+				{"p=" + m.captured(2), m.captured(3) + " min"});
+	}
+}
+
 void MainWindow::refreshLists()
 {
 	_nodeList->clear();
@@ -1001,6 +1170,7 @@ void MainWindow::refreshLists()
 								   ev.getNodeName()))));
 	}
 
+	decorateCards(_nodeList, _edgeList, _trainList, _eventList, _network);
 	updateRunState();
 	updateEditButtons();
 	statusBar()->showMessage(
