@@ -207,10 +207,14 @@ void InputHandler::parseNetworkFile(const std::string &filepath,
 					throw ParseException("Invalid event line");
 				/* Optional second node → rail segment event */
 				iss >> nodeName2;
+				int evLine = -1;
+				std::string lineTok;
+				if (lines.enabled && !nodeName2.empty() && (iss >> lineTok))
+					evLine = parseLineCount(lineTok) - 1;
 				requireEndOfLine(iss);
 				events.emplace_back(name, probability,
 									parseDuration(durationStr), nodeName,
-									nodeName2);
+									nodeName2, evLine);
 			}
 			else if (keyword == "Rail")
 			{
@@ -375,6 +379,21 @@ void InputHandler::validateData(const std::string &networkFile,
 					+ "' references nonexistent rail '"
 					+ ev.getNodeName() + " - " + ev.getNodeName2()
 					+ "'");
+			if (ev.isLineEvent())
+			{
+				int n = 1;
+				for (const auto &e : data.network.getNeighbours(
+						 ev.getNodeName()))
+					if (e.destination->getName() == ev.getNodeName2())
+						n = e.numLines;
+				if (ev.getLine() >= n)
+					throw ParseException(
+						networkFile + ": Event '" + ev.getName()
+						+ "' references line "
+						+ std::to_string(ev.getLine() + 1) + " but rail '"
+						+ ev.getNodeName() + " - " + ev.getNodeName2()
+						+ "' has " + std::to_string(n));
+			}
 		}
 	}
 

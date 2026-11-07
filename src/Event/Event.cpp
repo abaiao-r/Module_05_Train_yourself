@@ -15,10 +15,15 @@
 #include <cmath>
 
 Event::Event(const std::string &name, double probability, double duration,
-			 const std::string &nodeName, const std::string &nodeName2)
+			 const std::string &nodeName, const std::string &nodeName2,
+			 int line)
 	: _name(name), _probability(probability), _duration(duration),
-	  _nodeName(nodeName), _nodeName2(nodeName2)
+	  _nodeName(nodeName), _nodeName2(nodeName2), _line(line)
 {
+	if (line < -1)
+		throw std::invalid_argument("Event line cannot be negative");
+	if (line >= 0 && nodeName2.empty())
+		throw std::invalid_argument("A line event needs a rail");
 	if (name.empty())
 		throw std::invalid_argument("Event name cannot be empty");
 	if (!std::isfinite(probability) || !std::isfinite(duration))
@@ -34,7 +39,7 @@ Event::Event(const std::string &name, double probability, double duration,
 Event::Event(const Event &src)
 	: _name(src._name), _probability(src._probability),
 	  _duration(src._duration), _nodeName(src._nodeName),
-	  _nodeName2(src._nodeName2)
+	  _nodeName2(src._nodeName2), _line(src._line)
 {
 }
 
@@ -47,6 +52,7 @@ Event &Event::operator=(const Event &src)
 		_duration = src._duration;
 		_nodeName = src._nodeName;
 		_nodeName2 = src._nodeName2;
+		_line = src._line;
 	}
 	return *this;
 }
@@ -67,3 +73,5 @@ double Event::getDuration() const { return _duration; }
 const std::string &Event::getNodeName() const { return _nodeName; }
 const std::string &Event::getNodeName2() const { return _nodeName2; }
 bool Event::isRailEvent() const { return !_nodeName2.empty(); }
+int Event::getLine() const { return _line; }
+bool Event::isLineEvent() const { return _line >= 0; }

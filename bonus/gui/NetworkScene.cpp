@@ -678,7 +678,10 @@ void NetworkScene::drawEventMarkers()
 			{
 				if ((e.from == ev.node1 && e.to == ev.node2)
 					|| (e.from == ev.node2 && e.to == ev.node1))
-					edgeNames[e.from + "->" + e.to] << ev.name;
+					edgeNames[e.from + "->" + e.to]
+						<< (ev.line >= 0
+								? QString("%1 (L%2)").arg(ev.name).arg(ev.line + 1)
+								: ev.name);
 			}
 		}
 		else if (_nodes.contains(ev.node1))
@@ -725,8 +728,11 @@ void NetworkScene::flashEvent(const QString &eventName,
 			{
 				QVector<QGraphicsPathItem *> lanes = e.extraLanes;
 				lanes.push_front(e.line);
-				for (auto *line : lanes)
+				for (int li = 0; li < lanes.size(); li++)
 				{
+					if (found->line >= 0 && li != found->line)
+						continue;
+					auto *line = lanes[li];
 					QPen original = line->pen();
 					line->setPen(QPen(QColor(231, 76, 60), 4.5,
 									  Qt::SolidLine, Qt::RoundCap));

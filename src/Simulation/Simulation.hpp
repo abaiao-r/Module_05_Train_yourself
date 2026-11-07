@@ -56,6 +56,7 @@ struct AddEventCommand
 	double durationSeconds;
 	std::string node1;
 	std::string node2;  // empty → station event
+	int line = -1;      // bonus: 0-based line, -1 = every line
 };
 
 struct AddTrainCommand

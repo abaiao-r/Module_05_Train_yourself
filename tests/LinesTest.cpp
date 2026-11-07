@@ -1,5 +1,6 @@
 /* Bonus: multiple lines per edge, head-on exclusion (--lines). */
 
+#include <fstream>
 #include <map>
 #include <memory>
 #include <string>
@@ -7,6 +8,7 @@
 #include <vector>
 
 #include "DijkstraPathfinding.hpp"
+#include "InputHandler.hpp"
 #include "Simulation.hpp"
 #include "TrainFactory.hpp"
 #include "RailNetwork.hpp"
@@ -26,7 +28,8 @@ static Outcome runLines(RailNetwork net,
 						const std::vector<std::tuple<std::string, std::string,
 													 std::string, double>> &spec,
 						bool enabled = true,
-						PathWeightMode mode = PathWeightMode::Distance)
+						PathWeightMode mode = PathWeightMode::Distance,
+						std::vector<Event> events = {})
 {
 	TrainFactory::resetIdCounter();
 	std::vector<std::unique_ptr<Train>> trains;
@@ -36,7 +39,7 @@ static Outcome runLines(RailNetwork net,
 			std::get<2>(s), std::get<3>(s), 0.0));
 	LinesOptions lo;
 	lo.enabled = enabled;
-	Simulation sim(std::move(net), std::move(trains), {},
+	Simulation sim(std::move(net), std::move(trains), std::move(events),
 				   std::make_unique<DijkstraPathfinding>(),
 				   mode, lo);
 	sim.setQuiet(true);
@@ -352,6 +355,73 @@ int main()
 							  3.0, msg);
 				  ASSERT_TRUE(det.actual["TB"] + 30.0 < stay.actual["TB"],
 							  msg);
+				  return true;
+			  });
+
+	suite.run("line event delays only the train riding that line",
+			  [](std::string &msg) {
+				  std::vector<std::tuple<std::string, std::string,
+										 std::string, double>> spec
+					  = {{"T1", "A", "B", 100.0}, {"T2", "A", "B", 100.0}};
+				  auto base = runLines(twoNodes(2), spec);
+				  auto ev = runLines(twoNodes(2), spec, true,
+									 PathWeightMode::Distance,
+									 {Event("Snow", 1.0, 600.0, "A", "B", 1)});
+				  ASSERT_NEAR(ev.actual["T1"], base.actual["T1"], 1.0, msg);
+				  ASSERT_NEAR(ev.actual["T2"], base.actual["T2"] + 600.0,
+							  1.0, msg);
+				  auto all = runLines(twoNodes(2), spec, true,
+									  PathWeightMode::Distance,
+									  {Event("Snow", 1.0, 600.0, "A", "B")});
+				  ASSERT_NEAR(all.actual["T1"], base.actual["T1"] + 600.0,
+							  1.0, msg);
+				  return true;
+			  });
+
+	suite.run("event line: parsed with --lines, rejected beyond the count",
+			  [](std::string &msg) {
+				  const std::string f = "/tmp/lines_event_test.txt";
+				  auto write = [&](const std::string &ev) {
+					  std::ofstream o(f);
+					  o << "Node A\nNode B\nRail A B 10 100 2\n" << ev << "\n";
+				  };
+				  std::vector<Event> evs;
+				  RailNetwork net;
+				  LinesOptions lo;
+				  lo.enabled = true;
+				  write("Event Snow 0.5 10m A B 2");
+				  InputHandler::parseNetworkFile(f, net, evs, lo);
+				  ASSERT_EQ(evs.size(), static_cast<size_t>(1), msg);
+				  ASSERT_EQ(evs[0].getLine(), 1, msg);
+				  write("Event Snow 0.5 10m A B 3");
+				  std::vector<Event> evs2;
+				  RailNetwork net2;
+				  InputHandler::parseNetworkFile(f, net2, evs2, lo);
+				  bool threw = false;
+				  try
+				  {
+					  const std::string tf = "/tmp/lines_event_trains.txt";
+					  std::ofstream(tf) << "T 80 0.05 300 50 A B 08h00 00h00\n";
+					  InputHandler::loadData(f, tf, lo);
+				  }
+				  catch (const InputHandler::ParseException &)
+				  {
+					  threw = true;
+				  }
+				  ASSERT_TRUE(threw, msg);
+				  write("Event Snow 0.5 10m A B 2");
+				  bool legacy = false;
+				  try
+				  {
+					  std::vector<Event> e3;
+					  RailNetwork n3;
+					  InputHandler::parseNetworkFile(f, n3, e3, LinesOptions{});
+				  }
+				  catch (const InputHandler::ParseException &)
+				  {
+					  legacy = true;
+				  }
+				  ASSERT_TRUE(legacy, msg);
 				  return true;
 			  });
 
