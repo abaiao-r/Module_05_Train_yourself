@@ -291,7 +291,12 @@ class Simulation
 		simulation and the virtual ETA replay so they cannot drift. */
 	void physicsStep(const std::vector<std::shared_ptr<Node>> &path,
 					 size_t segIdx, double &pos, double &speed,
-					 double accel, double decel) const;
+					 double accel, double decel,
+					 double speedOverride_ms = -1.0) const;
+	/** Lines mode: speed (m/s) of `line` on from->to, or -1 when the edge
+		has no per-line speeds. line < 0 gives the fastest line. */
+	double lineSpeedMs(const std::string &from, const std::string &to,
+					   int line) const;
 	/** Exact kinematic ETA to cover a remaining distance from a given
 		current speed under constant acceleration, capped at the
 		segment's speed limit - deterministic, not an approximation. */
@@ -309,6 +314,7 @@ class Simulation
 		double accel;
 		double decel;
 		double stopDur;
+		int line;      // line being ridden, -1 if none/unknown
 		double entryT; // relative to the replay start (may be negative)
 		bool done;
 	};

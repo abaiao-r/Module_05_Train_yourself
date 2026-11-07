@@ -373,6 +373,32 @@ int main()
 				  return true;
 			  });
 
+	suite.run("lines on: per-line speeds are stored per edge direction",
+			  [&](std::string &msg) {
+				  auto d = loadNet("Rail A B 10 100 2 120 60\n", on);
+				  const auto &e = d.network.getNeighbours("B")[0];
+				  ASSERT_NEAR(120.0, e.lineSpeed(0), 1e-9, msg);
+				  ASSERT_NEAR(60.0, e.lineSpeed(1), 1e-9, msg);
+				  auto n = loadNet("Rail A B 10 100 2\n", on);
+				  ASSERT_NEAR(100.0, n.network.getNeighbours("A")[0].lineSpeed(1),
+							  1e-9, msg);
+				  return true;
+			  });
+
+	suite.run("lines on: wrong number or bad per-line speeds are rejected",
+			  [&](std::string &msg) {
+				  ASSERT_TRUE(errorOf("Rail A B 10 100 2 120\n", on)
+								  .find("Expected 2 line speeds, got 1")
+								  != std::string::npos, msg);
+				  ASSERT_TRUE(errorOf("Rail A B 10 100 2 120 0\n", on)
+								  .find("Invalid line speed '0'")
+								  != std::string::npos, msg);
+				  ASSERT_TRUE(errorOf("Rail A B 10 100 2 120 abc\n", on)
+								  .find("Invalid line speed 'abc'")
+								  != std::string::npos, msg);
+				  return true;
+			  });
+
 	suite.run("lines on: Rail without count has exactly 1 line",
 			  [&](std::string &msg) {
 				  auto d = loadNet("Rail A B 10 100\n", on);
@@ -396,10 +422,10 @@ int main()
 				  return true;
 			  });
 
-	suite.run("lines on: extra token after count is still rejected",
+	suite.run("lines on: more speeds than lines is rejected",
 			  [&](std::string &msg) {
-				  std::string err = errorOf("Rail A B 10 100 2 junk\n", on);
-				  ASSERT_TRUE(err.find("Unexpected trailing content")
+				  std::string err = errorOf("Rail A B 10 100 2 80 90 70\n", on);
+				  ASSERT_TRUE(err.find("Expected 2 line speeds, got 3")
 							  != std::string::npos, msg);
 				  return true;
 			  });

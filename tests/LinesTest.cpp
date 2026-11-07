@@ -69,6 +69,16 @@ static Outcome runLines(RailNetwork net,
 	return out;
 }
 
+static RailNetwork twoNodesSpeeds(const std::vector<double> &speeds)
+{
+	RailNetwork net;
+	net.addNode("A");
+	net.addNode("B");
+	net.addConnection("A", "B", 10.0, 100.0, static_cast<int>(speeds.size()),
+					  speeds);
+	return net;
+}
+
 static RailNetwork twoNodes(int lines, double km = 10.0)
 {
 	RailNetwork net;
@@ -301,6 +311,19 @@ int main()
 				  };
 				  ASSERT_EQ(3, count(true), msg);
 				  ASSERT_EQ(1, count(false), msg);
+				  return true;
+			  });
+
+	suite.run("per-line speed: first train takes the fast line, second the slow",
+			  [](std::string &msg) {
+				  auto o = runLines(twoNodesSpeeds({50.0, 100.0}),
+									{{"T1", "A", "B", 100.0},
+									 {"T2", "A", "B", 100.0}});
+				  auto ref = runLines(twoNodes(1), {{"R", "A", "B", 100.0}});
+				  ASSERT_EQ(1, o.linesSeen["T1"].front(), msg);
+				  ASSERT_EQ(0, o.linesSeen["T2"].front(), msg);
+				  ASSERT_NEAR(ref.actual["R"], o.actual["T1"], 1.5, msg);
+				  ASSERT_TRUE(o.actual["T2"] > 1.6 * o.actual["T1"], msg);
 				  return true;
 			  });
 

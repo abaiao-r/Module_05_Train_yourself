@@ -187,6 +187,22 @@ int main()
 				  return true;
 			  });
 
+	suite.run("addConnection validates per-line speeds",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("A");
+				  net.addNode("B");
+				  ASSERT_THROWS(net.addConnection("A", "B", 1.0, 1.0, 2, {5.0}),
+								std::invalid_argument, msg);
+				  ASSERT_THROWS(net.addConnection("A", "B", 1.0, 1.0, 2,
+												   {5.0, -1.0}),
+								std::invalid_argument, msg);
+				  net.addConnection("A", "B", 1.0, 1.0, 2, {5.0, 7.0});
+				  ASSERT_NEAR(7.0, net.getNeighbours("B")[0].lineSpeed(1),
+							  1e-9, msg);
+				  return true;
+			  });
+
 	suite.run("addConnection rejects line count below 1",
 			  [](std::string &msg) {
 				  RailNetwork net;
