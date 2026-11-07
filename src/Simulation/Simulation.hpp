@@ -121,6 +121,13 @@ struct TrainState
 	const Train *lastLeader = nullptr;
 	unsigned lastLeaderVersion = 0;
 	unsigned lastGen = 0;
+
+	/* Lines mode only: the train stands at path[segmentIndex] and may not
+	   enter the next edge until admitted to a line. It owns no line while
+	   waiting (lineId == -1). */
+	bool waiting = false;
+	int lineId = -1;
+	double waitSince = 0.0;
 };
 
 /**
@@ -318,6 +325,9 @@ class Simulation
 		arrived and not-yet-departed trains are excluded. */
 	using SegmentState = std::unordered_map<std::string, std::vector<size_t>>;
 	SegmentState buildSegmentState(const std::vector<TrainState> &states) const;
+	/* Lines mode: resolve every ready waiter against the line occupancy,
+	   in deterministic order, before any train moves this tick. */
+	void admitWaiting(std::vector<TrainState> &states, double simTime);
 	/** Cheap per-tick predicate + capped expensive evaluation. */
 	void considerReroute(std::vector<TrainState> &states, size_t idx,
 						 const std::vector<size_t> &group, size_t posInGroup,

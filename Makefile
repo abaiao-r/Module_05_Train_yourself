@@ -186,7 +186,8 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/InputComboTest \
 		$(BINDIR)/LiveMutationTest \
 		$(BINDIR)/CongestionTest \
-		$(BINDIR)/AdaptiveRerouteTest
+		$(BINDIR)/AdaptiveRerouteTest \
+		$(BINDIR)/LinesTest
 
 test: $(TESTS)
 	@echo ""
@@ -206,6 +207,7 @@ test: $(TESTS)
 	@./$(BINDIR)/LiveMutationTest || exit 1
 	@./$(BINDIR)/CongestionTest || exit 1
 	@./$(BINDIR)/AdaptiveRerouteTest || exit 1
+	@./$(BINDIR)/LinesTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -265,6 +267,10 @@ LIB_OBJS	= $(OBJDIR)/Node/Node.o \
 			  $(OBJDIR)/FileOutputObserver/FileOutputObserver.o \
 			  $(OBJDIR)/GraphExporter/GraphExporter.o \
 			  $(OBJDIR)/TerminalAnimDisplay/TerminalAnimDisplay.o
+
+$(BINDIR)/LinesTest: $(TESTDIR)/LinesTest.cpp $(LIB_OBJS)
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
 
 $(BINDIR)/IntegrationTest: $(TESTDIR)/IntegrationTest.cpp $(LIB_OBJS)
 	@mkdir -p $(BINDIR)
