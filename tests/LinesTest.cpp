@@ -215,5 +215,60 @@ int main()
 				  return true;
 			  });
 
+	suite.run("a stream of same-direction trains cannot starve an opposite one",
+			  [](std::string &msg) {
+				  auto o = runLines(twoNodes(1), {{"T1", "A", "B", 100.0},
+												  {"R", "B", "A", 105.0},
+												  {"T2", "A", "B", 110.0},
+												  {"T3", "A", "B", 120.0}});
+				  ASSERT_FALSE(o.headOn, msg);
+				  /* R queued before T2 and T3, so it crosses right after
+				     T1 and both later trains wait behind it. */
+				  ASSERT_TRUE(105.0 + o.actual["R"] < 110.0 + o.actual["T2"],
+							  msg);
+				  ASSERT_TRUE(105.0 + o.actual["R"] < 120.0 + o.actual["T3"],
+							  msg);
+				  ASSERT_TRUE(100.0 + o.actual["T1"] < 105.0 + o.actual["R"],
+							  msg);
+				  return true;
+			  });
+
+	suite.run("trains circulating a triangle of single lines all arrive",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  for (const char *n : {"A", "B", "C"})
+					  net.addNode(n);
+				  net.addConnection("A", "B", 10.0, 100.0);
+				  net.addConnection("B", "C", 10.0, 100.0);
+				  net.addConnection("A", "C", 10.0, 100.0);
+				  auto o = runLines(net, {{"T1", "A", "B", 100.0},
+										  {"T2", "B", "C", 100.0},
+										  {"T3", "C", "A", 100.0},
+										  {"T4", "B", "A", 100.0},
+										  {"T5", "C", "B", 100.0},
+										  {"T6", "A", "C", 100.0}});
+				  ASSERT_FALSE(o.headOn, msg);
+				  ASSERT_EQ(6, static_cast<int>(o.actual.size()), msg);
+				  for (const auto &kv : o.actual)
+					  ASSERT_TRUE(kv.second > 0.0, msg);
+				  return true;
+			  });
+
+	suite.run("swap through a shared middle station never deadlocks",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  for (const char *n : {"A", "B", "C"})
+					  net.addNode(n);
+				  net.addConnection("A", "B", 10.0, 100.0);
+				  net.addConnection("B", "C", 10.0, 100.0);
+				  auto o = runLines(net, {{"TA", "A", "C", 100.0},
+										  {"TC", "C", "A", 100.0},
+										  {"TD", "A", "C", 100.0},
+										  {"TE", "C", "A", 100.0}});
+				  ASSERT_FALSE(o.headOn, msg);
+				  ASSERT_EQ(4, static_cast<int>(o.actual.size()), msg);
+				  return true;
+			  });
+
 	return suite.summarize();
 }
