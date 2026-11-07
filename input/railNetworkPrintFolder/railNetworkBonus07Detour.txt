@@ -1,0 +1,6 @@
+Node A
+Node B
+Node C
+Rail A B 10.0 100.0 1
+Rail A C 6.0 100.0 1
+Rail C B 6.0 100.0 1

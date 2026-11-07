@@ -20,10 +20,10 @@ Rail <A> <B> <distance_km> <speed_kmh> [numLines]
   line is chosen fastest-first, and the train runs at that line's speed.
 - Without `--lines` an extra token is rejected as before.
 
-Example: `input/railNetworkPrintFolder/railNetworkBonus4MixedSpeeds.txt`
+Example: `input/railNetworkPrintFolder/railNetworkBonus05LineSpeeds.txt`
 
 ```
-make && ./bin/train_yourself input/railNetworkPrintFolder/railNetworkBonus4MixedSpeeds.txt input/trainPrintFolder/trainPrintBonus4MixedSpeeds.txt --lines
+make && ./bin/train_yourself input/railNetworkPrintFolder/railNetworkBonus05LineSpeeds.txt input/trainPrintFolder/trainPrintBonus05LineSpeeds.txt --lines
 ```
 
 ## Movement rules (lines mode)

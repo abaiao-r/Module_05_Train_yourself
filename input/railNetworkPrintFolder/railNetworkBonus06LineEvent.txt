@@ -1,0 +1,4 @@
+Node A
+Node B
+Event Strike 0.5 20m A B 1
+Rail A B 20.0 120.0 2

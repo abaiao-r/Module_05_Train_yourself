@@ -15,6 +15,7 @@
 #include <QApplication>
 #include <QBrush>
 #include <QCursor>
+#include <QFile>
 #include <QFont>
 #include <QGraphicsSceneHoverEvent>
 #include <QPen>
@@ -483,7 +484,43 @@ void NetworkScene::loadFromNetwork(const RailNetwork &network)
 		}
 	}
 
-	layoutForceDirected();
+	if (!layoutFromFile())
+		layoutForceDirected();
+}
+
+/* "Station x y" per line ('#' comments). Applied only if it places every
+   station, otherwise the automatic layout is used. */
+bool NetworkScene::layoutFromFile()
+{
+	if (_layoutFile.isEmpty())
+		return false;
+	QFile f(_layoutFile);
+	if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+		return false;
+	QMap<QString, QPointF> pts;
+	while (!f.atEnd())
+	{
+		QString line = QString::fromUtf8(f.readLine()).trimmed();
+		if (line.isEmpty() || line.startsWith('#'))
+			continue;
+		QStringList p = line.split(' ', Qt::SkipEmptyParts);
+		bool okx = false, oky = false;
+		if (p.size() != 3)
+			return false;
+		double x = p[1].toDouble(&okx), y = p[2].toDouble(&oky);
+		if (!okx || !oky)
+			return false;
+		pts[p[0]] = QPointF(x, y);
+	}
+	for (auto it = _nodes.begin(); it != _nodes.end(); ++it)
+		if (!pts.contains(it.key()))
+			return false;
+	for (auto it = _nodes.begin(); it != _nodes.end(); ++it)
+	{
+		it.value().pos = pts[it.key()];
+		it.value().dot->setPos(it.value().pos);
+	}
+	return true;
 }
 
 void NetworkScene::layoutForceDirected()
