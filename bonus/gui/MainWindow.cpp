@@ -205,6 +205,8 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QGraphicsView { border: 1px solid #334155; border-radius: 6px; }
 )";
 
+static QString presetHint(const QString &name);
+
 MainWindow::MainWindow(QWidget *parent)
 	: QMainWindow(parent), _weightMode(0), _simRunning(false),
 	  _view(nullptr),
@@ -277,6 +279,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 	logInfo("Welcome! Load a network preset or create nodes to get started.");
 	statusBar()->showMessage("Ready");
+	updateRunState();
 }
 
 MainWindow::~MainWindow()
@@ -481,7 +484,7 @@ void MainWindow::buildToolbar()
 	tb->addWidget(runsCaption);
 
 	_runsSpinBox = new QSpinBox;
-	_runsSpinBox->setRange(1, INT_MAX);
+	_runsSpinBox->setRange(1, 100000);
 	_runsSpinBox->setValue(1);
 	_runsSpinBox->setToolTip("Number of simulation runs (multi-run Monte Carlo)");
 	_runsSpinBox->setFixedWidth(60);
@@ -641,6 +644,16 @@ void MainWindow::buildCentralWidget()
 		"QGraphicsView { background: #1a1a2e; border: 1px solid #334155;"
 		"  border-radius: 6px; }");
 	_hSplit->addWidget(_view);
+
+	_emptyHint = new QLabel(
+		"Nothing here yet\n\nPick a preset in the sidebar (top right),\n"
+		"or add nodes and rails with the + Add buttons.");
+	_emptyHint->setAlignment(Qt::AlignCenter);
+	_emptyHint->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_emptyHint->setStyleSheet(
+		"QLabel { color: #64748b; font-size: 15px; background: transparent; }");
+	auto *hintLay = new QVBoxLayout(_view->viewport());
+	hintLay->addWidget(_emptyHint);
 
 	_dashboard = new SimDashboard;
 	_hSplit->addWidget(_dashboard);
@@ -812,6 +825,9 @@ void MainWindow::scanPresetFiles()
 			QString display = f;
 			display.remove("railNetwork").remove(".txt");
 			_presetNetworkCombo->addItem(display, netDir.filePath(f));
+			_presetNetworkCombo->setItemData(_presetNetworkCombo->count() - 1,
+											 presetHint(display),
+											 Qt::ToolTipRole);
 		}
 	}
 
@@ -827,8 +843,46 @@ void MainWindow::scanPresetFiles()
 			QString display = f;
 			display.remove("trainPrint").remove(".txt");
 			_presetTrainCombo->addItem(display, trainDir.filePath(f));
+			_presetTrainCombo->setItemData(_presetTrainCombo->count() - 1,
+										   presetHint(display),
+										   Qt::ToolTipRole);
 		}
 	}
+}
+
+
+/* One-line description of what each demo preset shows (see input/README.md). */
+static QString presetHint(const QString &name)
+{
+	static const QMap<QString, QString> hints = {
+		{"Normal1Simple", "One train on one rail"},
+		{"Normal2Following", "Same-direction trains keep a safe distance"},
+		{"Normal3Events", "City and rail events, junctions, 3 trains"},
+		{"Normal4Congestion", "Slow train ahead of a fast one, with an alternative route"},
+		{"Normal5Convoy", "Risky segment plus a convoy: reroutes"},
+		{"Bonus1SingleLine", "Multi-line: one line, opposite trains, the second waits"},
+		{"Bonus2TwoLines", "Multi-line: two lines, opposite trains pass at once"},
+		{"Bonus3Detour", "Multi-line: a waiting train can detour (Adaptive)"},
+		{"Bonus4MixedSpeeds", "Multi-line: per-line speeds, fastest free line first"},
+		{"Bonus5Complex", "Multi-line: hub, opposite flows and an event"}};
+	return hints.value(name);
+}
+
+void MainWindow::updateRunState()
+{
+	const bool hasNet = !_network.getNodeNames().empty();
+	const bool hasTrains = !_trainDefs.empty();
+	if (_emptyHint)
+		_emptyHint->setVisible(!hasNet);
+	if (!_runBtn || _simRunning)
+		return;
+	QString why;
+	if (!hasNet)
+		why = "Load a preset or add nodes first";
+	else if (!hasTrains)
+		why = "Add at least one train first";
+	_runBtn->setEnabled(why.isEmpty());
+	_runBtn->setToolTip(why.isEmpty() ? "Run the simulation" : why);
 }
 
 void MainWindow::refreshLists()
@@ -894,6 +948,7 @@ void MainWindow::refreshLists()
 								   ev.getNodeName()))));
 	}
 
+	updateRunState();
 	statusBar()->showMessage(
 		QString("Nodes: %1  |  Edges: %2  |  Trains: %3  |  Events: %4")
 			.arg(_nodeList->count())
@@ -1527,7 +1582,9 @@ void MainWindow::onAddEdge()
 	form->addRow("To station:", toBox);
 	form->addRow("Distance:", distSpin);
 	form->addRow("Speed limit:", speedSpin);
-	form->addRow("Lines:", linesSpin);
+	form->addRow(_linesCheck->isChecked() ? "Lines:"
+						   : "Lines (enable Multi-line rails):",
+				 linesSpin);
 	form->addRow(btns);
 
 	connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
@@ -2393,7 +2450,9 @@ void MainWindow::onEditEdge()
 	form->addRow("To:", toLabel);
 	form->addRow("Distance:", distSpin);
 	form->addRow("Speed limit:", speedSpin);
-	form->addRow("Lines:", linesSpin);
+	form->addRow(_linesCheck->isChecked() ? "Lines:"
+						   : "Lines (enable Multi-line rails):",
+				 linesSpin);
 	form->addRow(lineForm);
 	form->addRow(btns);
 	/* Only after the rows are parented, else visible spins pop up as
@@ -2860,11 +2919,11 @@ void MainWindow::onSimTick(double simTime,
 
 void MainWindow::onSimFinished(QStringList results)
 {
-	_runBtn->setEnabled(true);
+	_simRunning = false;
 	_runBtn->setText("  Run Simulation  ");
+	updateRunState();
 	_stopBtn->setEnabled(false);
 	_stopBtn->setText("  Stop  ");
-	_simRunning = false;
 	logSuccess("--- Simulation complete ---");
 	for (const auto &r : results)
 		logInfo("  " + r);
@@ -2874,11 +2933,11 @@ void MainWindow::onSimFinished(QStringList results)
 
 void MainWindow::onSimError(const QString &msg)
 {
-	_runBtn->setEnabled(true);
+	_simRunning = false;
 	_runBtn->setText("  Run Simulation  ");
+	updateRunState();
 	_stopBtn->setEnabled(false);
 	_stopBtn->setText("  Stop  ");
-	_simRunning = false;
 
 	/* Try to give a more specific diagnosis */
 	QString detail = msg;

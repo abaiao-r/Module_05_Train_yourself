@@ -78,6 +78,7 @@ class MainWindow : public QMainWindow
 	void onEditEvent();
 
 	void onRunSimulation();
+	void updateRunState();
 	void onStopSimulation();
 	void onSimTick(double simTime, QVector<TrainSnapshot> snapshots);
 	void onSimFinished(QStringList results);
@@ -133,6 +134,7 @@ class MainWindow : public QMainWindow
 	static constexpr int DASH_LIVE_W  = 420; /* px – fits BOX_INNER 56 */
 	static constexpr int DASH_STATS_W = 540; /* px – fits STAT_BOX 72  */
 	QPushButton *_runBtn;
+	QLabel *_emptyHint = nullptr;
 	QPushButton *_stopBtn;
 	QSlider *_speedSlider;
 	QLabel *_speedLabel;
