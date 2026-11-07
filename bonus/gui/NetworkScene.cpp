@@ -229,54 +229,57 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 		delete t;
 	}
 	e.laneLabels.clear();
-	if (e.numLines <= 1)
+	if (e.numLines <= 1 || !_nodes.contains(e.from)
+		|| !_nodes.contains(e.to))
 		return;
 
+	/* One block beside the rail (on the side opposite the rail summary),
+	   so nothing is ever drawn on top of a lane or a station name. Rows
+	   run left to right as seen travelling from -> to, matching the
+	   lanes' physical order. */
+	QString rows = QString("<span style=\"color:#95a5a6;\">%1 \xE2\x86\x92 %2 "
+						   "(left to right)</span>")
+					   .arg(e.from.toHtmlEscaped(), e.to.toHtmlEscaped());
 	for (int i = 0; i < e.numLines; i++)
 	{
 		double kmh = (i < e.lineSpeeds.size() && e.lineSpeeds[i] > 0.0)
 						 ? e.lineSpeeds[i] : e.speedKmh;
-		QString txt = QString("L%1 %2 km/h").arg(i + 1).arg(kmh, 0, 'f', 0);
 		QStringList evs;
 		for (const auto &ev : _events)
 			if (ev.line == i && !ev.node2.isEmpty()
 				&& ((ev.node1 == e.from && ev.node2 == e.to)
 					|| (ev.node1 == e.to && ev.node2 == e.from)))
 				evs << ev.name;
+		QString row = QString("<br><b>Line %1</b> &middot; %2 km/h")
+						  .arg(i + 1).arg(kmh, 0, 'f', 0);
 		if (!evs.isEmpty())
-			txt += QString::fromUtf8(" \xE2\x9A\xA0 ") + evs.join(", ");
-
-		auto *t = addText("", QFont("Segoe UI", 7, QFont::Bold));
-		t->setHtml(QString("<span style=\"background-color:#2c3e50;"
-						   "color:#ecf0f1;\">&nbsp;%1&nbsp;</span>")
-					   .arg(txt.toHtmlEscaped()));
-		double frac = 0.5;
-		if (e.numLines > 1)
-			frac = 0.3 + 0.4 * i / (e.numLines - 1);
-		QPointF p = edgePosition(e.from, e.to, frac, i);
-		QRectF b = t->boundingRect();
-		t->setPos(p.x() - b.width() / 2, p.y() - b.height() / 2);
-		t->setZValue(3);
-		e.laneLabels.push_back(t);
-
-		/* Numbered badges where the lanes are fully fanned out, near
-		   both stations, so a lane is identifiable anywhere along it. */
-		QPointF d = _nodes[e.to].pos - _nodes[e.from].pos;
-		double len = std::hypot(d.x(), d.y());
-		double bf = len > 1e-6 ? std::min(0.5, 90.0 / len) : 0.5;
-		for (double f : {bf, 1.0 - bf})
-		{
-			auto *bt = addText("", QFont("Segoe UI", 8, QFont::Bold));
-			bt->setHtml(QString("<span style=\"background-color:#ecf0f1;"
-								"color:#2c3e50;\">&nbsp;%1&nbsp;</span>")
-							.arg(i + 1));
-			QPointF bp = edgePosition(e.from, e.to, f, i);
-			QRectF bb = bt->boundingRect();
-			bt->setPos(bp.x() - bb.width() / 2, bp.y() - bb.height() / 2);
-			bt->setZValue(3);
-			e.laneLabels.push_back(bt);
-		}
+			row += QString::fromUtf8(" \xE2\x9A\xA0 ")
+				   + evs.join(", ").toHtmlEscaped();
+		rows += row;
 	}
+	auto *t = addText("", QFont("Segoe UI", 7));
+	t->setHtml(QString("<div style=\"background-color:#2c3e50;"
+					   "color:#ecf0f1;\">%1</div>").arg(rows));
+	QPointF p1 = _nodes[e.from].pos;
+	QPointF p2 = _nodes[e.to].pos;
+	QPointF d = p2 - p1;
+	double len = std::hypot(d.x(), d.y());
+	QRectF b = t->boundingRect();
+	QPointF mid = (p1 + p2) / 2.0;
+	if (len > 1e-6)
+	{
+		QPointF n(-d.y() / len, d.x() / len);
+		if (n.y() > 0 || (n.y() == 0 && n.x() < 0))
+			n = -n;
+		n = -n; /* lower side; the summary label takes the upper one */
+		double out = (e.numLines - 1) / 2.0 * LANE_GAP + 8.0
+					 + std::fabs(n.x()) * b.width() / 2.0
+					 + std::fabs(n.y()) * b.height() / 2.0;
+		mid += n * out;
+	}
+	t->setPos(mid.x() - b.width() / 2, mid.y() - b.height() / 2);
+	t->setZValue(3);
+	e.laneLabels.push_back(t);
 }
 
 void NetworkScene::removeNode(const QString &name)
