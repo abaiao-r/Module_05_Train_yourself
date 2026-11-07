@@ -861,7 +861,7 @@ void MainWindow::onLoadNetwork()
 	{
 		RailNetwork net;
 		std::vector<Event> events;
-		InputHandler::parseNetworkFile(path.toStdString(), net, events);
+		parseNetworkAuto(path.toStdString(), net, events);
 		_network = std::move(net);
 		_eventDefs = std::move(events);
 		_networkFilePath = path;
@@ -925,6 +925,31 @@ void MainWindow::onLoadTrains()
 	}
 }
 
+/* A bonus file (Rail ... <lines>) is rejected without the option, so retry
+   with it on and tick the checkbox for the user. */
+void MainWindow::parseNetworkAuto(const std::string &path, RailNetwork &net,
+								  std::vector<Event> &events)
+{
+	try
+	{
+		InputHandler::parseNetworkFile(path, net, events,
+									   LinesOptions{_linesCheck->isChecked()});
+	}
+	catch (const std::exception &)
+	{
+		if (_linesCheck->isChecked())
+			throw;
+		RailNetwork retry;
+		std::vector<Event> retryEvents;
+		InputHandler::parseNetworkFile(path, retry, retryEvents,
+									   LinesOptions{true});
+		net = std::move(retry);
+		events = std::move(retryEvents);
+		_linesCheck->setChecked(true);
+		logInfo("Multi-line rails enabled automatically for this file.");
+	}
+}
+
 void MainWindow::onLoadPresetNetwork(int index)
 {
 	if (guardSimRunning("load a preset"))
@@ -940,7 +965,7 @@ void MainWindow::onLoadPresetNetwork(int index)
 	{
 		RailNetwork net;
 		std::vector<Event> events;
-		InputHandler::parseNetworkFile(path.toStdString(), net, events);
+		parseNetworkAuto(path.toStdString(), net, events);
 		_network = std::move(net);
 		_eventDefs = std::move(events);
 		_networkFilePath = path;
@@ -1162,9 +1187,24 @@ void MainWindow::onImportAll()
 		QString tmpTrain = trainPath.isEmpty()
 								? writeTemporaryTrainFile()
 								: trainPath;
-		auto data = InputHandler::loadData(
-			netPath.toStdString(), tmpTrain.toStdString(),
-			LinesOptions{_linesCheck->isChecked()});
+		auto data = [&] {
+			try
+			{
+				return InputHandler::loadData(
+					netPath.toStdString(), tmpTrain.toStdString(),
+					LinesOptions{_linesCheck->isChecked()});
+			}
+			catch (const std::exception &)
+			{
+				if (_linesCheck->isChecked())
+					throw;
+				auto d = InputHandler::loadData(
+					netPath.toStdString(), tmpTrain.toStdString(),
+					LinesOptions{true});
+				_linesCheck->setChecked(true);
+				return d;
+			}
+		}();
 		_network = std::move(data.network);
 		_eventDefs = std::move(data.events);
 		_networkFilePath = netPath;

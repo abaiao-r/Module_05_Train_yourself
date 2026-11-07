@@ -58,6 +58,8 @@ class MainWindow : public QMainWindow
 	void onExportAll();
 	void onExportDot();
 	void onLoadPresetNetwork(int index);
+	void parseNetworkAuto(const std::string &path, RailNetwork &net,
+						  std::vector<Event> &events);
 	void onLoadPresetTrains(int index);
 
 	void onAddNode();
