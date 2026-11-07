@@ -11,6 +11,9 @@
 /* ************************************************************************** */
 
 #include "MainWindow.hpp"
+#include <QAction>
+#include <QSettings>
+#include <algorithm>
 
 #include <QAction>
 #include <QComboBox>
@@ -368,6 +371,19 @@ MainWindow::MainWindow(QWidget *parent)
 
 	resize(1400, 900);
 
+	/* Restore the last window layout and options. */
+	QSettings st;
+	if (st.contains("geometry"))
+		restoreGeometry(st.value("geometry").toByteArray());
+	_runsSpinBox->setValue(st.value("runs", _runsSpinBox->value()).toInt());
+	_animateCheck->setChecked(
+		st.value("animate", _animateCheck->isChecked()).toBool());
+	_linesCheck->setChecked(st.value("multiLine", false).toBool());
+	_pathWeightCombo->setCurrentIndex(
+		std::clamp(st.value("pathWeight", 0).toInt(), 0,
+				   _pathWeightCombo->count() - 1));
+	_showLogAct->setChecked(st.value("showLog", true).toBool());
+
 	logInfo("Welcome! Load a network preset or create nodes to get started.");
 	statusBar()->showMessage("Ready");
 	updateRunState();
@@ -376,6 +392,14 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+	QSettings st;
+	st.setValue("geometry", saveGeometry());
+	st.setValue("runs", _runsSpinBox->value());
+	st.setValue("animate", _animateCheck->isChecked());
+	st.setValue("multiLine", _linesCheck->isChecked());
+	st.setValue("pathWeight", _pathWeightCombo->currentIndex());
+	st.setValue("showLog", _showLogAct->isChecked());
+
 	_simThread.quit();
 	_simThread.wait();
 	_worker = nullptr; /* deleted by deleteLater on thread finish */
@@ -496,6 +520,15 @@ void MainWindow::buildMenus()
 	QMenu *sim = menuBar()->addMenu("&Simulation");
 	sim->addAction("Run", QKeySequence("Ctrl+R"),
 				   this, &MainWindow::onRunSimulation);
+
+	QMenu *view = menuBar()->addMenu("&View");
+	auto *logAct = view->addAction("Show &Log");
+	logAct->setCheckable(true);
+	logAct->setChecked(true);
+	logAct->setShortcut(QKeySequence("Ctrl+L"));
+	connect(logAct, &QAction::toggled, this,
+			[this](bool on) { _logView->setVisible(on); });
+	_showLogAct = logAct;
 
 	QMenu *help = menuBar()->addMenu("&Help");
 	help->addAction("Controls && Shortcuts...", QKeySequence("F1"),
@@ -1979,6 +2012,27 @@ void MainWindow::onAddEdge()
 	linesSpin->setToolTip("Parallel lines on this edge (needs the "
 						  "\"Multi-line rails\" option).");
 
+	/* One speed field per possible line; 0 means "same as the rail". */
+	auto *lineForm = new QFormLayout;
+	std::vector<QDoubleSpinBox *> lineSpeedSpins;
+	for (int i = 0; i < linesSpin->maximum(); i++)
+	{
+		auto *sp = new QDoubleSpinBox;
+		sp->setRange(0.0, 999.0);
+		sp->setSpecialValueText("rail speed");
+		sp->setSuffix(" km/h");
+		lineSpeedSpins.push_back(sp);
+		lineForm->addRow(QString("Line %1 speed:").arg(i + 1), sp);
+	}
+	auto showLineSpeeds = [&, lineForm]() {
+		bool on = _linesCheck->isChecked();
+		for (int i = 0; i < static_cast<int>(lineSpeedSpins.size()); i++)
+			lineForm->setRowVisible(i, on && i < linesSpin->value()
+										   && linesSpin->value() > 1);
+	};
+	connect(linesSpin, qOverload<int>(&QSpinBox::valueChanged), &dlg,
+			[showLineSpeeds](int) { showLineSpeeds(); });
+
 	auto *btns = new QHBoxLayout;
 	auto *okBtn = new QPushButton("Add Edge");
 	auto *cancelBtn = new QPushButton("Cancel");
@@ -1993,7 +2047,9 @@ void MainWindow::onAddEdge()
 	form->addRow(_linesCheck->isChecked() ? "Lines:"
 						   : "Lines (enable Multi-line rails):",
 				 linesSpin);
+	form->addRow(lineForm);
 	form->addRow(btns);
+	showLineSpeeds();
 
 	connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
 	connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
@@ -2002,6 +2058,19 @@ void MainWindow::onAddEdge()
 		return;
 
 	const int numLines = linesSpin->value();
+	std::vector<double> lineSpeeds;
+	if (_linesCheck->isChecked() && numLines > 1)
+	{
+		bool custom = false;
+		for (int i = 0; i < numLines; i++)
+		{
+			double v = lineSpeedSpins[i]->value();
+			custom = custom || (v > 0.0 && v != speedSpin->value());
+			lineSpeeds.push_back(v > 0.0 ? v : speedSpin->value());
+		}
+		if (!custom)
+			lineSpeeds.clear();
+	}
 	QString from = fromBox->currentText();
 	QString to = toBox->currentText();
 	if (from == to)
@@ -2044,9 +2113,12 @@ void MainWindow::onAddEdge()
 	{
 		_network.addConnection(from.toStdString(), to.toStdString(),
 							   distSpin->value(), speedSpin->value(),
-							   _linesCheck->isChecked() ? numLines : 1);
+							   _linesCheck->isChecked() ? numLines : 1,
+							   lineSpeeds);
 		_scene->addEdge(from, to, distSpin->value(), speedSpin->value(),
-						_linesCheck->isChecked() ? numLines : 1);
+						_linesCheck->isChecked() ? numLines : 1,
+						QVector<double>(lineSpeeds.begin(),
+										lineSpeeds.end()));
 		refreshLists();
 		_scene->clearTrains();
 		logSuccess(QString("Added edge: %1 <-> %2 (%3 km, %4 km/h)")
