@@ -79,6 +79,7 @@ class MainWindow : public QMainWindow
 
 	void onRunSimulation();
 	void updateRunState();
+	void updateEditButtons();
 	void onStopSimulation();
 	void onSimTick(double simTime, QVector<TrainSnapshot> snapshots);
 	void onSimFinished(QStringList results);

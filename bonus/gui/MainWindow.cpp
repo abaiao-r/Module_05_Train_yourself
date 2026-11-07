@@ -32,6 +32,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QRegularExpression>
+#include <QShortcut>
 #include <QScrollArea>
 #include <QSpinBox>
 #include <algorithm>
@@ -280,6 +281,7 @@ MainWindow::MainWindow(QWidget *parent)
 	logInfo("Welcome! Load a network preset or create nodes to get started.");
 	statusBar()->showMessage("Ready");
 	updateRunState();
+	updateEditButtons();
 }
 
 MainWindow::~MainWindow()
@@ -786,6 +788,40 @@ void MainWindow::buildSidebar()
 	eventLay->addLayout(eventActions);
 	tabs->addTab(eventTab, "Events");
 
+	/* Edit/Delete only make sense with a selection; double-click edits
+	   and Delete/Backspace removes the selected row. */
+	struct ListWiring
+	{
+		QListWidget *list;
+		void (MainWindow::*edit)();
+		void (MainWindow::*del)();
+	};
+	for (const ListWiring &w : {ListWiring{_nodeList, &MainWindow::onEditNode,
+										   &MainWindow::onDeleteNode},
+								ListWiring{_edgeList, &MainWindow::onEditEdge,
+										   &MainWindow::onDeleteEdge},
+								ListWiring{_trainList, &MainWindow::onEditTrain,
+										   &MainWindow::onDeleteTrain},
+								ListWiring{_eventList, &MainWindow::onEditEvent,
+										   &MainWindow::onDeleteEvent}})
+	{
+		connect(w.list, &QListWidget::itemSelectionChanged, this,
+				&MainWindow::updateEditButtons);
+		connect(w.list, &QListWidget::itemDoubleClicked, this,
+				[this, w](QListWidgetItem *) { (this->*w.edit)(); });
+		for (auto key : {Qt::Key_Delete, Qt::Key_Backspace})
+		{
+			auto *sc = new QShortcut(QKeySequence(key), w.list);
+			sc->setContext(Qt::WidgetShortcut);
+			connect(sc, &QShortcut::activated, this,
+					[this, w]() { (this->*w.del)(); });
+		}
+	}
+	_nodeList->setToolTip("Double-click to edit, Delete to remove");
+	_edgeList->setToolTip("Double-click to edit, Delete to remove");
+	_trainList->setToolTip("Double-click to edit, Delete to remove");
+	_eventList->setToolTip("Double-click to edit, Delete to remove");
+
 	mainLay->addWidget(tabs, 1);
 	dock->setWidget(container);
 	addDockWidget(Qt::RightDockWidgetArea, dock);
@@ -866,6 +902,23 @@ static QString presetHint(const QString &name)
 		{"Bonus4MixedSpeeds", "Multi-line: per-line speeds, fastest free line first"},
 		{"Bonus5Complex", "Multi-line: hub, opposite flows and an event"}};
 	return hints.value(name);
+}
+
+void MainWindow::updateEditButtons()
+{
+	auto sync = [](QListWidget *l, QPushButton *edit, QPushButton *del) {
+		bool sel = l && l->currentItem() && l->currentItem()->isSelected();
+		for (auto *b : {edit, del})
+			if (b)
+			{
+				b->setEnabled(sel);
+				b->setToolTip(sel ? QString() : "Select a row first");
+			}
+	};
+	sync(_nodeList, _editNodeBtn, _delNodeBtn);
+	sync(_edgeList, _editEdgeBtn, _delEdgeBtn);
+	sync(_trainList, _editTrainBtn, _delTrainBtn);
+	sync(_eventList, _editEventBtn, _delEventBtn);
 }
 
 void MainWindow::updateRunState()
@@ -949,6 +1002,7 @@ void MainWindow::refreshLists()
 	}
 
 	updateRunState();
+	updateEditButtons();
 	statusBar()->showMessage(
 		QString("Nodes: %1  |  Edges: %2  |  Trains: %3  |  Events: %4")
 			.arg(_nodeList->count())
