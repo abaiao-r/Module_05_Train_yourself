@@ -234,13 +234,31 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 		|| !_nodes.contains(e.to))
 		return;
 
-	/* One block beside the rail (on the side opposite the rail summary),
-	   so nothing is ever drawn on top of a lane or a station name. Rows
-	   run left to right as seen travelling from -> to, matching the
-	   lanes' physical order. */
-	QString rows = QString("<span style=\"color:#95a5a6;\">%1 \xE2\x86\x92 %2 "
-						   "(number sits right of its lane)</span>")
-					   .arg(e.from.toHtmlEscaped(), e.to.toHtmlEscaped());
+	QPointF p1 = _nodes[e.from].pos;
+	QPointF p2 = _nodes[e.to].pos;
+	QPointF d = p2 - p1;
+	double len = std::hypot(d.x(), d.y());
+	if (len <= 1e-6)
+		return;
+
+	/* Each lane gets its own tags in the gap just right of it (travelling
+	   from -> to): the number near the start and "number, speed, events"
+	   further along, staggered between neighbouring lanes. */
+	QPointF n(-d.y() / len, d.x() / len);
+	double ramp = std::min(0.5, 90.0 / len);
+	auto addTag = [&](const QString &html, double f, int lane, bool bold)
+	{
+		f = std::min(std::max(f, ramp), 1.0 - ramp);
+		auto *t = addText("", QFont("Segoe UI", 7,
+									bold ? QFont::Bold : QFont::Normal));
+		t->setHtml(QString("<span style=\"background-color:#ecf0f1;"
+						   "color:#2c3e50;\">&nbsp;%1&nbsp;</span>").arg(html));
+		QRectF bb = t->boundingRect();
+		QPointF bp = edgePosition(e.from, e.to, f, lane) + n * (LANE_GAP / 2.0);
+		t->setPos(bp.x() - bb.width() / 2, bp.y() - bb.height() / 2);
+		t->setZValue(3);
+		e.laneLabels.push_back(t);
+	};
 	for (int i = 0; i < e.numLines; i++)
 	{
 		double kmh = (i < e.lineSpeeds.size() && e.lineSpeeds[i] > 0.0)
@@ -251,59 +269,13 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 				&& ((ev.node1 == e.from && ev.node2 == e.to)
 					|| (ev.node1 == e.to && ev.node2 == e.from)))
 				evs << ev.name;
-		QString row = QString("<br><b>Line %1</b> &middot; %2 km/h")
-						  .arg(i + 1).arg(kmh, 0, 'f', 0);
+		QString info = QString("<b>%1</b> &middot; %2 km/h")
+						   .arg(i + 1).arg(kmh, 0, 'f', 0);
 		if (!evs.isEmpty())
-			row += QString::fromUtf8(" \xE2\x9A\xA0 ")
-				   + evs.join(", ").toHtmlEscaped();
-		rows += row;
-	}
-	auto *t = addText("", QFont("Segoe UI", 7));
-	t->setHtml(QString("<div style=\"background-color:#2c3e50;"
-					   "color:#ecf0f1;\">%1</div>").arg(rows));
-	QPointF p1 = _nodes[e.from].pos;
-	QPointF p2 = _nodes[e.to].pos;
-	QPointF d = p2 - p1;
-	double len = std::hypot(d.x(), d.y());
-	QRectF b = t->boundingRect();
-	QPointF mid = (p1 + p2) / 2.0;
-	if (len > 1e-6)
-	{
-		QPointF n(-d.y() / len, d.x() / len);
-		if (n.y() > 0 || (n.y() == 0 && n.x() < 0))
-			n = -n;
-		n = -n; /* lower side; the summary label takes the upper one */
-		double out = (e.numLines - 1) / 2.0 * LANE_GAP + 18.0
-					 + std::fabs(n.x()) * b.width() / 2.0
-					 + std::fabs(n.y()) * b.height() / 2.0;
-		mid += n * out;
-	}
-	t->setPos(mid.x() - b.width() / 2, mid.y() - b.height() / 2);
-	t->setZValue(3);
-	e.laneLabels.push_back(t);
-
-	/* Small numbers in the gap just right of each lane (travelling
-	   from -> to), twice along the rail, so every lane can be read
-	   without text on top of a stroke. */
-	if (len > 1e-6)
-	{
-		QPointF n(-d.y() / len, d.x() / len);
-		double ramp = std::min(0.5, 90.0 / len);
-		for (int i = 0; i < e.numLines; i++)
-			for (double f : {0.3, 0.7})
-			{
-				f = std::min(std::max(f, ramp), 1.0 - ramp);
-				auto *bt = addText("", QFont("Segoe UI", 7, QFont::Bold));
-				bt->setHtml(QString("<span style=\"background-color:#ecf0f1;"
-									"color:#2c3e50;\">&nbsp;%1&nbsp;</span>")
-								.arg(i + 1));
-				QRectF bb = bt->boundingRect();
-				QPointF bp = edgePosition(e.from, e.to, f, i)
-							 + n * (LANE_GAP / 2.0);
-				bt->setPos(bp.x() - bb.width() / 2, bp.y() - bb.height() / 2);
-				bt->setZValue(3);
-				e.laneLabels.push_back(bt);
-			}
+			info += QString::fromUtf8(" \xE2\x9A\xA0 ")
+					+ evs.join(", ").toHtmlEscaped();
+		addTag(QString::number(i + 1), 0.25, i, true);
+		addTag(info, 0.6 + 0.15 * (i % 2), i, false);
 	}
 }
 
