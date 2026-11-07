@@ -248,9 +248,8 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 
 		auto *t = addText("", QFont("Segoe UI", 7, QFont::Bold));
 		t->setHtml(QString("<span style=\"background-color:#2c3e50;"
-						   "color:%1;\">&nbsp;%2&nbsp;</span>")
-					   .arg(PALETTE[i % PALETTE_SIZE].name(),
-							txt.toHtmlEscaped()));
+						   "color:#ecf0f1;\">&nbsp;%1&nbsp;</span>")
+					   .arg(txt.toHtmlEscaped()));
 		double frac = 0.5;
 		if (e.numLines > 1)
 			frac = 0.3 + 0.4 * i / (e.numLines - 1);
@@ -259,6 +258,24 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 		t->setPos(p.x() - b.width() / 2, p.y() - b.height() / 2);
 		t->setZValue(3);
 		e.laneLabels.push_back(t);
+
+		/* Numbered badges where the lanes are fully fanned out, near
+		   both stations, so a lane is identifiable anywhere along it. */
+		QPointF d = _nodes[e.to].pos - _nodes[e.from].pos;
+		double len = std::hypot(d.x(), d.y());
+		double bf = len > 1e-6 ? std::min(0.5, 90.0 / len) : 0.5;
+		for (double f : {bf, 1.0 - bf})
+		{
+			auto *bt = addText("", QFont("Segoe UI", 8, QFont::Bold));
+			bt->setHtml(QString("<span style=\"background-color:#ecf0f1;"
+								"color:#2c3e50;\">&nbsp;%1&nbsp;</span>")
+							.arg(i + 1));
+			QPointF bp = edgePosition(e.from, e.to, f, i);
+			QRectF bb = bt->boundingRect();
+			bt->setPos(bp.x() - bb.width() / 2, bp.y() - bb.height() / 2);
+			bt->setZValue(3);
+			e.laneLabels.push_back(bt);
+		}
 	}
 }
 
