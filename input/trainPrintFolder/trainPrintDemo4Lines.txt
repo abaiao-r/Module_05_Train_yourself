@@ -1,0 +1,4 @@
+East1 200 0.05 300.0 50.0 Central Airport 08h00 00h02
+West1 200 0.05 300.0 50.0 Airport Central 08h00 00h02
+Shuttle 200 0.05 300.0 50.0 Harbor Central 08h00 00h02
+East2 200 0.05 300.0 50.0 Central Airport 08h05 00h02

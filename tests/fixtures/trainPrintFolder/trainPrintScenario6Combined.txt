@@ -1,0 +1,4 @@
+SlowA 200 0.05 120.0 50.0 Origin Dest 08h00 00h00
+FastB 200 0.05 900.0 50.0 Origin Dest 08h01 00h00
+FastC 200 0.05 900.0 50.0 Origin Dest 08h02 00h00
+FastD 200 0.05 900.0 50.0 Origin Dest 08h03 00h00

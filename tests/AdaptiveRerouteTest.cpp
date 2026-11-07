@@ -9,8 +9,8 @@
 #include "Simulation.hpp"
 #include "TestFramework.hpp"
 
-static const std::string NET = "input/railNetworkPrintFolder/railNetworkScenario";
-static const std::string TRN = "input/trainPrintFolder/trainPrintScenario";
+static const std::string NET = "tests/fixtures/railNetworkPrintFolder/railNetworkScenario";
+static const std::string TRN = "tests/fixtures/trainPrintFolder/trainPrintScenario";
 
 struct Outcome
 {

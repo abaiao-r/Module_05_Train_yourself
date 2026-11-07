@@ -32,9 +32,9 @@ jobs:
 
     - name: Smoke-run binary
       run: |
-        ./bin/train_yourself input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt
-        ./bin/train_yourself input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --solo
-        ./bin/train_yourself input/railNetworkPrintFolder/railNetworkPrintGood.txt input/trainPrintFolder/trainPrintGood.txt --graph output/graphs/ci_test.dot
+        ./bin/train_yourself input/railNetworkPrintFolder/railNetworkDemo1Basic.txt input/trainPrintFolder/trainPrintDemo1Basic.txt
+        ./bin/train_yourself input/railNetworkPrintFolder/railNetworkDemo1Basic.txt input/trainPrintFolder/trainPrintDemo1Basic.txt --solo
+        ./bin/train_yourself input/railNetworkPrintFolder/railNetworkDemo1Basic.txt input/trainPrintFolder/trainPrintDemo1Basic.txt --graph output/graphs/ci_test.dot
 
     - name: Verify clean/fclean/re
       run: make CXX=${{ matrix.compiler }} clean && make CXX=${{ matrix.compiler }} fclean && make CXX=${{ matrix.compiler }} re

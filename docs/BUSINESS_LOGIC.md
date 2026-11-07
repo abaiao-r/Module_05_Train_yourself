@@ -80,7 +80,7 @@ Each train keeps an `etaProfile` (free-flow predicted arrival at each remaining 
 
 #### Demo scenarios
 
-`input/*/railNetworkScenarioN*.txt` + `trainPrintScenarioN*.txt`: 1 Baseline, 2 BlockReroutePays, 3 BlockStayBetter, 4 MultiTrainCongestion, 5 EventRisk, 6 Combined, 7 LeaderDiverges, 8 SkipDivergingLeader (the nearest leader that keeps sharing the route after the pivot is used, not just the train directly ahead). Run e.g. `./bin/train_yourself <network> <train> --adaptive` or load them in the GUI. Tests: `tests/AdaptiveRerouteTest.cpp`.
+`tests/fixtures/*/railNetworkScenarioN*.txt` + `trainPrintScenarioN*.txt`: 1 Baseline, 2 BlockReroutePays, 3 BlockStayBetter, 4 MultiTrainCongestion, 5 EventRisk, 6 Combined, 7 LeaderDiverges, 8 SkipDivergingLeader (the nearest leader that keeps sharing the route after the pivot is used, not just the train directly ahead). Run e.g. `./bin/train_yourself <network> <train> --adaptive` or load them in the GUI. Tests: `tests/AdaptiveRerouteTest.cpp`.
 
 #### Design rationale
 

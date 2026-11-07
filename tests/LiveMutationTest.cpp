@@ -35,8 +35,8 @@ static void cleanupResults(const std::vector<std::string> &names)
 static Simulation buildSim()
 {
 	auto data = InputHandler::loadData(
-		"input/railNetworkPrintFolder/railNetworkPrintGood.txt",
-		"input/trainPrintFolder/trainPrintGood.txt");
+		"tests/fixtures/railNetworkPrintFolder/railNetworkPrintGood.txt",
+		"tests/fixtures/trainPrintFolder/trainPrintGood.txt");
 	return Simulation(std::move(data.network), std::move(data.trains),
 					  std::move(data.events),
 					  std::make_unique<DijkstraPathfinding>());

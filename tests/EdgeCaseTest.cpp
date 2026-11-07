@@ -20,8 +20,8 @@
 #include "Simulation.hpp"
 #include "TestFramework.hpp"
 
-static const std::string NET = "input/railNetworkPrintFolder/";
-static const std::string TRN = "input/trainPrintFolder/";
+static const std::string NET = "tests/fixtures/railNetworkPrintFolder/";
+static const std::string TRN = "tests/fixtures/trainPrintFolder/";
 
 static void cleanupResultFiles()
 {
