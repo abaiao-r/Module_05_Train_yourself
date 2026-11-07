@@ -378,6 +378,20 @@ int main()
 				  return true;
 			  });
 
+	suite.run("a lone train avoids the risky line when another is free",
+			  [](std::string &msg) {
+				  std::vector<std::tuple<std::string, std::string,
+										 std::string, double>> spec
+					  = {{"T1", "A", "B", 100.0}};
+				  auto o = runLines(twoNodes(2), spec, true,
+									PathWeightMode::Distance,
+									{Event("Strike", 0.5, 600.0, "A", "B", 0)});
+				  ASSERT_EQ(1, static_cast<int>(o.linesSeen["T1"].size()),
+							msg);
+				  ASSERT_EQ(1, o.linesSeen["T1"][0], msg);
+				  return true;
+			  });
+
 	suite.run("event line: parsed with --lines, rejected beyond the count",
 			  [](std::string &msg) {
 				  const std::string f = "/tmp/lines_event_test.txt";
