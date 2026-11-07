@@ -331,6 +331,29 @@ int main()
 				  return true;
 			  });
 
+	suite.run("waits for the fast line instead of taking a free slow one",
+			  [](std::string &msg) {
+				  /* TB holds the 100 km/h line; the free 20 km/h line would
+				     take 30 min, waiting for the fast line about 11. */
+				  auto o = runLines(twoNodesSpeeds({20.0, 100.0}),
+									{{"TB", "B", "A", 100.0},
+									 {"TA", "A", "B", 110.0}});
+				  ASSERT_FALSE(o.headOn, msg);
+				  ASSERT_EQ(1, o.linesSeen["TA"].front(), msg);
+				  ASSERT_TRUE(o.actual["TA"] < 900.0, msg);
+				  return true;
+			  });
+
+	suite.run("takes the free slow line when waiting would cost more",
+			  [](std::string &msg) {
+				  /* Lines 50 / 60 km/h: waiting for the busy one is no gain. */
+				  auto o = runLines(twoNodesSpeeds({50.0, 60.0}),
+									{{"TB", "B", "A", 100.0},
+									 {"TA", "A", "B", 110.0}});
+				  ASSERT_EQ(0, o.linesSeen["TA"].front(), msg);
+				  return true;
+			  });
+
 	suite.run("adaptive: a train blocked by opposite traffic detours",
 			  [](std::string &msg) {
 				  auto mk = [] {
