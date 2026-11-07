@@ -134,6 +134,34 @@ int main()
 				  return true;
 			  });
 
+	/* Baselines were captured from master before the --lines bonus, so
+	   any change to a shared code path shows up as a diff. */
+	suite.run("default mode output matches golden baselines",
+			  [](std::string &msg) {
+				  const char *names[] = {
+					  "1Baseline", "2BlockReroutePays",
+					  "3BlockStayBetter", "4MultiTrainCongestion",
+					  "7LeaderDiverges", "8SkipDivergingLeader"};
+				  for (const char *n : names)
+				  {
+					  std::string name(n);
+					  auto r = runCmd(
+						  BIN + " input/railNetworkPrintFolder/"
+								"railNetworkScenario" + name
+						  + ".txt input/trainPrintFolder/"
+							"trainPrintScenario" + name + ".txt");
+					  std::ifstream f("tests/golden/scenario" + name
+									  + ".out");
+					  std::string golden(
+						  (std::istreambuf_iterator<char>(f)),
+						  std::istreambuf_iterator<char>());
+					  ASSERT_EQ(0, r.exitCode, msg);
+					  ASSERT_TRUE(!golden.empty(), msg);
+					  ASSERT_STR_EQ(golden, r.output, msg);
+				  }
+				  return true;
+			  });
+
 	suite.run("unknown option is still rejected",
 			  [](std::string &msg) {
 				  auto r = runCmd(BIN + " /tmp/e2e_lines_net.txt "
