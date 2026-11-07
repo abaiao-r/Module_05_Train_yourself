@@ -52,7 +52,10 @@ double DijkstraPathfinding::edgeWeight(const Edge &edge,
 	{
 		std::string key = from + "->" + edge.destination->getName();
 		auto it = occupancy.find(key);
-		if (it != occupancy.end() && it->second > 0)
+		/* Occupancy counts busy lines: an edge with a spare line is
+		   still free (numLines is 1 outside --lines, so unchanged). */
+		if (it != occupancy.end() && it->second >= edge.numLines
+			&& it->second > 0)
 		{
 			/* Prefer a real estimated clear time over the flat constant —
 			   ties the pathfinding cost to the actual delay a train would

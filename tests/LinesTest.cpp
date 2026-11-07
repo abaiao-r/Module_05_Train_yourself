@@ -69,12 +69,12 @@ static Outcome runLines(RailNetwork net,
 	return out;
 }
 
-static RailNetwork twoNodes(int lines)
+static RailNetwork twoNodes(int lines, double km = 10.0)
 {
 	RailNetwork net;
 	net.addNode("A");
 	net.addNode("B");
-	net.addConnection("A", "B", 10.0, 100.0, lines);
+	net.addConnection("A", "B", km, 100.0, lines);
 	return net;
 }
 
@@ -151,6 +151,67 @@ int main()
 				  ASSERT_FALSE(o.headOn, msg);
 				  ASSERT_TRUE(o.actual["TA"] > 0.0, msg);
 				  ASSERT_TRUE(o.actual["TC"] > 0.0, msg);
+				  return true;
+			  });
+
+	suite.run("fast train overtakes a slow one via the second line",
+			  [](std::string &msg) {
+				  auto run = [](int lines) {
+					  TrainFactory::resetIdCounter();
+					  std::vector<std::unique_ptr<Train>> t;
+					  t.push_back(TrainFactory::createTrain(
+						  "Slow", 400.0, 0.05, 220.0, 30.0, "A", "B", 100.0,
+						  0.0));
+					  t.push_back(TrainFactory::createTrain(
+						  "Fast", 80.0, 0.05, 356.0, 30.0, "A", "B", 160.0,
+						  0.0));
+					  Simulation sim(twoNodes(lines, 30.0), std::move(t), {},
+									 std::make_unique<DijkstraPathfinding>(),
+									 PathWeightMode::Distance,
+									 LinesOptions{true});
+					  sim.setQuiet(true);
+					  sim.run();
+					  std::map<std::string, double> arr;
+					  for (const auto &r : sim.getResults())
+						  arr[r.name] = r.actualTime
+										+ (r.name == "Slow" ? 100.0 : 160.0);
+					  return arr;
+				  };
+				  auto one = run(1);
+				  auto two = run(2);
+				  ASSERT_TRUE(one["Fast"] > one["Slow"], msg);
+				  ASSERT_TRUE(two["Fast"] < two["Slow"], msg);
+				  return true;
+			  });
+
+	suite.run("dijkstra: a spare line keeps the edge free of congestion",
+			  [](std::string &msg) {
+				  auto build = [](int lines) {
+					  RailNetwork net;
+					  for (const char *n : {"A", "B", "C", "D"})
+						  net.addNode(n);
+					  net.addConnection("A", "B", 10.0, 100.0, lines);
+					  net.addConnection("B", "D", 10.0, 100.0);
+					  net.addConnection("A", "C", 10.0, 100.0);
+					  net.addConnection("C", "D", 10.0, 100.0);
+					  return net;
+				  };
+				  DijkstraPathfinding dj;
+				  std::string base = dj.findPath("A", "D", build(2),
+									PathWeightMode::Solo)[1]->getName();
+				  SegmentOccupancy occ;
+				  occ["A->" + base] = 1;
+				  auto net2 = build(2);
+				  auto net1 = build(1);
+				  /* base route is the 2-line edge only if base == "B" */
+				  ASSERT_STR_EQ("B", base, msg);
+				  ASSERT_STR_EQ("B", dj.findPath("A", "D", net2,
+							PathWeightMode::Adaptive, occ)[1]->getName(), msg);
+				  ASSERT_STR_EQ("C", dj.findPath("A", "D", net1,
+							PathWeightMode::Adaptive, occ)[1]->getName(), msg);
+				  occ["A->B"] = 2;
+				  ASSERT_STR_EQ("C", dj.findPath("A", "D", net2,
+							PathWeightMode::Adaptive, occ)[1]->getName(), msg);
 				  return true;
 			  });
 
