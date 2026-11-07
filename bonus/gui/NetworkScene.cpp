@@ -139,12 +139,12 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 
 	const QPen lanePen(QColor(149, 165, 166), 2.5, Qt::SolidLine,
 					   Qt::RoundCap);
-	auto *line = addLine(p1.x(), p1.y(), p2.x(), p2.y(), lanePen);
+	auto *line = addPath(QPainterPath(), lanePen);
 	line->setZValue(1);
-	QVector<QGraphicsLineItem *> extra;
+	QVector<QGraphicsPathItem *> extra;
 	for (int i = 1; i < numLines; i++)
 	{
-		auto *l = addLine(p1.x(), p1.y(), p2.x(), p2.y(), lanePen);
+		auto *l = addPath(QPainterPath(), lanePen);
 		l->setZValue(1);
 		extra.push_back(l);
 	}
@@ -161,7 +161,10 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 	repositionEdge(_edges.last());
 }
 
-QPointF NetworkScene::laneOffset(const EdgeVis &e, int line) const
+/* Lanes fan out from the node centres and run parallel in the middle, so
+   every lane touches both nodes however many there are. */
+QPointF NetworkScene::laneOffset(const EdgeVis &e, int line,
+								 double frac) const
 {
 	if (e.numLines <= 1 || line < 0 || !_nodes.contains(e.from)
 		|| !_nodes.contains(e.to))
@@ -171,7 +174,29 @@ QPointF NetworkScene::laneOffset(const EdgeVis &e, int line) const
 	if (len < 1e-6)
 		return QPointF(0, 0);
 	QPointF normal(-d.y() / len, d.x() / len);
-	return normal * ((line - (e.numLines - 1) / 2.0) * LANE_GAP);
+	double ramp = std::min(0.5, 90.0 / len);
+	double t = std::min(frac, 1.0 - frac) / ramp;
+	t = t >= 1.0 ? 1.0 : (t <= 0.0 ? 0.0 : t * t * (3.0 - 2.0 * t));
+	return normal * ((line - (e.numLines - 1) / 2.0) * LANE_GAP * t);
+}
+
+void NetworkScene::setLanePath(QGraphicsPathItem *item, const EdgeVis &e,
+							   int line)
+{
+	QPointF p1 = _nodes[e.from].pos;
+	QPointF p2 = _nodes[e.to].pos;
+	QPainterPath path;
+	const int STEPS = 40;
+	for (int k = 0; k <= STEPS; k++)
+	{
+		double f = double(k) / STEPS;
+		QPointF pt = p1 + (p2 - p1) * f + laneOffset(e, line, f);
+		if (k == 0)
+			path.moveTo(pt);
+		else
+			path.lineTo(pt);
+	}
+	item->setPath(path);
 }
 
 void NetworkScene::clearLanes(EdgeVis &e)
@@ -320,10 +345,7 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 	QPointF p2 = _nodes[e.to].pos;
 	for (int i = 0; i < e.numLines; i++)
 	{
-		QGraphicsLineItem *l = i == 0 ? e.line : e.extraLanes[i - 1];
-		QPointF o = laneOffset(e, i);
-		l->setLine(p1.x() + o.x(), p1.y() + o.y(), p2.x() + o.x(),
-				   p2.y() + o.y());
+		setLanePath(i == 0 ? e.line : e.extraLanes[i - 1], e, i);
 	}
 	QPointF mid = (p1 + p2) / 2.0;
 	/* Keep the label clear of the outermost lane: push it out along the
@@ -452,7 +474,7 @@ QPointF NetworkScene::edgePosition(const QString &from, const QString &to,
 		for (const auto &e : _edges)
 			if ((e.from == from && e.to == to)
 				|| (e.from == to && e.to == from))
-				return pos + laneOffset(e, line);
+				return pos + laneOffset(e, line, fraction);
 	return pos;
 }
 
@@ -495,7 +517,7 @@ void NetworkScene::updateTrains(double /*simTime*/,
 						if ((e.from == s.from && e.to == s.to)
 							|| (e.from == s.to && e.to == s.from))
 						{
-							pos += laneOffset(e, s.line);
+							pos += laneOffset(e, s.line, frac);
 							break;
 						}
 				curFrom = s.from;
@@ -707,7 +729,7 @@ void NetworkScene::flashEvent(const QString &eventName,
 			if ((e.from == found->node1 && e.to == found->node2)
 				|| (e.from == found->node2 && e.to == found->node1))
 			{
-				QVector<QGraphicsLineItem *> lanes = e.extraLanes;
+				QVector<QGraphicsPathItem *> lanes = e.extraLanes;
 				lanes.push_front(e.line);
 				for (auto *line : lanes)
 				{

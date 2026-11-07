@@ -16,6 +16,7 @@
 #include <QGraphicsEllipseItem>
 #include <QGraphicsLineItem>
 #include <QGraphicsPathItem>
+#include <QGraphicsPathItem>
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
 #include <QMap>
@@ -108,7 +109,7 @@ class NetworkScene : public QGraphicsScene
 	};
 	struct EdgeVis
 	{
-		QGraphicsLineItem *line; // lane 0
+		QGraphicsPathItem *line; // lane 0
 		QGraphicsTextItem *label;
 		QString from;
 		QString to;
@@ -116,7 +117,7 @@ class NetworkScene : public QGraphicsScene
 		double speedKmh;
 		QString riskNames;
 		int numLines = 1;
-		QVector<QGraphicsLineItem *> extraLanes; // lanes 1..N-1
+		QVector<QGraphicsPathItem *> extraLanes; // lanes 1..N-1
 	};
 	struct TrainVis
 	{
@@ -156,7 +157,8 @@ class NetworkScene : public QGraphicsScene
 	QPointF edgePosition(const QString &from, const QString &to,
 						 double fraction, int line = -1) const;
 	/** Perpendicular shift of a lane so parallel lines never overlap. */
-	QPointF laneOffset(const EdgeVis &e, int line) const;
+	QPointF laneOffset(const EdgeVis &e, int line, double frac = 0.5) const;
+	void setLanePath(QGraphicsPathItem *item, const EdgeVis &e, int line);
 	void layoutLanes(EdgeVis &e);
 	void clearLanes(EdgeVis &e);
 
