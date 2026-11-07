@@ -2323,6 +2323,7 @@ void MainWindow::onEditEdge()
 	double curDist = 10.0;
 	double curSpeed = 200.0;
 	int curLines = 1;
+	std::vector<double> curLineSpeeds;
 	for (const auto &e : _network.getNeighbours(from.toStdString()))
 	{
 		if (e.destination->getName() == to.toStdString())
@@ -2330,6 +2331,7 @@ void MainWindow::onEditEdge()
 			curDist = e.distance;
 			curSpeed = e.speedLimit;
 			curLines = e.numLines;
+			curLineSpeeds = e.lineSpeeds;
 			break;
 		}
 	}
@@ -2356,6 +2358,31 @@ void MainWindow::onEditEdge()
 	linesSpin->setValue(curLines);
 	linesSpin->setEnabled(_linesCheck->isChecked());
 
+	/* One speed field per possible line; 0 means "same as the rail". */
+	auto *lineForm = new QFormLayout;
+	std::vector<QDoubleSpinBox *> lineSpeedSpins;
+	for (int i = 0; i < linesSpin->maximum(); i++)
+	{
+		auto *sp = new QDoubleSpinBox;
+		sp->setRange(0.0, 999.0);
+		sp->setSpecialValueText("rail speed");
+		sp->setSuffix(" km/h");
+		if (static_cast<size_t>(i) < curLineSpeeds.size()
+			&& curLineSpeeds[i] != curSpeed)
+			sp->setValue(curLineSpeeds[i]);
+		lineSpeedSpins.push_back(sp);
+		lineForm->addRow(QString("Line %1 speed:").arg(i + 1), sp);
+	}
+	auto showLineSpeeds = [&, lineForm]() {
+		bool on = _linesCheck->isChecked();
+		for (int i = 0; i < static_cast<int>(lineSpeedSpins.size()); i++)
+			lineForm->setRowVisible(i, on && i < linesSpin->value()
+										   && linesSpin->value() > 1);
+	};
+	connect(linesSpin, qOverload<int>(&QSpinBox::valueChanged), &dlg,
+			[showLineSpeeds](int) { showLineSpeeds(); });
+	showLineSpeeds();
+
 	auto *btns = new QHBoxLayout;
 	auto *okBtn = new QPushButton("Save Changes");
 	auto *cancelBtn = new QPushButton("Cancel");
@@ -2368,6 +2395,7 @@ void MainWindow::onEditEdge()
 	form->addRow("Distance:", distSpin);
 	form->addRow("Speed limit:", speedSpin);
 	form->addRow("Lines:", linesSpin);
+	form->addRow(lineForm);
 	form->addRow(btns);
 
 	connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
@@ -2379,6 +2407,19 @@ void MainWindow::onEditEdge()
 	const int newLines = linesSpin->value();
 	double newDist = distSpin->value();
 	double newSpeed = speedSpin->value();
+	std::vector<double> newLineSpeeds;
+	if (_linesCheck->isChecked() && newLines > 1)
+	{
+		bool custom = false;
+		for (int i = 0; i < newLines; i++)
+		{
+			double v = lineSpeedSpins[i]->value();
+			custom = custom || (v > 0.0 && v != newSpeed);
+			newLineSpeeds.push_back(v > 0.0 ? v : newSpeed);
+		}
+		if (!custom)
+			newLineSpeeds.clear();
+	}
 
 	RailNetwork newNet;
 	for (const auto &n : _network.getNodeNames())
@@ -2399,7 +2440,7 @@ void MainWindow::onEditEdge()
 				{
 					d = newDist;
 					s = newSpeed;
-					ls.clear(); // per-line speeds no longer match the edit
+					ls = newLineSpeeds;
 					nl = newLines;
 				}
 				try
