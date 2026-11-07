@@ -111,18 +111,20 @@ void NetworkScene::addNode(const QString &name, const QPointF &pos)
    nodeLabelText) so it stays correctly positioned (part of the same
    tracked label item) instead of a separate floating marker. */
 static QString edgeLabelText(double distKm, double speedKmh,
-							 const QString &riskNames)
+							 const QString &riskNames, int numLines = 1)
 {
 	QString txt = QString("%1 km | %2 km/h")
 					  .arg(distKm, 0, 'f', 1)
 					  .arg(speedKmh, 0, 'f', 0);
+	if (numLines > 1)
+		txt += QString(" | %1 lines").arg(numLines);
 	if (!riskNames.isEmpty())
 		txt += QString::fromUtf8(" \xE2\x9A\xA0 ") + riskNames;
 	return txt;
 }
 
 void NetworkScene::addEdge(const QString &from, const QString &to,
-						   double distKm, double speedKmh)
+						   double distKm, double speedKmh, int numLines)
 {
 	if (!_nodes.contains(from) || !_nodes.contains(to))
 		return;
@@ -134,18 +136,20 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 	QPointF p2 = _nodes[to].pos;
 
 	auto *line = addLine(p1.x(), p1.y(), p2.x(), p2.y(),
-						 QPen(QColor(149, 165, 166), 2.5, Qt::SolidLine,
+						 QPen(QColor(149, 165, 166), 2.5 + 1.5 * (numLines - 1),
+							  Qt::SolidLine,
 							  Qt::RoundCap));
 	line->setZValue(1);
 
 	QPointF mid = (p1 + p2) / 2.0;
-	auto *label = addText(edgeLabelText(distKm, speedKmh, QString()),
+	auto *label = addText(edgeLabelText(distKm, speedKmh, QString(), numLines),
 						  QFont("Segoe UI", 7));
 	label->setDefaultTextColor(QColor(189, 195, 199));
 	label->setPos(mid.x() + 4, mid.y() - label->boundingRect().height());
 	label->setZValue(2);
 
-	_edges.push_back({line, label, from, to, distKm, speedKmh, QString()});
+	_edges.push_back({line, label, from, to, distKm, speedKmh, QString(),
+					  numLines});
 }
 
 void NetworkScene::removeNode(const QString &name)
@@ -220,7 +224,7 @@ void NetworkScene::updateEdge(const QString &from, const QString &to,
 			e.distKm = newDist;
 			e.speedKmh = newSpeed;
 			e.label->setPlainText(
-				edgeLabelText(newDist, newSpeed, e.riskNames));
+				edgeLabelText(newDist, newSpeed, e.riskNames, e.numLines));
 			return;
 		}
 	}
@@ -287,7 +291,7 @@ void NetworkScene::loadFromNetwork(const RailNetwork &network)
 		{
 			QString from = QString::fromStdString(name);
 			QString to = QString::fromStdString(e.destination->getName());
-			addEdge(from, to, e.distance, e.speedLimit);
+			addEdge(from, to, e.distance, e.speedLimit, e.numLines);
 		}
 	}
 
@@ -478,6 +482,14 @@ void NetworkScene::updateTrains(double /*simTime*/,
 
 		QString tip = s.name;
 		tip += QString("\nStatus: %1").arg(s.status);
+		QString lineTxt;
+		if (s.line >= 0)
+			lineTxt = QString(" L%1").arg(s.line + 1);
+		else if (s.waiting)
+			lineTxt = QString(" (waiting)");
+		vis.label->setPlainText(s.name + lineTxt);
+		if (!lineTxt.isEmpty())
+			tip += QString("\nLine:%1").arg(lineTxt);
 		if (!s.blockedByName.isEmpty())
 			tip += QString("\nBlocked by: %1").arg(s.blockedByName);
 		if (s.rerouteCount > 0)
@@ -544,7 +556,7 @@ void NetworkScene::drawEventMarkers()
 		{
 			e.riskNames.clear();
 			e.label->setPlainText(
-				edgeLabelText(e.distKm, e.speedKmh, QString()));
+				edgeLabelText(e.distKm, e.speedKmh, QString(), e.numLines));
 		}
 	}
 
@@ -578,7 +590,7 @@ void NetworkScene::drawEventMarkers()
 			continue;
 		e.riskNames = edgeNames[key].join(", ");
 		e.label->setPlainText(
-			edgeLabelText(e.distKm, e.speedKmh, e.riskNames));
+			edgeLabelText(e.distKm, e.speedKmh, e.riskNames, e.numLines));
 	}
 	for (auto it = nodeNames.begin(); it != nodeNames.end(); ++it)
 	{

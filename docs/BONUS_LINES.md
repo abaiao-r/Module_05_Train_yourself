@@ -57,7 +57,11 @@ routing only through this replay judge; the cached candidate paths ignore occupa
 
 The toolbar checkbox "Multi-line rails" sets the same option. Saved and temporary network
 files include line counts only when it is checked. Live `AddRailCommand` carries `numLines`,
-ignored when the option is off. Scene rendering of line counts is not implemented.
+ignored when the option is off. The add-rail dialog has a
+"Lines" field (live adds included). The scene shows `| N lines` on multi-line edges with a
+thicker stroke, and each train's label and tooltip show its line (`L2`) or `(waiting)`.
+Editing or rebuilding the network keeps line counts and per-line speeds; saved files write
+per-line speeds after the line count.
 
 ## Tests
 
