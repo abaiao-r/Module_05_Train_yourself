@@ -395,7 +395,7 @@ int main()
 				  return true;
 			  });
 
-	suite.run("lone train: estimate equals the simulated time to the second",
+	suite.run("no events: estimate (incl. waiting for traffic) equals the simulated time",
 			  [](std::string &msg) {
 				  auto r = runCmd(BIN
 					  + " input/railNetworkPrintFolder/railNetworkBonus12WaitOrGo.txt"
@@ -404,6 +404,8 @@ int main()
 				  ASSERT_EQ(0, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(
 					  r.output, "Back          00h08m23s     00h08m23s"), msg);
+				  ASSERT_TRUE(outputContains(
+					  r.output, "Go            00h13m46s     00h13m46s"), msg);
 				  return true;
 			  });
 

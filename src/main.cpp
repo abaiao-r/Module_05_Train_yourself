@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -143,7 +144,7 @@ static void printHelp()
 
 static std::string fmtTimeStat(double seconds)
 {
-	int total = static_cast<int>(seconds);
+	int total = static_cast<int>(std::lround(seconds));
 	int h = total / 3600;
 	int m = (total % 3600) / 60;
 	int s = total % 60;

@@ -86,7 +86,7 @@ For each train, after all N runs:
 
 | Metric | Formula |
 |--------|---------|
-| **Estimated time** | Stored once (no events, deterministic) |
+| **Estimated time** | Time in a deterministic dry run of the same scenario without events (includes queuing and waiting for other trains), so a run where no event fires matches it exactly |
 | **Average actual time** | `sum(statActual[name]) / N` |
 | **Min actual time** | Minimum of `statActual[name]` |
 | **Max actual time** | Maximum of `statActual[name]` |

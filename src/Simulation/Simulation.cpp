@@ -24,6 +24,21 @@
 #include "Node.hpp"
 #include "TrainFactory.hpp"
 
+namespace {
+/* Observer for the internal dry run: writes nothing. */
+class NullObserver : public ISimulationObserver
+{
+  public:
+	void onTrainStart(const std::string &, int, double) override {}
+	void onTrainStep(double, const std::string &, const std::string &, double,
+					 const std::string &, int, int,
+					 const std::vector<int> &) override {}
+	void onTrainEvent(const std::string &, const std::string &,
+					  double) override {}
+	void onTrainFinish(const std::string &, double) override {}
+};
+}
+
 Simulation::Simulation(RailNetwork network,
 					   std::vector<std::unique_ptr<Train>> trains,
 					   std::vector<Event> events,
@@ -286,14 +301,19 @@ void Simulation::run()
 		s.segmentEntryTime = train->getDepartureTime();
 		states.push_back(s);
 
-		auto obs = std::make_unique<FileOutputObserver>(
-			train->getName(), train->getDepartureTime());
-		_observers.push_back(std::move(obs));
+		if (_dryRun)
+			_observers.push_back(std::make_unique<NullObserver>());
+		else
+			_observers.push_back(std::make_unique<FileOutputObserver>(
+				train->getName(), train->getDepartureTime()));
 	}
+
+	if (!_dryRun)
+		computeExpectedTimes();
 
 	for (size_t i = 0; i < states.size(); i++)
 	{
-		double est = estimateTravelTime(*states[i].train);
+		double est = expectedTime(*states[i].train);
 		_observers[i]->onTrainStart(states[i].train->getName(),
 									states[i].train->getId(), est);
 	}
@@ -554,7 +574,7 @@ void Simulation::run()
 		TrainResult r;
 		r.name = states[i].train->getName();
 		r.id = states[i].train->getId();
-		r.estimatedTime = estimateTravelTime(*states[i].train);
+		r.estimatedTime = expectedTime(*states[i].train);
 		r.actualTime = states[i].timeSinceDepart;
 		r.totalDelay = states[i].train->getTotalDelay();
 		_results.push_back(r);
@@ -607,6 +627,44 @@ void Simulation::computePaths()
 	}
 	if (!_quiet)
 		std::cout << std::endl;
+}
+
+/* Expected time = the train's time in a deterministic dry run of the same
+   scenario without random events: it includes queuing and waiting for
+   other trains, and matches the real run to the second whenever no event
+   fires. Falls back to the lone-train estimate if the dry run fails. */
+void Simulation::computeExpectedTimes()
+{
+	_expected.clear();
+	if (_dryRun || _trains.empty())
+		return;
+	try
+	{
+		std::vector<std::unique_ptr<Train>> copies;
+		for (const auto &t : _trains)
+			copies.push_back(std::make_unique<Train>(*t));
+		Simulation dry(_network, std::move(copies), {},
+					   std::make_unique<DijkstraPathfinding>(), _weightMode,
+					   _lines);
+		dry._dryRun = true;
+		dry._quiet = true;
+		dry.run();
+		const auto &res = dry.getResults();
+		const auto &tr = dry.getTrains();
+		for (size_t i = 0; i < res.size() && i < tr.size(); i++)
+			_expected[{tr[i]->getName(), tr[i]->getDepartureTime()}]
+				= res[i].actualTime;
+	}
+	catch (const std::exception &)
+	{
+		_expected.clear();
+	}
+}
+
+double Simulation::expectedTime(const Train &train) const
+{
+	auto it = _expected.find({train.getName(), train.getDepartureTime()});
+	return it != _expected.end() ? it->second : estimateTravelTime(train);
 }
 
 /* The estimate replays the real physics on an empty network, so a train
