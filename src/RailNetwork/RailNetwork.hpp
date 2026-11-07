@@ -38,7 +38,7 @@ class RailNetwork
 
 	void addNode(const std::string &name);
 	void addConnection(const std::string &from, const std::string &to,
-					   double distance, double speedLimit);
+					   double distance, double speedLimit, int numLines = 1);
 	std::shared_ptr<Node> findNode(const std::string &name) const;
 	const std::vector<Edge> &getNeighbours(
 		const std::string &nodeName) const;

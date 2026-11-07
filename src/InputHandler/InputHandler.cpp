@@ -49,6 +49,24 @@ static void requireEndOfLine(std::istringstream &iss)
 		throw InputHandler::ParseException("Unexpected trailing content");
 }
 
+static int parseLineCount(const std::string &str)
+{
+	int value = 0;
+	size_t used = 0;
+	try
+	{
+		value = std::stoi(str, &used);
+	}
+	catch (const std::exception &)
+	{
+		used = 0;
+	}
+	if (used != str.size() || value < 1)
+		throw InputHandler::ParseException(
+			"Invalid line count '" + str + "' (expected an integer >= 1)");
+	return value;
+}
+
 static double parseDuration(const std::string &str)
 {
 	if (str.empty())
@@ -123,7 +141,7 @@ SimulationData InputHandler::loadData(const std::string &networkFile,
 {
 	SimulationData data;
 	data.lines = lines;
-	parseNetworkFile(networkFile, data.network, data.events);
+	parseNetworkFile(networkFile, data.network, data.events, lines);
 	data.trains = parseTrainFile(trainFile);
 	validateData(networkFile, trainFile, data);
 	return data;
@@ -131,7 +149,8 @@ SimulationData InputHandler::loadData(const std::string &networkFile,
 
 void InputHandler::parseNetworkFile(const std::string &filepath,
 									RailNetwork &network,
-									std::vector<Event> &events)
+									std::vector<Event> &events,
+									const LinesOptions &lines)
 {
 	std::ifstream file(filepath);
 	if (!file.is_open())
@@ -182,8 +201,16 @@ void InputHandler::parseNetworkFile(const std::string &filepath,
 				iss >> from >> to >> distance >> speedLimit;
 				if (iss.fail() || from.empty() || to.empty())
 					throw ParseException("Invalid rail line");
+				int numLines = 1;
+				if (lines.enabled)
+				{
+					std::string count;
+					if (iss >> count)
+						numLines = parseLineCount(count);
+				}
 				requireEndOfLine(iss);
-				network.addConnection(from, to, distance, speedLimit);
+				network.addConnection(from, to, distance, speedLimit,
+									  numLines);
 			}
 			else
 			{
