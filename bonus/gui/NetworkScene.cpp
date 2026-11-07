@@ -112,19 +112,40 @@ void NetworkScene::addNode(const QString &name, const QPointF &pos)
    nodeLabelText) so it stays correctly positioned (part of the same
    tracked label item) instead of a separate floating marker. */
 static QString edgeLabelText(double distKm, double speedKmh,
-							 const QString &riskNames, int numLines = 1)
+							 const QString &riskNames, bool laneMode = false)
 {
 	/* Multi-line rails show speed per line on the lane cards instead. */
-	QString txt = numLines > 1
+	QString txt = laneMode
 		? QString("%1 km").arg(distKm, 0, 'f', 1)
 		: QString("%1 km | %2 km/h").arg(distKm, 0, 'f', 1)
 							.arg(speedKmh, 0, 'f', 0);
-	if (!riskNames.isEmpty())
+	if (!riskNames.isEmpty() && !laneMode)
 		txt += QString::fromUtf8(" \xE2\x9A\xA0 ") + riskNames;
 	return txt;
 }
 
 static const double LANE_GAP = 18.0;
+
+/* A network that uses lanes at all (any rail with 2+ lines) shows every
+   rail as lanes, single-line rails included (one L1 card). */
+bool NetworkScene::laneMode() const
+{
+	for (const auto &e : _edges)
+		if (e.numLines > 1)
+			return true;
+	return false;
+}
+
+void NetworkScene::refreshEdgeLabels()
+{
+	bool lm = laneMode();
+	for (auto &e : _edges)
+	{
+		e.label->setPlainText(
+			edgeLabelText(e.distKm, e.speedKmh, e.riskNames, lm));
+		repositionEdge(e);
+	}
+}
 
 void NetworkScene::addEdge(const QString &from, const QString &to,
 						   double distKm, double speedKmh, int numLines,
@@ -152,7 +173,7 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 	}
 
 	QPointF mid = (p1 + p2) / 2.0;
-	auto *label = addText(edgeLabelText(distKm, speedKmh, QString(), numLines),
+	auto *label = addText(edgeLabelText(distKm, speedKmh, QString(), numLines > 1),
 						  QFont("Segoe UI", 7));
 	label->setDefaultTextColor(QColor(189, 195, 199));
 	label->setPos(mid.x() + 4, mid.y() - label->boundingRect().height());
@@ -160,7 +181,7 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 
 	_edges.push_back({line, label, from, to, distKm, speedKmh, QString(),
 					  numLines, extra, lineSpeeds, {}});
-	repositionEdge(_edges.last());
+	refreshEdgeLabels();
 }
 
 /* Each line of a multi-line rail has its own colour, used for the stroke
@@ -240,7 +261,7 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 		delete t;
 	}
 	e.laneLabels.clear();
-	if (e.numLines <= 1 || !_nodes.contains(e.from)
+	if (!laneMode() || !_nodes.contains(e.from)
 		|| !_nodes.contains(e.to))
 		return;
 
@@ -261,7 +282,7 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 						 ? e.lineSpeeds[i] : e.speedKmh;
 		QStringList evs;
 		for (const auto &ev : _events)
-			if (ev.line == i && !ev.node2.isEmpty()
+			if ((ev.line == i || ev.line < 0) && !ev.node2.isEmpty()
 				&& ((ev.node1 == e.from && ev.node2 == e.to)
 					|| (ev.node1 == e.to && ev.node2 == e.from)))
 				evs << ev.name;
@@ -274,7 +295,8 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 			card += QString::fromUtf8(" &middot; \xE2\x9A\xA0 ")
 					+ evs.join(", ").toHtmlEscaped();
 		card += "&nbsp;</span>";
-		double t = e.numLines > 1 ? double(i) / (e.numLines - 1) : 0.5;
+		/* Off-centre for a single lane: crossing rails meet at the middle. */
+		double t = e.numLines > 1 ? double(i) / (e.numLines - 1) : 0.3;
 		double f = ramp + t * (1.0 - 2.0 * ramp);
 		auto *lt = addText("", QFont("Segoe UI", 7));
 		lt->setHtml(card);
@@ -364,7 +386,7 @@ void NetworkScene::updateEdge(const QString &from, const QString &to,
 					{
 						n.riskNames = risk;
 						n.label->setPlainText(edgeLabelText(
-							newDist, newSpeed, risk, newLines));
+							newDist, newSpeed, risk, laneMode()));
 						repositionEdge(n);
 					}
 				return;
@@ -373,7 +395,7 @@ void NetworkScene::updateEdge(const QString &from, const QString &to,
 			e.speedKmh = newSpeed;
 			e.lineSpeeds = newLineSpeeds;
 			e.label->setPlainText(
-				edgeLabelText(newDist, newSpeed, e.riskNames, e.numLines));
+				edgeLabelText(newDist, newSpeed, e.riskNames, laneMode()));
 			updateLaneLabels(e);
 			return;
 		}
@@ -419,7 +441,7 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 	{
 		QGraphicsPathItem *lane = i == 0 ? e.line : e.extraLanes[i - 1];
 		setLanePath(lane, e, i);
-		if (e.numLines > 1)
+		if (laneMode())
 			lane->setPen(QPen(laneColor(i), 3.0, Qt::SolidLine,
 							  Qt::RoundCap));
 	}
@@ -430,7 +452,7 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 	QPointF d = p2 - p1;
 	double len = std::hypot(d.x(), d.y());
 	QRectF lb = e.label->boundingRect();
-	if (e.numLines <= 1 || len < 1e-6)
+	if (!laneMode() || len < 1e-6)
 	{
 		e.label->setPos(mid.x() + 4, mid.y() - lb.height());
 		return;
@@ -780,7 +802,7 @@ void NetworkScene::drawEventMarkers()
 		{
 			e.riskNames.clear();
 			e.label->setPlainText(
-				edgeLabelText(e.distKm, e.speedKmh, QString(), e.numLines));
+				edgeLabelText(e.distKm, e.speedKmh, QString(), laneMode()));
 		}
 	}
 
@@ -818,7 +840,7 @@ void NetworkScene::drawEventMarkers()
 			continue;
 		e.riskNames = edgeNames[key].join(", ");
 		e.label->setPlainText(
-			edgeLabelText(e.distKm, e.speedKmh, e.riskNames, e.numLines));
+			edgeLabelText(e.distKm, e.speedKmh, e.riskNames, laneMode()));
 	}
 	for (auto it = nodeNames.begin(); it != nodeNames.end(); ++it)
 	{

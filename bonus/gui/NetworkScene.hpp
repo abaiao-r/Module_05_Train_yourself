@@ -171,6 +171,8 @@ class NetworkScene : public QGraphicsScene
 	void setLanePath(QGraphicsPathItem *item, const EdgeVis &e, int line);
 	void layoutLanes(EdgeVis &e);
 	void clearLanes(EdgeVis &e);
+	bool laneMode() const;
+	void refreshEdgeLabels();
 	void updateLaneLabels(EdgeVis &e);
 
 	static const QColor PALETTE[];
