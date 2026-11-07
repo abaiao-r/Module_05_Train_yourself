@@ -34,6 +34,7 @@
 #include <QRegularExpression>
 #include <QScrollArea>
 #include <QSpinBox>
+#include <algorithm>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTabWidget>
@@ -544,6 +545,11 @@ void MainWindow::buildToolbar()
 					flat.addConnection(n, e.destination->getName(),
 									   e.distance, e.speedLimit);
 		_network = std::move(flat);
+		for (auto &ev : _eventDefs)
+			if (ev.isLineEvent())
+				ev = Event(ev.getName(), ev.getProbability(),
+						   ev.getDuration(), ev.getNodeName(),
+						   ev.getNodeName2());
 		_scene->loadFromNetwork(_network);
 		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
@@ -875,7 +881,17 @@ void MainWindow::refreshLists()
 				.arg(QString::fromStdString(ev.getName()))
 				.arg(ev.getProbability(), 0, 'f', 2)
 				.arg(ev.getDuration() / 60.0, 0, 'f', 1)
-				.arg(QString::fromStdString(ev.getNodeName())));
+				.arg(ev.isRailEvent()
+						 ? QString("rail %1 <-> %2%3")
+							   .arg(QString::fromStdString(ev.getNodeName()),
+									QString::fromStdString(ev.getNodeName2()),
+									ev.isLineEvent()
+										? QString(", line %1")
+											  .arg(ev.getLine() + 1)
+										: QString())
+						 : QString("station %1")
+							   .arg(QString::fromStdString(
+								   ev.getNodeName()))));
 	}
 
 	statusBar()->showMessage(
@@ -1108,6 +1124,8 @@ void MainWindow::onSaveNetwork()
 			<< quoteIfNeeded(ev.getNodeName());
 		if (ev.isRailEvent())
 			out << " " << quoteIfNeeded(ev.getNodeName2());
+		if (ev.isLineEvent() && _linesCheck->isChecked())
+			out << " " << (ev.getLine() + 1);
 		out << "\n";
 	}
 	logSuccess("Saved network to " + QFileInfo(path).fileName());
@@ -1330,6 +1348,8 @@ void MainWindow::onExportAll()
 				<< quoteIfNeeded(ev.getNodeName());
 			if (ev.isRailEvent())
 				out << " " << quoteIfNeeded(ev.getNodeName2());
+			if (ev.isLineEvent() && _linesCheck->isChecked())
+				out << " " << (ev.getLine() + 1);
 			out << "\n";
 		}
 	}
@@ -1448,6 +1468,7 @@ void MainWindow::onAddNode()
 		_scene->addNode(name, QPointF(std::rand() % 400 - 200,
 									  std::rand() % 400 - 200));
 		refreshLists();
+		_scene->clearTrains();
 		logSuccess("Added node: " + name);
 	}
 	catch (const std::exception &e)
@@ -1562,6 +1583,7 @@ void MainWindow::onAddEdge()
 		_scene->addEdge(from, to, distSpin->value(), speedSpin->value(),
 						_linesCheck->isChecked() ? numLines : 1);
 		refreshLists();
+		_scene->clearTrains();
 		logSuccess(QString("Added edge: %1 <-> %2 (%3 km, %4 km/h)")
 					   .arg(from, to)
 					   .arg(distSpin->value())
@@ -1746,8 +1768,123 @@ void MainWindow::onAddTrain()
 		depTime, stopDur);
 	_trainDefs.push_back(std::move(train));
 	refreshLists();
+	_scene->clearTrains();
 	logSuccess("Added train: " + trainName);
 }
+
+namespace
+{
+/* One clear "where does this event happen" picker shared by the add and
+   edit dialogs: a station, a whole rail, or a single line of a rail. */
+struct EventTarget
+{
+	QFormLayout *form = nullptr;
+	QComboBox *kind = nullptr;
+	QComboBox *station = nullptr;
+	QComboBox *rail = nullptr;
+	QSpinBox *line = nullptr;
+	int stationRow = 0, railRow = 0, lineRow = 0;
+	std::vector<std::pair<std::string, int>> railLines; // numLines per rail
+	std::vector<std::pair<std::string, std::string>> rails;
+
+	void refresh() const
+	{
+		int k = kind->currentIndex();
+		form->setRowVisible(stationRow, k == 0);
+		form->setRowVisible(railRow, k != 0);
+		form->setRowVisible(lineRow, k == 2);
+		int r = rail->currentIndex();
+		if (r >= 0 && r < static_cast<int>(railLines.size()))
+			line->setRange(1, std::max(1, railLines[r].second));
+	}
+
+	/* Returns false (with a message) when the choice is not valid. */
+	bool read(std::string &n1, std::string &n2, int &lineIdx,
+			  QString &err) const
+	{
+		lineIdx = -1;
+		n2.clear();
+		if (kind->currentIndex() == 0)
+		{
+			n1 = station->currentText().toStdString();
+			return true;
+		}
+		int r = rail->currentIndex();
+		if (r < 0 || r >= static_cast<int>(rails.size()))
+		{
+			err = "There is no rail to attach the event to.";
+			return false;
+		}
+		n1 = rails[r].first;
+		n2 = rails[r].second;
+		if (kind->currentIndex() == 2)
+			lineIdx = line->value() - 1;
+		return true;
+	}
+};
+
+EventTarget addEventTargetRows(QFormLayout *form, const RailNetwork &net,
+							   const QStringList &names, bool linesOn,
+							   const Event *ev)
+{
+	EventTarget t;
+	t.form = form;
+	t.kind = new QComboBox;
+	t.kind->addItem("Station (city)");
+	t.kind->addItem("Rail - every line");
+	if (linesOn)
+		t.kind->addItem("Rail - one line only");
+	t.station = new QComboBox;
+	t.station->addItems(names);
+	t.rail = new QComboBox;
+	t.line = new QSpinBox;
+	for (const auto &n : net.getNodeNames())
+		for (const auto &e : net.getNeighbours(n))
+		{
+			const std::string to = e.destination->getName();
+			if (n < to)
+			{
+				t.rails.emplace_back(n, to);
+				t.railLines.emplace_back(n, e.numLines);
+				t.rail->addItem(QString::fromStdString(n) + " <-> "
+								+ QString::fromStdString(to));
+			}
+		}
+	form->addRow("Happens on:", t.kind);
+	t.stationRow = form->rowCount();
+	form->addRow("Station:", t.station);
+	t.railRow = form->rowCount();
+	form->addRow("Rail:", t.rail);
+	t.lineRow = form->rowCount();
+	form->addRow("Line:", t.line);
+
+	if (ev)
+	{
+		if (!ev->isRailEvent())
+			t.station->setCurrentText(
+				QString::fromStdString(ev->getNodeName()));
+		else
+		{
+			for (size_t i = 0; i < t.rails.size(); i++)
+				if ((t.rails[i].first == ev->getNodeName()
+					 && t.rails[i].second == ev->getNodeName2())
+					|| (t.rails[i].first == ev->getNodeName2()
+						&& t.rails[i].second == ev->getNodeName()))
+					t.rail->setCurrentIndex(static_cast<int>(i));
+			t.kind->setCurrentIndex(ev->isLineEvent() && linesOn ? 2 : 1);
+		}
+	}
+	auto onChange = [t](int) { t.refresh(); };
+	QObject::connect(t.rail, QOverload<int>::of(&QComboBox::currentIndexChanged),
+					 t.rail, onChange);
+	QObject::connect(t.kind, QOverload<int>::of(&QComboBox::currentIndexChanged),
+					 t.kind, onChange);
+	t.refresh();
+	if (ev && ev->isLineEvent() && linesOn)
+		t.line->setValue(ev->getLine() + 1);
+	return t;
+}
+} // namespace
 
 void MainWindow::onAddEvent()
 {
@@ -1774,11 +1911,6 @@ void MainWindow::onAddEvent()
 	durSpin->setRange(1, 9999);
 	durSpin->setValue(30);
 	durSpin->setSuffix(" min");
-	auto *node1Box = new QComboBox;
-	node1Box->addItems(names);
-	auto *node2Box = new QComboBox;
-	node2Box->addItem("(none - city event)");
-	node2Box->addItems(names);
 
 	auto *btns = new QHBoxLayout;
 	auto *okBtn = new QPushButton("Add Event");
@@ -1790,8 +1922,8 @@ void MainWindow::onAddEvent()
 	form->addRow("Event name:", nameEdit);
 	form->addRow("Probability:", probSpin);
 	form->addRow("Duration:", durSpin);
-	form->addRow("Node 1:", node1Box);
-	form->addRow("Node 2 (rail):", node2Box);
+	auto target = addEventTargetRows(form, _network, names,
+									 _linesCheck->isChecked(), nullptr);
 	form->addRow(btns);
 
 	connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
@@ -1809,26 +1941,22 @@ void MainWindow::onAddEvent()
 		return;
 	}
 
-	std::string n1 = node1Box->currentText().toStdString();
-	std::string n2;
-	if (node2Box->currentIndex() > 0)
+	std::string n1, n2;
+	int evLine = -1;
+	QString targetErr;
+	if (!target.read(n1, n2, evLine, targetErr))
 	{
-		n2 = node2Box->currentText().toStdString();
-		if (n2 == n1)
-		{
-			logError("Node 2 cannot be the same as Node 1 for a rail event.");
-			QMessageBox::warning(this, "Invalid Rail Event",
-				"For a rail segment event, Node 1 and Node 2 must be "
-				"different stations.");
-			return;
-		}
+		logError(targetErr);
+		QMessageBox::warning(this, "Invalid Event", targetErr);
+		return;
 	}
 
 	if (_simRunning)
 	{
 		if (_worker->enqueueAddEvent(
 				evName, probSpin->value(), durSpin->value() * 60.0,
-				QString::fromStdString(n1), QString::fromStdString(n2)))
+				QString::fromStdString(n1), QString::fromStdString(n2),
+				evLine))
 			logInfo("Queued live add of event '" + evName
 					+ "' (applies on the next tick).");
 		else
@@ -1838,7 +1966,7 @@ void MainWindow::onAddEvent()
 
 	_eventDefs.emplace_back(evName.toStdString(),
 							probSpin->value(),
-							durSpin->value() * 60.0, n1, n2);
+							durSpin->value() * 60.0, n1, n2, evLine);
 	refreshLists();
 	logSuccess("Added event: " + evName);
 }
@@ -1929,6 +2057,7 @@ void MainWindow::onDeleteNode()
 		_trainDefs.end());
 
 	refreshLists();
+	_scene->clearTrains();
 	logSuccess("Deleted node: " + name);
 }
 
@@ -1988,6 +2117,7 @@ void MainWindow::onDeleteEdge()
 	}
 	_network = std::move(newNet);
 	refreshLists();
+	_scene->clearTrains();
 	logSuccess("Deleted edge: " + from + " <-> " + to);
 }
 
@@ -2012,6 +2142,7 @@ void MainWindow::onDeleteTrain()
 
 	_trainDefs.erase(_trainDefs.begin() + row);
 	refreshLists();
+	_scene->clearTrains();
 	logSuccess("Deleted train: " + name);
 }
 
@@ -2161,10 +2292,11 @@ void MainWindow::onEditNode()
 		}
 		if (changed)
 			_eventDefs[i] = Event(ev.getName(), ev.getProbability(),
-								  ev.getDuration(), n1, n2);
+								  ev.getDuration(), n1, n2, ev.getLine());
 	}
 
 	refreshLists();
+	_scene->clearTrains();
 	logSuccess("Renamed node: " + oldName + " -> " + newName);
 }
 
@@ -2283,9 +2415,22 @@ void MainWindow::onEditEdge()
 	}
 	_network = std::move(newNet);
 
+	_eventDefs.erase(
+		std::remove_if(_eventDefs.begin(), _eventDefs.end(),
+					   [&](const Event &ev) {
+						   return ev.isLineEvent() && ev.getLine() >= newLines
+							   && ((ev.getNodeName() == from.toStdString()
+									&& ev.getNodeName2() == to.toStdString())
+								   || (ev.getNodeName() == to.toStdString()
+									   && ev.getNodeName2()
+											  == from.toStdString()));
+					   }),
+		_eventDefs.end());
+	_scene->clearTrains();
 	_scene->updateEdge(from, to, newDist, newSpeed, newLines);
 
 	refreshLists();
+	_scene->clearTrains();
 	logSuccess(QString("Updated edge: %1 <-> %2 (%3 km, %4 km/h)")
 				   .arg(from, to)
 				   .arg(newDist, 0, 'f', 1)
@@ -2430,6 +2575,7 @@ void MainWindow::onEditTrain()
 		depTime, stopDur);
 	_trainDefs[row] = std::move(newTrain);
 	refreshLists();
+	_scene->clearTrains();
 	logSuccess("Updated train: " + editTrainName);
 }
 
@@ -2462,15 +2608,6 @@ void MainWindow::onEditEvent()
 	durSpin->setRange(1, 9999);
 	durSpin->setValue(ev.getDuration() / 60.0);
 	durSpin->setSuffix(" min");
-	auto *node1Box = new QComboBox;
-	node1Box->addItems(names);
-	node1Box->setCurrentText(QString::fromStdString(ev.getNodeName()));
-	auto *node2Box = new QComboBox;
-	node2Box->addItem("(none - city event)");
-	node2Box->addItems(names);
-	if (ev.isRailEvent())
-		node2Box->setCurrentText(QString::fromStdString(ev.getNodeName2()));
-
 	auto *btns = new QHBoxLayout;
 	auto *okBtn = new QPushButton("Save Changes");
 	auto *cancelBtn = new QPushButton("Cancel");
@@ -2481,8 +2618,8 @@ void MainWindow::onEditEvent()
 	form->addRow("Event name:", nameEdit);
 	form->addRow("Probability:", probSpin);
 	form->addRow("Duration:", durSpin);
-	form->addRow("Node 1:", node1Box);
-	form->addRow("Node 2 (rail):", node2Box);
+	auto target = addEventTargetRows(form, _network, names,
+									 _linesCheck->isChecked(), &ev);
 	form->addRow(btns);
 
 	connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
@@ -2500,24 +2637,19 @@ void MainWindow::onEditEvent()
 		return;
 	}
 
-	std::string n1 = node1Box->currentText().toStdString();
-	std::string n2;
-	if (node2Box->currentIndex() > 0)
+	std::string n1, n2;
+	int evLine = -1;
+	QString targetErr;
+	if (!target.read(n1, n2, evLine, targetErr))
 	{
-		n2 = node2Box->currentText().toStdString();
-		if (n2 == n1)
-		{
-			logError("Node 2 cannot be the same as Node 1 for a rail event.");
-			QMessageBox::warning(this, "Invalid Rail Event",
-				"For a rail segment event, Node 1 and Node 2 must be "
-				"different stations.");
-			return;
-		}
+		logError(targetErr);
+		QMessageBox::warning(this, "Invalid Event", targetErr);
+		return;
 	}
 
 	_eventDefs[row] = Event(editEvName.toStdString(),
 							probSpin->value(),
-							durSpin->value() * 60.0, n1, n2);
+							durSpin->value() * 60.0, n1, n2, evLine);
 	refreshLists();
 	logSuccess("Updated event: " + editEvName);
 }
@@ -2906,6 +3038,8 @@ QString MainWindow::writeTemporaryNetworkFile() const
 			<< quoteIfNeeded(ev.getNodeName());
 		if (ev.isRailEvent())
 			out << " " << quoteIfNeeded(ev.getNodeName2());
+		if (ev.isLineEvent() && _linesCheck->isChecked())
+			out << " " << (ev.getLine() + 1);
 		out << "\n";
 	}
 	return tmpPath;

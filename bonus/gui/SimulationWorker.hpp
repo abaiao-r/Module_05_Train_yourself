@@ -82,6 +82,7 @@ struct EventInfo
 	double durationSec;
 	QString node1;
 	QString node2; // empty → station event, not a rail-segment event
+	int line = -1; // 0-based line of a single-line event, -1 = whole rail
 };
 
 Q_DECLARE_METATYPE(QVector<EventInfo>)
@@ -136,7 +137,7 @@ class SimulationWorker : public QObject
 						int numLines = 1);
 	bool enqueueAddEvent(const QString &name, double probability,
 						 double durationSeconds, const QString &node1,
-						 const QString &node2);
+						 const QString &node2, int line = -1);
 	bool enqueueAddTrain(const QString &name, double weightTons,
 						 double friction, double maxAccelKn,
 						 double maxBrakeKn, const QString &from,

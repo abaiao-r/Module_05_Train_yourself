@@ -123,7 +123,7 @@ bool SimulationWorker::enqueueAddEvent(const QString &name,
 									   double probability,
 									   double durationSeconds,
 									   const QString &node1,
-									   const QString &node2)
+									   const QString &node2, int line)
 {
 	std::lock_guard<std::mutex> lk(_liveSimMutex);
 	Simulation *sim = _liveSim;
@@ -131,7 +131,7 @@ bool SimulationWorker::enqueueAddEvent(const QString &name,
 		return false;
 	sim->enqueueMutation(AddEventCommand{
 		name.toStdString(), probability, durationSeconds,
-		node1.toStdString(), node2.toStdString()});
+		node1.toStdString(), node2.toStdString(), line});
 	return true;
 }
 
@@ -240,6 +240,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 				info.durationSec = ev.getDuration();
 				info.node1 = QString::fromStdString(ev.getNodeName());
 				info.node2 = QString::fromStdString(ev.getNodeName2());
+				info.line = ev.getLine();
 				evInfos.push_back(info);
 			}
 			emit eventsAvailable(evInfos);
@@ -438,6 +439,7 @@ void SimulationWorker::runMulti(const QString &networkFile,
 						info.durationSec = ev.getDuration();
 						info.node1 = QString::fromStdString(ev.getNodeName());
 						info.node2 = QString::fromStdString(ev.getNodeName2());
+				info.line = ev.getLine();
 						evInfos.push_back(info);
 					}
 					emit eventsAvailable(evInfos);

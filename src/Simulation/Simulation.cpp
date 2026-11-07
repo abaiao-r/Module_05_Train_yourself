@@ -176,8 +176,20 @@ void Simulation::applyAddEvent(const AddEventCommand &c)
 										+ "' references nonexistent rail '"
 										+ c.node1 + " - " + c.node2 + "'");
 	}
+	if (c.line >= 0)
+	{
+		int n = 1;
+		for (const auto &e : _network.getNeighbours(c.node1))
+			if (e.destination->getName() == c.node2)
+				n = e.numLines;
+		if (c.line >= n)
+			throw std::invalid_argument(
+				"Event '" + c.name + "' references line "
+				+ std::to_string(c.line + 1) + " but rail '" + c.node1
+				+ " - " + c.node2 + "' has " + std::to_string(n));
+	}
 	_events.emplace_back(c.name, c.probability, c.durationSeconds,
-						 c.node1, c.node2);
+						 c.node1, c.node2, c.line);
 	_eventGen++;
 }
 
@@ -862,6 +874,8 @@ void Simulation::rollSegmentEvents(TrainState &s, size_t trainIdx)
 	std::string segTo = path[s.segmentIndex + 1]->getName();
 	for (const auto *event : getEventsOnSegment(segFrom, segTo))
 	{
+		if (event->isLineEvent() && event->getLine() != s.lineId)
+			continue;
 		if (event->tryTrigger(_rng))
 		{
 			double delay = event->getDuration();
@@ -893,7 +907,13 @@ SegmentEventRisk Simulation::buildEventRisk() const
 			   match), plus station events at the destination — arriving
 			   there risks triggering them too. */
 			for (const auto *ev : getEventsOnSegment(fromName, toName))
-				expectedDelay += ev->getProbability() * ev->getDuration();
+			{
+				/* A single-line event only hits trains on that line. */
+				double share = ev->isLineEvent()
+								   ? 1.0 / std::max(1, edge.numLines) : 1.0;
+				expectedDelay += share * ev->getProbability()
+								 * ev->getDuration();
+			}
 			for (const auto *ev : getEventsAtNode(toName))
 				expectedDelay += ev->getProbability() * ev->getDuration();
 

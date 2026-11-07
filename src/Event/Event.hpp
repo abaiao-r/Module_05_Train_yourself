@@ -25,11 +25,12 @@ class Event
 	double _duration;  // seconds
 	std::string _nodeName;
 	std::string _nodeName2;  // non-empty → rail segment event
+	int _line;               // bonus --lines: 0-based line, -1 = whole rail
 
   public:
 	Event(const std::string &name, double probability, double duration,
 		  const std::string &nodeName,
-		  const std::string &nodeName2 = "");
+		  const std::string &nodeName2 = "", int line = -1);
 	Event(const Event &src);
 	Event &operator=(const Event &src);
 	~Event();
@@ -41,6 +42,8 @@ class Event
 	const std::string &getNodeName() const;
 	const std::string &getNodeName2() const;
 	bool isRailEvent() const;
+	int getLine() const;
+	bool isLineEvent() const;
 };
 
 #endif
