@@ -13,6 +13,7 @@
 #ifndef MAINWINDOW_HPP
 #define MAINWINDOW_HPP
 
+#include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QGraphicsView>
@@ -129,6 +130,7 @@ class MainWindow : public QMainWindow
 	QGraphicsView *_view;
 	NetworkScene *_scene;
 	QTabWidget *_tabs = nullptr;
+	QAction *_showLogAct = nullptr;
 	QTextBrowser *_details = nullptr;
 	QListWidget *_nodeList;
 	QListWidget *_edgeList;
