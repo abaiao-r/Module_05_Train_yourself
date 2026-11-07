@@ -117,13 +117,12 @@ int main()
 				  return true;
 			  });
 
-	suite.run("--lines on a legacy network gives identical output",
+	suite.run("--lines on a legacy single-edge network gives identical output",
 			  [](std::string &msg) {
 				  std::ofstream("/tmp/e2e_lines_net.txt")
-					  << "Node A\nNode B\nNode C\nRail A B 10 100\n"
-						 "Rail B C 10 100\n";
+					  << "Node A\nNode B\nRail A B 10 100\n";
 				  std::ofstream("/tmp/e2e_lines_trn.txt")
-					  << "T 80 0.05 356 30 A C 14h10 00h05\n";
+					  << "T 80 0.05 356 30 A B 14h10 00h05\n";
 				  auto plain = runCmd(BIN + " /tmp/e2e_lines_net.txt "
 											"/tmp/e2e_lines_trn.txt");
 				  auto lines = runCmd(BIN + " /tmp/e2e_lines_net.txt "

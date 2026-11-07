@@ -16,6 +16,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <type_traits>
 #include <utility>
 
@@ -310,6 +311,9 @@ void Simulation::run()
 		for (const auto &mutation : drainMutations())
 			applyMutation(mutation, states, simTime);
 
+		if (_lines.enabled)
+			admitWaiting(states, simTime);
+
 		for (size_t i = 0; i < states.size(); i++)
 		{
 			auto &s = states[i];
@@ -326,7 +330,14 @@ void Simulation::run()
 					s.train->setStatus(TrainStatus::Running);
 					if (!_quiet)
 						_output.printDeparture(*s.train);
-					rollSegmentEvents(s, i);
+					if (_lines.enabled)
+					{
+						s.waiting = true;
+						s.waitSince = simTime;
+						s.train->setStatus(TrainStatus::Waiting);
+					}
+					else
+						rollSegmentEvents(s, i);
 				}
 				continue;
 			}
@@ -348,6 +359,13 @@ void Simulation::run()
 					s.evalEntryDone = s.evalEventDone
 						= s.evalPrePivotDone = false;
 				}
+				s.timeSinceDepart += DT;
+				s.train->setCurrentTime(s.train->getCurrentTime() + DT);
+				isStopped = true;
+			}
+
+			if (!isStopped && s.waiting)
+			{
 				s.timeSinceDepart += DT;
 				s.train->setCurrentTime(s.train->getCurrentTime() + DT);
 				isStopped = true;
@@ -403,7 +421,7 @@ void Simulation::run()
 					for (size_t j = 0; j < states.size(); j++)
 					{
 						if (j == i || states[j].arrived
-							|| !states[j].departed)
+							|| !states[j].departed || states[j].waiting)
 							continue;
 						auto &op = states[j].train->getPath();
 						if (op.size() >= 2
@@ -422,7 +440,9 @@ void Simulation::run()
 					}
 
 					std::string action;
-					if (isStopped)
+					if (s.waiting)
+						action = " Waiting";
+					else if (isStopped)
 						action = " Stopped";
 					else if (s.arrived)
 						action = " Stopped";
@@ -661,7 +681,7 @@ void Simulation::physicsStep(const std::vector<std::shared_ptr<Node>> &path,
 
 	/* Determine target end speed: 0 at last segment, else next limit */
 	double targetEnd = 0.0;
-	bool isLast = (segIdx == path.size() - 2);
+	bool isLast = (segIdx == path.size() - 2) || _lines.enabled;
 	if (!isLast)
 	{
 		double nLen, nSpd;
@@ -739,6 +759,7 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 
 	if (isLast)
 	{
+		s.lineId = -1;
 		s.speed_ms = 0.0;
 		s.arrived = true;
 		s.train->setStatus(TrainStatus::Arrived);
@@ -752,7 +773,16 @@ void Simulation::handleSegmentTransition(TrainState &s, size_t trainIdx,
 		s.profileDirty = true;
 		s.train->setPathIndex(s.segmentIndex);
 
-		rollSegmentEvents(s, trainIdx);
+		if (_lines.enabled)
+		{
+			s.waiting = true;
+			s.lineId = -1;
+			s.waitSince = simTime;
+			s.speed_ms = 0.0;
+			s.train->setStatus(TrainStatus::Waiting);
+		}
+		else
+			rollSegmentEvents(s, trainIdx);
 
 		/* Apply stop duration at intermediate stations. The train is
 		   stationary during the dwell, so its speed must reflect that -
@@ -976,15 +1006,17 @@ Simulation::SegmentState Simulation::buildSegmentState(
 		const auto &ts = states[i];
 		/* A train dwelling at a station is not a blocker, but one held
 		   on the rail by a segment event is. */
-		if (ts.arrived || !ts.departed
+		if (ts.arrived || !ts.departed || ts.waiting
 			|| (ts.stopTimer > 0.0 && !ts.heldBySegmentEvent))
 			continue;
 		const auto &p = ts.train->getPath();
 		if (p.size() < 2 || ts.segmentIndex + 1 >= p.size())
 			continue;
-		seg[p[ts.segmentIndex]->getName() + "->"
-			+ p[ts.segmentIndex + 1]->getName()]
-			.push_back(i);
+		std::string key = p[ts.segmentIndex]->getName() + "->"
+						  + p[ts.segmentIndex + 1]->getName();
+		if (_lines.enabled)
+			key += "#" + std::to_string(ts.lineId);
+		seg[key].push_back(i);
 	}
 	/* Right of way: earliest entry first, then stable index. The vector
 	   is already index-ordered, so a stable sort keeps the tie-break. */
@@ -997,6 +1029,105 @@ Simulation::SegmentState Simulation::buildSegmentState(
 						 });
 	}
 	return seg;
+}
+
+void Simulation::admitWaiting(std::vector<TrainState> &states,
+							  double simTime)
+{
+	/* Occupancy per undirected pair and line: direction of travel and
+	   the furthest-back occupant position (where a newcomer would queue). */
+	struct LineUse
+	{
+		int dir = 0; // 0 free, +1 low->high name, -1 high->low name
+		double tailPos = 0.0;
+	};
+	auto dirOf = [](const std::string &a, const std::string &b) {
+		return a < b ? 1 : -1;
+	};
+	auto pairKey = [](const std::string &a, const std::string &b) {
+		return a < b ? a + "|" + b : b + "|" + a;
+	};
+	std::map<std::pair<std::string, int>, LineUse> use;
+	for (const auto &st : states)
+	{
+		if (!st.departed || st.arrived || st.waiting || st.lineId < 0)
+			continue;
+		const auto &p = st.train->getPath();
+		if (st.segmentIndex + 1 >= p.size())
+			continue;
+		const std::string &a = p[st.segmentIndex]->getName();
+		const std::string &b = p[st.segmentIndex + 1]->getName();
+		LineUse &u = use[{pairKey(a, b), st.lineId}];
+		if (u.dir == 0 || st.posOnSegment_m < u.tailPos)
+			u.tailPos = st.posOnSegment_m;
+		u.dir = dirOf(a, b);
+	}
+
+	std::vector<size_t> ready;
+	for (size_t i = 0; i < states.size(); i++)
+	{
+		const auto &st = states[i];
+		if (st.departed && !st.arrived && st.waiting
+			&& st.stopTimer <= 0.0)
+			ready.push_back(i);
+	}
+	std::stable_sort(ready.begin(), ready.end(), [&](size_t a, size_t b) {
+		if (states[a].waitSince != states[b].waitSince)
+			return states[a].waitSince < states[b].waitSince;
+		return states[a].train->getName() < states[b].train->getName();
+	});
+
+	for (size_t idx : ready)
+	{
+		TrainState &s = states[idx];
+		const auto &p = s.train->getPath();
+		if (s.segmentIndex + 1 >= p.size())
+			continue;
+		const std::string &a = p[s.segmentIndex]->getName();
+		const std::string &b = p[s.segmentIndex + 1]->getName();
+		int dir = dirOf(a, b);
+		std::string key = pairKey(a, b);
+
+		int nLines = 1;
+		for (const auto &e : _network.getNeighbours(a))
+			if (e.destination->getName() == b)
+				nLines = std::max(e.numLines, 1);
+
+		/* Empty line first; else the same-direction line whose last
+		   train is furthest ahead. Lowest id wins ties. */
+		int best = -1;
+		bool bestFree = false;
+		double bestTail = 0.0;
+		for (int l = 0; l < nLines; l++)
+		{
+			auto it = use.find({key, l});
+			bool free = (it == use.end() || it->second.dir == 0);
+			if (!free && it->second.dir != dir)
+				continue;
+			double tail = free ? 0.0 : it->second.tailPos;
+			if (best < 0 || (free && !bestFree)
+				|| (free == bestFree && !free && tail > bestTail))
+			{
+				best = l;
+				bestFree = free;
+				bestTail = tail;
+			}
+		}
+		if (best < 0)
+			continue;
+
+		LineUse &u = use[{key, best}];
+		u.dir = dir;
+		u.tailPos = 0.0;
+
+		s.lineId = best;
+		s.waiting = false;
+		s.posOnSegment_m = 0.0;
+		s.segmentEntryTime = simTime;
+		s.profileDirty = true;
+		s.train->setStatus(TrainStatus::Running);
+		rollSegmentEvents(s, idx);
+	}
 }
 
 void Simulation::rebuildProfile(TrainState &s, double simTime)
