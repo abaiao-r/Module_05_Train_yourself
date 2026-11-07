@@ -512,6 +512,44 @@ void MainWindow::buildToolbar()
 		"in opposite directions (same as the CLI --lines flag).");
 	_linesCheck->setStyleSheet(_animateCheck->styleSheet());
 	tb->addWidget(_linesCheck);
+	connect(_linesCheck, &QCheckBox::toggled, this, [this](bool on) {
+		if (on)
+			return;
+		bool multi = false;
+		for (const auto &n : _network.getNodeNames())
+			for (const auto &e : _network.getNeighbours(n))
+				multi = multi || e.numLines > 1;
+		if (!multi)
+			return;
+		auto answer = QMessageBox::question(
+			this, "Multi-line rails off",
+			"The loaded network has rails with several lines, which "
+			"are invalid without multi-line mode.\n\nCollapse them to "
+			"single lines and redraw?",
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+		if (answer != QMessageBox::Yes)
+		{
+			QSignalBlocker block(_linesCheck);
+			_linesCheck->setChecked(true);
+			logError("Multi-line rails stays on: network has multi-line "
+					 "rails");
+			return;
+		}
+		RailNetwork flat;
+		for (const auto &n : _network.getNodeNames())
+			flat.addNode(n);
+		for (const auto &n : _network.getNodeNames())
+			for (const auto &e : _network.getNeighbours(n))
+				if (n < e.destination->getName())
+					flat.addConnection(n, e.destination->getName(),
+									   e.distance, e.speedLimit);
+		_network = std::move(flat);
+		_scene->loadFromNetwork(_network);
+		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
+						 Qt::KeepAspectRatio);
+		refreshLists();
+		logInfo("Multi-line rails off: all rails collapsed to 1 line");
+	});
 
 	tb->addSeparator();
 
