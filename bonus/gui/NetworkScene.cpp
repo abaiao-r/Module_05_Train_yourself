@@ -324,7 +324,7 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 			ang += 180.0;
 		lt->setTransformOriginPoint(bb.center());
 		lt->setRotation(ang);
-		lt->setZValue(3);
+		lt->setZValue(6); // above train trails (5), below trains (20)
 		e.laneLabels.push_back(lt);
 	}
 }
@@ -462,9 +462,6 @@ void NetworkScene::repositionEdge(EdgeVis &e)
 	{
 		QGraphicsPathItem *lane = i == 0 ? e.line : e.extraLanes[i - 1];
 		setLanePath(lane, e, i);
-		if (laneMode())
-			lane->setPen(QPen(laneColor(i), 3.0, Qt::SolidLine,
-							  Qt::RoundCap));
 	}
 	updateLaneLabels(e);
 	QPointF mid = (p1 + p2) / 2.0;
