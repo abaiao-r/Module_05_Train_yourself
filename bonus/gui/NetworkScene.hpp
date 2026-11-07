@@ -108,7 +108,7 @@ class NetworkScene : public QGraphicsScene
 	};
 	struct EdgeVis
 	{
-		QGraphicsLineItem *line;
+		QGraphicsLineItem *line; // lane 0
 		QGraphicsTextItem *label;
 		QString from;
 		QString to;
@@ -116,6 +116,7 @@ class NetworkScene : public QGraphicsScene
 		double speedKmh;
 		QString riskNames;
 		int numLines = 1;
+		QVector<QGraphicsLineItem *> extraLanes; // lanes 1..N-1
 	};
 	struct TrainVis
 	{
@@ -126,6 +127,7 @@ class NetworkScene : public QGraphicsScene
 		QString prevFrom;
 		QString prevTo;
 		double prevFrac = 0.0;
+		int prevLine = -1;
 	};
 	/* Trail breadcrumbs are stored as (edge, fraction) at each endpoint,
 	   not raw coordinates, so they can be recomputed when a node moves
@@ -137,6 +139,8 @@ class NetworkScene : public QGraphicsScene
 		double fracA;
 		QString fromB, toB;
 		double fracB;
+		int lineA = -1;
+		int lineB = -1;
 	};
 
 	QMap<QString, NodeVis> _nodes;
@@ -150,7 +154,11 @@ class NetworkScene : public QGraphicsScene
 	void layoutForceDirected();
 	void repositionEdge(EdgeVis &e);
 	QPointF edgePosition(const QString &from, const QString &to,
-						 double fraction) const;
+						 double fraction, int line = -1) const;
+	/** Perpendicular shift of a lane so parallel lines never overlap. */
+	QPointF laneOffset(const EdgeVis &e, int line) const;
+	void layoutLanes(EdgeVis &e);
+	void clearLanes(EdgeVis &e);
 
 	static const QColor PALETTE[];
 	static const int PALETTE_SIZE;
