@@ -76,6 +76,10 @@ class NetworkScene : public QGraphicsScene
 	/** Populate from an existing RailNetwork object. */
 	void loadFromNetwork(const RailNetwork &network);
 
+	/** Optional "Station x y" file used instead of the automatic layout
+	    when it places every station. Empty path = automatic layout. */
+	void setLayoutFile(const QString &path) { _layoutFile = path; }
+
 	/* Called by DraggableNode::itemChange when a node is dragged */
 	void nodeMoved(const QString &name, const QPointF &newPos);
 
@@ -157,6 +161,8 @@ class NetworkScene : public QGraphicsScene
 	void drawEventMarkers();
 
 	void layoutForceDirected();
+	bool layoutFromFile();
+	QString _layoutFile;
 	void repositionEdge(EdgeVis &e);
 	QPointF edgePosition(const QString &from, const QString &to,
 						 double fraction, int line = -1) const;

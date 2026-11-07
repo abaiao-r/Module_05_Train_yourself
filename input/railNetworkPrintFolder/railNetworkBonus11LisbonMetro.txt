@@ -1,0 +1,105 @@
+Node Reboleira
+Node Amadora_Este
+Node Alfornelos
+Node Pontinha
+Node Carnide
+Node Colégio_Militar
+Node Alto_dos_Moinhos
+Node Laranjeiras
+Node Jardim_Zoológico
+Node Praça_de_Espanha
+Node São_Sebastião
+Node Parque
+Node Marquês_de_Pombal
+Node Avenida
+Node Restauradores
+Node Baixa-Chiado
+Node Terreiro_do_Paço
+Node Santa_Apolónia
+Node Odivelas
+Node Senhor_Roubado
+Node Ameixoeira
+Node Lumiar
+Node Quinta_das_Conchas
+Node Campo_Grande
+Node Cidade_Universitária
+Node Entrecampos
+Node Campo_Pequeno
+Node Saldanha
+Node Picoas
+Node Rato
+Node Telheiras
+Node Alvalade
+Node Roma
+Node Areeiro
+Node Alameda
+Node Arroios
+Node Anjos
+Node Intendente
+Node Martim_Moniz
+Node Rossio
+Node Cais_do_Sodré
+Node Olaias
+Node Bela_Vista
+Node Chelas
+Node Olivais
+Node Cabo_Ruivo
+Node Oriente
+Node Moscavide
+Node Encarnação
+Node Aeroporto
+Event Greve_Metro 0.3 20m Baixa-Chiado
+Event Avaria_sinais 0.4 10m Saldanha Alameda 1
+Event Obras_Alameda 0.2 15m Alameda Arroios
+Rail Reboleira Amadora_Este 0.9 80.0 1
+Rail Amadora_Este Alfornelos 0.9 80.0 1
+Rail Alfornelos Pontinha 0.9 80.0 1
+Rail Pontinha Carnide 1.0 80.0 1
+Rail Carnide Colégio_Militar 1.0 80.0 1
+Rail Colégio_Militar Alto_dos_Moinhos 1.0 80.0 1
+Rail Alto_dos_Moinhos Laranjeiras 0.9 80.0 1
+Rail Laranjeiras Jardim_Zoológico 0.7 80.0 1
+Rail Jardim_Zoológico Praça_de_Espanha 0.8 80.0 1
+Rail Praça_de_Espanha São_Sebastião 0.8 80.0 1
+Rail São_Sebastião Parque 0.8 80.0 1
+Rail Parque Marquês_de_Pombal 0.8 80.0 1
+Rail Marquês_de_Pombal Avenida 0.9 80.0 2 60.0 80.0
+Rail Avenida Restauradores 0.9 80.0 2 60.0 80.0
+Rail Restauradores Baixa-Chiado 0.9 80.0 2 60.0 80.0
+Rail Baixa-Chiado Terreiro_do_Paço 1.3 80.0 1
+Rail Terreiro_do_Paço Santa_Apolónia 1.7 80.0 1
+Rail Odivelas Senhor_Roubado 0.7 80.0 1
+Rail Senhor_Roubado Ameixoeira 0.7 80.0 1
+Rail Ameixoeira Lumiar 0.7 80.0 1
+Rail Lumiar Quinta_das_Conchas 0.7 80.0 1
+Rail Quinta_das_Conchas Campo_Grande 0.8 80.0 1
+Rail Campo_Grande Cidade_Universitária 0.7 80.0 1
+Rail Cidade_Universitária Entrecampos 0.7 80.0 1
+Rail Entrecampos Campo_Pequeno 0.6 80.0 1
+Rail Campo_Pequeno Saldanha 0.6 80.0 1
+Rail Saldanha Picoas 0.6 80.0 1
+Rail Picoas Marquês_de_Pombal 0.6 80.0 1
+Rail Marquês_de_Pombal Rato 1.1 80.0 1
+Rail Telheiras Campo_Grande 1.5 80.0 1
+Rail Campo_Grande Alvalade 1.0 80.0 1
+Rail Alvalade Roma 0.9 80.0 1
+Rail Roma Areeiro 0.8 80.0 1
+Rail Areeiro Alameda 1.1 80.0 1
+Rail Alameda Arroios 1.1 80.0 2 60.0 80.0
+Rail Arroios Anjos 0.6 80.0 1
+Rail Anjos Intendente 0.7 80.0 1
+Rail Intendente Martim_Moniz 0.6 80.0 1
+Rail Martim_Moniz Rossio 0.6 80.0 1
+Rail Rossio Baixa-Chiado 0.6 80.0 1
+Rail Baixa-Chiado Cais_do_Sodré 0.9 80.0 1
+Rail São_Sebastião Saldanha 1.9 80.0 1
+Rail Saldanha Alameda 2.3 80.0 2 60.0 80.0
+Rail Alameda Olaias 1.0 80.0 1
+Rail Olaias Bela_Vista 0.9 80.0 1
+Rail Bela_Vista Chelas 0.9 80.0 1
+Rail Chelas Olivais 0.8 80.0 1
+Rail Olivais Cabo_Ruivo 0.8 80.0 1
+Rail Cabo_Ruivo Oriente 0.8 80.0 1
+Rail Oriente Moscavide 0.8 80.0 1
+Rail Moscavide Encarnação 0.8 80.0 1
+Rail Encarnação Aeroporto 0.9 80.0 1

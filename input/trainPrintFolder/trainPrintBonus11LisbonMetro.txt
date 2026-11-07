@@ -1,0 +1,12 @@
+Azul_Ida 200 0.05 300.0 50.0 Reboleira Santa_Apolónia 08h00 00h01
+Azul_Volta 200 0.05 300.0 50.0 Santa_Apolónia Reboleira 08h00 00h01
+Amarela_Ida 200 0.05 300.0 50.0 Odivelas Rato 08h01 00h01
+Amarela_Volta 200 0.05 300.0 50.0 Rato Odivelas 08h01 00h01
+Verde_Ida 200 0.05 300.0 50.0 Telheiras Cais_do_Sodré 08h02 00h01
+Verde_Volta 200 0.05 300.0 50.0 Cais_do_Sodré Telheiras 08h02 00h01
+Vermelha_Ida 200 0.05 300.0 50.0 São_Sebastião Aeroporto 08h03 00h01
+Vermelha_Volta 200 0.05 300.0 50.0 Aeroporto São_Sebastião 08h03 00h01
+Aeroporto_Rossio 200 0.05 300.0 50.0 Aeroporto Rossio 08h05 00h01
+Reboleira_Oriente 200 0.05 300.0 50.0 Reboleira Oriente 08h06 00h01
+Odivelas_Cais 200 0.05 300.0 50.0 Odivelas Cais_do_Sodré 08h08 00h01
+Oriente_Rato 200 0.05 300.0 50.0 Oriente Rato 08h10 00h01

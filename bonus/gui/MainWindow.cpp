@@ -56,6 +56,14 @@
 #include "Node.hpp"
 #include "TrainFactory.hpp"
 
+/* Optional drawing layout next to a network file: same name, ".layout". */
+static QString layoutPathFor(const QString &networkPath)
+{
+	if (!networkPath.endsWith(".txt"))
+		return QString();
+	return networkPath.left(networkPath.size() - 4) + ".layout";
+}
+
 static QString quoteIfNeeded(const std::string &s)
 {
 	QString q = QString::fromStdString(s);
@@ -1051,16 +1059,18 @@ void MainWindow::scanPresetFiles()
 static QString presetHint(const QString &name)
 {
 	static const QMap<QString, QString> hints = {
-		{"Normal1Simple", "One train on one rail"},
-		{"Normal2Following", "Same-direction trains keep a safe distance"},
 		{"Normal3Events", "City and rail events, junctions, 3 trains"},
-		{"Normal4Congestion", "Slow train ahead of a fast one, with an alternative route"},
-		{"Normal5Convoy", "Risky segment plus a convoy: reroutes"},
-		{"Bonus1SingleLine", "Multi-line: one line, opposite trains, the second waits"},
-		{"Bonus2TwoLines", "Multi-line: two lines, opposite trains pass at once"},
-		{"Bonus3Detour", "Multi-line: a waiting train can detour (Adaptive)"},
-		{"Bonus4MixedSpeeds", "Multi-line: per-line speeds, fastest free line first"},
-		{"Bonus5Complex", "Multi-line: hub, opposite flows and an event"}};
+		{"Bonus01HeadOn", "One line, opposite trains: the second waits, no head-on"},
+		{"Bonus02TwoLines", "Two lines: opposite trains pass at once"},
+		{"Bonus03Following", "One line, same direction: the fast train follows the slow one"},
+		{"Bonus04Overtake", "Two lines: the fast train overtakes on the spare line"},
+		{"Bonus05LineSpeeds", "Per-line speeds: the fastest free line is taken first"},
+		{"Bonus06LineEvent", "A risky line (strike on L1) is avoided when L2 is free"},
+		{"Bonus07Detour", "Adaptive: a waiting train detours around the blocked rail"},
+		{"Bonus08Fairness", "Starvation guard: the opposite train is not kept waiting forever"},
+		{"Bonus09Hub", "Hub with mixed flows, a 2-line rail and an event"},
+		{"Bonus10RushHour", "Rush hour: 3-line, 2-line and 1-line rails, line events"},
+		{"Bonus11LisbonMetro", "Lisbon metro: 4 lines, real stations and layout, 12 trains"}};
 	return hints.value(name);
 }
 
@@ -1418,6 +1428,7 @@ void MainWindow::onLoadNetwork()
 		_eventDefs = std::move(events);
 		_networkFilePath = path;
 
+		_scene->setLayoutFile(layoutPathFor(path));
 		_scene->loadFromNetwork(_network);
 		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
@@ -1522,6 +1533,7 @@ void MainWindow::onLoadPresetNetwork(int index)
 		_eventDefs = std::move(events);
 		_networkFilePath = path;
 
+		_scene->setLayoutFile(layoutPathFor(path));
 		_scene->loadFromNetwork(_network);
 		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);
@@ -1769,6 +1781,7 @@ void MainWindow::onImportAll()
 			_trainFilePath = trainPath;
 		}
 
+		_scene->setLayoutFile(layoutPathFor(netPath));
 		_scene->loadFromNetwork(_network);
 		_view->fitInView(_scene->sceneRect().adjusted(-60, -60, 60, 60),
 						 Qt::KeepAspectRatio);

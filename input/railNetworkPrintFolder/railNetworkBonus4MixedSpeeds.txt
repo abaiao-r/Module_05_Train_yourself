@@ -1,5 +1,0 @@
-Node Central
-Node Harbor
-Node Airport
-Rail Central Harbor 30.0 120.0
-Rail Harbor Airport 30.0 200.0 2 80.0 200.0

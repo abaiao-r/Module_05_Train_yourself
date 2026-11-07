@@ -1,6 +1,0 @@
-Node A
-Node B
-Node Via
-Rail A B 10.0 100.0 1
-Rail A Via 6.0 100.0 1
-Rail Via B 6.0 100.0 1
