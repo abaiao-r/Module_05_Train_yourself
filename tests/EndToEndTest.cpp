@@ -395,6 +395,18 @@ int main()
 				  return true;
 			  });
 
+	suite.run("lone train: estimate equals the simulated time to the second",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN
+					  + " input/railNetworkPrintFolder/railNetworkBonus12WaitOrGo.txt"
+					  + " input/trainPrintFolder/trainPrintBonus12WaitOrGo.txt"
+					  + " --lines --runs 2");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(
+					  r.output, "Back          00h08m23s     00h08m23s"), msg);
+				  return true;
+			  });
+
 	suite.run("--compare -> side-by-side table of the three modes",
 			  [](std::string &msg) {
 				  auto r = runCmd(BIN + " " + NET + " " + TRN + " --compare");
