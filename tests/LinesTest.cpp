@@ -270,5 +270,39 @@ int main()
 				  return true;
 			  });
 
+	suite.run("live AddRail carries numLines only when lines mode is on",
+			  [](std::string &msg) {
+				  auto count = [](bool enabled) {
+					  TrainFactory::resetIdCounter();
+					  RailNetwork net = twoNodes(1);
+					  net.addNode("C");
+					  std::vector<std::unique_ptr<Train>> t;
+					  t.push_back(TrainFactory::createTrain(
+						  "T", 80.0, 0.05, 356.0, 30.0, "A", "B", 100.0,
+						  0.0));
+					  Simulation sim(std::move(net), std::move(t), {},
+									 std::make_unique<DijkstraPathfinding>(),
+									 PathWeightMode::Distance,
+									 LinesOptions{enabled});
+					  sim.setQuiet(true);
+					  bool done = false;
+					  sim.setAnimCallback(
+						  [&](double, const std::vector<TrainState> &) {
+							  if (!done)
+								  sim.enqueueMutation(AddRailCommand{
+									  "B", "C", 5.0, 100.0, 3});
+							  done = true;
+						  });
+					  sim.run();
+					  for (const auto &e : sim.getNetwork().getNeighbours("B"))
+						  if (e.destination->getName() == "C")
+							  return e.numLines;
+					  return -1;
+				  };
+				  ASSERT_EQ(3, count(true), msg);
+				  ASSERT_EQ(1, count(false), msg);
+				  return true;
+			  });
+
 	return suite.summarize();
 }

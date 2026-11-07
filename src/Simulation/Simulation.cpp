@@ -153,7 +153,8 @@ void Simulation::applyAddNode(const AddNodeCommand &c)
 
 void Simulation::applyAddRail(const AddRailCommand &c)
 {
-	_network.addConnection(c.from, c.to, c.distanceKm, c.speedLimitKmh);
+	_network.addConnection(c.from, c.to, c.distanceKm, c.speedLimitKmh,
+						   _lines.enabled ? c.numLines : 1);
 	_topologyGen++;
 }
 

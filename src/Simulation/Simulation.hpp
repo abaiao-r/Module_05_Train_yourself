@@ -46,6 +46,7 @@ struct AddRailCommand
 	std::string to;
 	double distanceKm;
 	double speedLimitKmh;
+	int numLines = 1; // honoured only in --lines mode
 };
 
 struct AddEventCommand

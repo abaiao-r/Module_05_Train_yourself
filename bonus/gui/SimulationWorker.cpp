@@ -162,7 +162,7 @@ struct SimulationStopException : std::exception
 
 void SimulationWorker::runSimulation(const QString &networkFile,
 									 const QString &trainFile,
-									 int weightMode)
+									 int weightMode, bool multiLines)
 {
 	_stopRequested.store(false, std::memory_order_relaxed);
 
@@ -176,13 +176,14 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		QDir().mkpath("output/results");
 
 		auto data = InputHandler::loadData(networkFile.toStdString(),
-										   trainFile.toStdString());
+										   trainFile.toStdString(),
+										   LinesOptions{multiLines});
 		auto pathfinder = std::make_unique<DijkstraPathfinding>();
 		PathWeightMode mode = intToWeightMode(weightMode);
 
 		Simulation sim(std::move(data.network), std::move(data.trains),
 					   std::move(data.events), std::move(pathfinder),
-					   mode);
+					   mode, data.lines);
 		sim.setQuiet(true);
 
 		/* Expose this simulation to enqueueAddX() calls from the GUI
@@ -386,7 +387,7 @@ void SimulationWorker::runMulti(const QString &networkFile,
 								const QString &trainFile,
 								int weightMode,
 								int numRuns,
-								bool animateFirst)
+								bool animateFirst, bool multiLines)
 {
 	_stopRequested.store(false, std::memory_order_relaxed);
 
@@ -413,12 +414,13 @@ void SimulationWorker::runMulti(const QString &networkFile,
 
 			TrainFactory::resetIdCounter();
 			auto data = InputHandler::loadData(networkFile.toStdString(),
-											   trainFile.toStdString());
+											   trainFile.toStdString(),
+											   LinesOptions{multiLines});
 			auto pathfinder = std::make_unique<DijkstraPathfinding>();
 
 			Simulation sim(std::move(data.network), std::move(data.trains),
 						   std::move(data.events), std::move(pathfinder),
-						   mode);
+						   mode, data.lines);
 			sim.setQuiet(true);
 
 			if (animateFirst && run == 0)
