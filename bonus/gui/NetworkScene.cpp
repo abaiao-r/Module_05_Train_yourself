@@ -326,15 +326,9 @@ void NetworkScene::nodeMoved(const QString &name, const QPointF &newPos)
 			repositionEdge(e);
 	}
 
-	/* Trail breadcrumbs are anchored to (edge, fraction) rather than raw
-	   coordinates, so they can be recomputed against the node's new
-	   position instead of being left behind or discarded. */
-	for (auto &seg : _trailLines)
-	{
-		QPointF a = edgePosition(seg.fromA, seg.toA, seg.fracA, seg.lineA);
-		QPointF b = edgePosition(seg.fromB, seg.toB, seg.fracB, seg.lineB);
-		seg.line->setLine(a.x(), a.y(), b.x(), b.y());
-	}
+	/* Moving the layout invalidates drawn trails and train positions, so
+	   drop them; trains reappear on the next simulation update. */
+	clearTrains();
 }
 
 void NetworkScene::repositionEdge(EdgeVis &e)
