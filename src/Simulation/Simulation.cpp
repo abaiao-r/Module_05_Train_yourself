@@ -746,29 +746,29 @@ void Simulation::physicsStep(const std::vector<std::shared_ptr<Node>> &path,
 			targetEnd = speedLim_ms;
 	}
 
-	/* Braking distance needed to reach targetEnd */
-	double dv = speed - targetEnd;
-	double brakeDist = 0.0;
-	if (dv > 0.0)
-		brakeDist = (speed * speed - targetEnd * targetEnd) / (2.0 * decel);
+	/* Speed the train would have after an unbraked step, and whether it
+	   could still reach targetEnd by the segment end after taking it. */
+	double freeSpeed = speed < speedLim_ms - 0.1
+		? std::min(speedLim_ms, speed + accel * DT) : speedLim_ms;
+	double freeAdvance = (speed + freeSpeed) / 2.0 * DT;
+	double stopAfter = freeSpeed > targetEnd
+		? (freeSpeed * freeSpeed - targetEnd * targetEnd) / (2.0 * decel)
+		: 0.0;
 
-	double newSpeed = speed;
-	if (distToEnd <= brakeDist + 2.0 && speed > targetEnd + 0.1)
+	double newSpeed = freeSpeed;
+	if (speed > targetEnd + 0.1 && distToEnd - freeAdvance < stopAfter)
 	{
-		newSpeed = speed - decel * DT;
+		/* Brake only as hard as needed to hit targetEnd exactly at the
+		   segment end, never harder than the train can. */
+		double needed = distToEnd > 0.0
+			? (speed * speed - targetEnd * targetEnd) / (2.0 * distToEnd)
+			: decel;
+		newSpeed = speed - std::min(decel, needed) * DT;
 		if (newSpeed < targetEnd)
 			newSpeed = targetEnd;
 		if (newSpeed < 0.0)
 			newSpeed = 0.0;
 	}
-	else if (speed < speedLim_ms - 0.1)
-	{
-		newSpeed = speed + accel * DT;
-		if (newSpeed > speedLim_ms)
-			newSpeed = speedLim_ms;
-	}
-	else
-		newSpeed = speedLim_ms;
 
 	pos += (speed + newSpeed) / 2.0 * DT;
 	speed = newSpeed;
