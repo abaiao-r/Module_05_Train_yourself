@@ -971,6 +971,19 @@ double Simulation::replayEta(VTrain me, const VTrain *leader,
 			v.speed = 0.0;
 	};
 
+	/* A later edge with a spare line lets `me` pick a free line at
+	   admission, so a leader that entered first does not cap it there.
+	   The edge being ridden right now keeps its shared line. */
+	const size_t startSeg = me.seg;
+	auto spareLine = [&](const VTrain &v) {
+		if (!_lines.enabled || v.seg == startSeg)
+			return false;
+		for (const auto &e : _network.getNeighbours((*v.path)[v.seg]->getName()))
+			if (e.destination == (*v.path)[v.seg + 1])
+				return e.numLines > 1;
+		return false;
+	};
+
 	double t = 0.0;
 	while (!me.done && t < REPLAY_MAX_SEC)
 	{
@@ -984,7 +997,7 @@ double Simulation::replayEta(VTrain me, const VTrain *leader,
 			&& me.stopTimer <= 0.0
 			&& (*me.path)[me.seg] == (*lead.path)[lead.seg]
 			&& (*me.path)[me.seg + 1] == (*lead.path)[lead.seg + 1]
-			&& lead.entryT <= me.entryT)
+			&& lead.entryT <= me.entryT && !spareLine(me))
 		{
 			if (me.speed > lead.speed)
 				me.speed = lead.speed;
