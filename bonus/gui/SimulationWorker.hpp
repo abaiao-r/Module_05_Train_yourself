@@ -107,8 +107,8 @@ Q_DECLARE_METATYPE(QVector<TrainStatRow>)
 struct CompareRow
 {
 	QString name;
-	double avg[3];
-	double delay[3];
+	double avg[5]; // Distance, Solo, Adaptive, Cooperative, CBS
+	double delay[5];
 };
 
 Q_DECLARE_METATYPE(QVector<CompareRow>)

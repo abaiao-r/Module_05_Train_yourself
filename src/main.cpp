@@ -74,7 +74,7 @@ static void printHelp()
 		<< "time, so it\n"
 		<< "                      excludes --distance and --adaptive) or cbs\n"
 		<< "                      (conflict-based search on head-on rails)\n"
-		<< "  --compare           Run all modes plus the cooperative planner "
+		<< "  --compare           Run all modes plus the cooperative and cbs planners "
 		<< "(with\n"
 		<< "                      --runs N each) and print them side by side\n"
 		<< "  --lines             Bonus: rails may hold several lines "
@@ -319,7 +319,7 @@ int main(int argc, char **argv)
 
 	if (cooperative && compare)
 	{
-		std::cerr << "Error: --compare already includes the cooperative "
+		std::cerr << "Error: --compare already includes the cooperative and cbs "
 					 "planner; do not combine it with --planner"
 				  << std::endl;
 		return EXIT_FAILURE;
@@ -338,8 +338,8 @@ int main(int argc, char **argv)
 
 		/* Runs the simulation numRuns times in one mode. Only the
 		   primary pass prints, animates and exports the graph. */
-		auto collect = [&](PathWeightMode mode, bool coop, bool primary,
-								   Stats &st) {
+		auto collect = [&](PathWeightMode mode, bool coop, bool useCbs,
+								   bool primary, Stats &st) {
 			for (int run = 0; run < numRuns; run++)
 			{
 				TrainFactory::resetIdCounter();
@@ -351,7 +351,7 @@ int main(int argc, char **argv)
 							   std::move(data.events),
 							   std::move(pathfinder), mode, data.lines);
 
-				if (coop && cbs)
+				if (coop && useCbs)
 					sim.setRoutePlanner(std::make_unique<CbsPlanner>());
 				else if (coop)
 					sim.setRoutePlanner(std::make_unique<RefinedPlanner>(
@@ -404,16 +404,17 @@ int main(int argc, char **argv)
 
 		if (compare)
 		{
-			const int N = 4;
+			const int N = 5;
 			const PathWeightMode modes[N] = {PathWeightMode::Distance,
 											 PathWeightMode::Solo,
 											 PathWeightMode::Adaptive,
+											 PathWeightMode::Adaptive,
 											 PathWeightMode::Adaptive};
 			const char *names[N] = {"Distance", "Solo", "Adaptive",
-									"Cooperative"};
+									"Cooperative", "CBS"};
 			Stats res[N];
 			for (int m = 0; m < N; m++)
-				collect(modes[m], m == 3, false, res[m]);
+				collect(modes[m], m >= 3, m == 4, false, res[m]);
 
 			auto avgOf = [](const std::vector<double> &v) {
 				double t = 0;
@@ -427,11 +428,11 @@ int main(int argc, char **argv)
 				std::cout << "=== " << title << " (" << numRuns
 						  << (numRuns == 1 ? " run" : " runs")
 						  << " each, * = best) ===" << std::endl;
-				std::cout << std::string(84, '-') << std::endl;
+				std::cout << std::string(90, '-') << std::endl;
 				std::cout << std::left << std::setw(20) << "Train";
 				for (int m = 0; m < N; m++)
-					std::cout << std::setw(16) << names[m];
-				std::cout << std::endl << std::string(84, '-') << std::endl;
+					std::cout << std::setw(14) << names[m];
+				std::cout << std::endl << std::string(90, '-') << std::endl;
 
 				auto printRow = [&](const std::string &label,
 									const double v[N]) {
@@ -443,12 +444,12 @@ int main(int argc, char **argv)
 					for (int m = 0; m < N; m++)
 					{
 						bool star = v[m] <= v[best] + 0.5;
-						std::cout << std::setw(16)
+						std::cout << std::setw(14)
 								  << (fmtTimeStat(v[m]) + (star ? " *" : ""));
 					}
 					std::cout << std::endl;
 				};
-				double total[N] = {0, 0, 0, 0};
+				double total[N] = {0, 0, 0, 0, 0};
 				for (const auto &pair : res[0].actual)
 				{
 					double v[N];
@@ -461,9 +462,9 @@ int main(int argc, char **argv)
 					}
 					printRow(pair.first, v);
 				}
-				std::cout << std::string(84, '-') << std::endl;
+				std::cout << std::string(90, '-') << std::endl;
 				printRow("TOTAL (sum)", total);
-				std::cout << std::string(84, '-') << std::endl;
+				std::cout << std::string(90, '-') << std::endl;
 			};
 			printTable("Mode comparison: average travel time", &Stats::actual);
 			std::cout << std::endl;
@@ -472,7 +473,7 @@ int main(int argc, char **argv)
 		}
 
 		Stats stats;
-		collect(weightMode, cooperative, true, stats);
+		collect(weightMode, cooperative, cbs, true, stats);
 		auto &statActual = stats.actual;
 		auto &statDelay = stats.delay;
 		auto &statEstimated = stats.estimated;

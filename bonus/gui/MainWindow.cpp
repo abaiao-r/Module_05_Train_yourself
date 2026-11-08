@@ -393,6 +393,9 @@ MainWindow::MainWindow(QWidget *parent)
 	_pathWeightCombo->setCurrentIndex(
 		std::clamp(st.value("pathWeight", 0).toInt(), 0,
 				   _pathWeightCombo->count() - 1));
+	_plannerCombo->setCurrentIndex(
+		std::clamp(st.value("planner", 0).toInt(), 0,
+				   _plannerCombo->count() - 1));
 	_showLogAct->setChecked(st.value("showLog", true).toBool());
 
 	logInfo("Welcome! Load a network preset or create nodes to get started.");
@@ -409,6 +412,7 @@ MainWindow::~MainWindow()
 	st.setValue("animate", _animateCheck->isChecked());
 	st.setValue("multiLine", _linesCheck->isChecked());
 	st.setValue("pathWeight", _pathWeightCombo->currentIndex());
+	st.setValue("planner", _plannerCombo->currentIndex());
 	st.setValue("showLog", _showLogAct->isChecked());
 
 	_simThread.quit();
@@ -725,7 +729,6 @@ void MainWindow::buildToolbar()
 	_pathWeightCombo->addItem("Solo");
 	_pathWeightCombo->addItem("Adaptive");
 	_pathWeightCombo->addItem("Compare all");
-	_pathWeightCombo->addItem("Cooperative");
 	_pathWeightCombo->setCurrentIndex(0);
 	_pathWeightCombo->setToolTip(
 		"Pathfinding weight:\n"
@@ -735,15 +738,16 @@ void MainWindow::buildToolbar()
 		"  Adaptive   — ultimate mode: reroutes around live traffic "
 		"AND avoids\n"
 		"               routes prone to costly random events\n"
-		"  Compare all — runs all three (Runs each) and shows them "
-		"side by side\n"
-		"  Cooperative — plans the whole fleet together (Adaptive "
-		"dynamics); best with Multi-line rails");
+		"  Compare all — runs all five variants (Distance, Solo, Adaptive,\n"
+		"               Cooperative, CBS; Runs each) side by side\n\n"
+		"Greyed out while a Planner other than Independent is chosen "
+		"(those always use Adaptive).");
 	_pathWeightCombo->setFixedWidth(115);
 	_pathWeightCombo->setStyleSheet(
 		"QComboBox { background: #1e293b; color: #e0e0e0; "
 		"border: 1px solid #334155; border-radius: 4px; padding: 4px 8px; "
 		"font-size: 12px; }"
+		"QComboBox:disabled { color: #64748b; background: #0f172a; }"
 		"QComboBox:focus { border-color: #533483; }"
 		"QComboBox::drop-down { border: none; }"
 		"QComboBox::down-arrow { image: none; }"
@@ -752,6 +756,57 @@ void MainWindow::buildToolbar()
 	connect(_pathWeightCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
 			this, [this](int idx) { _weightMode = idx; });
 	optRow->addWidget(_pathWeightCombo);
+
+	auto *plannerCaption = new QLabel("  Planner: ");
+	plannerCaption->setStyleSheet(
+		"QLabel { color: #94a3b8; font-size: 12px; }");
+	optRow->addWidget(plannerCaption);
+
+	_plannerCombo = new QComboBox;
+	_plannerCombo->addItem("Independent");
+	_plannerCombo->addItem("Cooperative");
+	_plannerCombo->addItem("CBS");
+	_plannerCombo->setItemData(0,
+		"Every train picks its own route (default, original behaviour).",
+		Qt::ToolTipRole);
+	_plannerCombo->setItemData(1,
+		"The whole fleet is routed together: trains avoid each other's "
+		"lines.\nUses Adaptive dynamics. Most useful with Multi-line rails ON.",
+		Qt::ToolTipRole);
+	_plannerCombo->setItemData(2,
+		"Cooperative + conflict-based search: splits head-on conflicts "
+		"between trains.\nUses Adaptive dynamics. Needs Multi-line rails ON "
+		"to have any effect.",
+		Qt::ToolTipRole);
+	_plannerCombo->setToolTip(
+		"Who decides the routes:\n"
+		"  Independent — each train alone (default)\n"
+		"  Cooperative — whole fleet planned together\n"
+		"  CBS         — cooperative + conflict search\n\n"
+		"Cooperative/CBS force Path = Adaptive. Benchmarks show no "
+		"consistent gain over\nIndependent + Adaptive; see "
+		"docs/BONUS_COOPERATIVE.md.");
+	_plannerCombo->setFixedWidth(115);
+	_plannerCombo->setStyleSheet(_pathWeightCombo->styleSheet());
+	optRow->addWidget(_plannerCombo);
+
+	/* Planners imply Adaptive; Compare all already runs every planner. */
+	auto syncPlannerUi = [this]() {
+		bool planned = _plannerCombo->currentIndex() != 0;
+		bool compare = _pathWeightCombo->currentIndex() == 3;
+		if (planned && _pathWeightCombo->currentIndex() != 2)
+			_pathWeightCombo->setCurrentIndex(2);
+		if (compare && planned)
+			_plannerCombo->setCurrentIndex(0);
+		_pathWeightCombo->setEnabled(
+			_plannerCombo->currentIndex() == 0);
+		_plannerCombo->setEnabled(!compare);
+	};
+	connect(_plannerCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+			this, syncPlannerUi);
+	connect(_pathWeightCombo,
+			QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+			syncPlannerUi);
 
 	auto *spdCaption = new QLabel("  Speed: ");
 	spdCaption->setStyleSheet("QLabel { color: #94a3b8; font-size: 12px; }");
@@ -3380,12 +3435,17 @@ void MainWindow::onRunSimulation()
 	int numRuns = _runsSpinBox->value();
 	bool animate = _animateCheck->isChecked();
 
-	if (_weightMode == 3)
+	/* Worker codes: 0-3 = Path combo, 4 = Cooperative, 5 = CBS. */
+	const int runMode = _plannerCombo->currentIndex() != 0
+							? 3 + _plannerCombo->currentIndex()
+							: _weightMode;
+
+	if (_weightMode == 3 && runMode == 3)
 	{
-		logInfo(QString("--- Comparing Distance, Solo and Adaptive "
+		logInfo(QString("--- Comparing Distance, Solo, Adaptive, Cooperative and CBS "
 						"(%1 run%2 each) ---")
 					.arg(numRuns).arg(numRuns == 1 ? "" : "s"));
-		_runBtn->setText(QString("  Run 0/%1...  ").arg(3 * numRuns));
+		_runBtn->setText(QString("  Run 0/%1...  ").arg(5 * numRuns));
 		QMetaObject::invokeMethod(
 			_worker, "runCompare", Qt::QueuedConnection,
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
@@ -3400,7 +3460,7 @@ void MainWindow::onRunSimulation()
 		QMetaObject::invokeMethod(
 			_worker, "runMulti", Qt::QueuedConnection,
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
-			Q_ARG(int, _weightMode),
+			Q_ARG(int, runMode),
 			Q_ARG(int, numRuns),
 			Q_ARG(bool, animate),
 			Q_ARG(bool, _linesCheck->isChecked()));
@@ -3411,7 +3471,7 @@ void MainWindow::onRunSimulation()
 		QMetaObject::invokeMethod(
 			_worker, "runSimulation", Qt::QueuedConnection,
 			Q_ARG(QString, netFile), Q_ARG(QString, trainFile),
-			Q_ARG(int, _weightMode),
+			Q_ARG(int, runMode),
 			Q_ARG(bool, _linesCheck->isChecked()));
 	}
 }
@@ -3565,16 +3625,19 @@ void MainWindow::onCompareFinished(QVector<CompareRow> rows, int runsEach)
 		statusBar()->showMessage("Comparison stopped by user");
 		return;
 	}
-	double total[3] = {0, 0, 0};
+	double total[5] = {0, 0, 0, 0, 0};
 	for (const auto &r : rows)
-		for (int m = 0; m < 3; m++)
+		for (int m = 0; m < 5; m++)
 			total[m] += r.avg[m];
 	logSuccess(QString("--- Comparison complete (%1 run%2 each) ---")
 				   .arg(runsEach).arg(runsEach == 1 ? "" : "s"));
-	logInfo(QString("  Total travel time: Distance=%1s  Solo=%2s  Adaptive=%3s")
+	logInfo(QString("  Total travel time: Distance=%1s  Solo=%2s  Adaptive=%3s"
+					"  Cooperative=%4s  CBS=%5s")
 				.arg(static_cast<int>(total[0]))
 				.arg(static_cast<int>(total[1]))
-				.arg(static_cast<int>(total[2])));
+				.arg(static_cast<int>(total[2]))
+				.arg(static_cast<int>(total[3]))
+				.arg(static_cast<int>(total[4])));
 	_dashboard->showCompare(rows, runsEach);
 	QList<int> sizes = _hSplit->sizes();
 	if (sizes.size() == 2 && sizes[1] < DASH_STATS_W)

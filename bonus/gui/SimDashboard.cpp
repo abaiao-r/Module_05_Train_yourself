@@ -385,16 +385,17 @@ void SimDashboard::showCompare(const QVector<CompareRow> &rows, int runsEach)
 		QString t = QString("<p style='color:%1;'><b>%2</b></p>"
 							"<table width='100%' cellspacing='0' "
 							"cellpadding='5'><tr>").arg(C_DIM, title);
-		for (const char *h : {"Train", "Distance", "Solo", "Adaptive"})
+		for (const char *h : {"Train", "Distance", "Solo", "Adaptive", "Cooperative",
+						   "CBS"})
 			t += QString("<td><b style='color:%1;'>%2</b></td>")
 					 .arg(C_CYAN, h);
 		t += "</tr>";
-		auto row = [&](const QString &label, const double v[3], bool bold) {
-			double mn = std::min({v[0], v[1], v[2]});
+		auto row = [&](const QString &label, const double v[5], bool bold) {
+			double mn = *std::min_element(v, v + 5);
 			QString r = QString("<tr bgcolor='%1'><td>%2%3%4</td>")
 							.arg(bold ? C_PANEL : C_CARD, bold ? "<b>" : "",
 								 label.toHtmlEscaped(), bold ? "</b>" : "");
-			for (int m = 0; m < 3; m++)
+			for (int m = 0; m < 5; m++)
 			{
 				bool best = v[m] <= mn + 0.5;
 				r += QString("<td style='color:%1;'>%2%3</td>")
@@ -404,11 +405,11 @@ void SimDashboard::showCompare(const QVector<CompareRow> &rows, int runsEach)
 			}
 			t += r + "</tr>";
 		};
-		double total[3] = {0, 0, 0};
+		double total[5] = {0, 0, 0, 0, 0};
 		for (const auto &r : rows)
 		{
 			row(r.name, useDelay ? r.delay : r.avg, false);
-			for (int m = 0; m < 3; m++)
+			for (int m = 0; m < 5; m++)
 				total[m] += useDelay ? r.delay[m] : r.avg[m];
 		}
 		row("TOTAL", total, true);

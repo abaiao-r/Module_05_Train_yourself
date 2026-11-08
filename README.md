@@ -30,7 +30,7 @@ A physics-based train simulation engine that models rail traffic across a config
 | **Terminal Animation** | `--animate` — live full-screen terminal dashboard with Unicode box drawing, progress bars, coloured status indicators, ~20 FPS | [docs/BONUS_ANIMATE.md](docs/BONUS_ANIMATE.md) |
 | **Qt GUI** | Interactive graph editor with full CRUD, drag-and-drop nodes, force-directed layout, live simulation with animated train dots, real-time dashboard, speed control, preset library | [docs/BONUS_GUI.md](docs/BONUS_GUI.md) |
 | **Multiple Lines** | `--lines` — edges hold several lines (`Rail A B km kmh [numLines]`); opposite-direction trains never share a line (no head-on), also a GUI checkbox | [docs/BONUS_LINES.md](docs/BONUS_LINES.md) |
-| **Cooperative Planner** | `--planner cooperative` — coordinates the fleet's routes (reservations, tolls, local search; `cbs` adds conflict-based search); 4th column in `--compare`. Benchmarks show no consistent gain over Adaptive | [docs/BONUS_COOPERATIVE.md](docs/BONUS_COOPERATIVE.md) |
+| **Cooperative Planner** | `--planner cooperative` — coordinates the fleet's routes (reservations, tolls, local search; `cbs` adds conflict-based search); Cooperative and CBS columns in `--compare`. Benchmarks show no consistent gain over Adaptive | [docs/BONUS_COOPERATIVE.md](docs/BONUS_COOPERATIVE.md) |
 
 ---
 

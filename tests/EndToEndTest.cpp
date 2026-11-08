@@ -419,6 +419,7 @@ int main()
 				  ASSERT_TRUE(outputContains(r.output, "Distance"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "Adaptive"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "Cooperative"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "CBS"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "TOTAL (sum)"), msg);
 				  return true;
 			  });
