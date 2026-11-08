@@ -64,6 +64,21 @@ class ReservationTable
 		return total;
 	}
 
+	/** Number of same-direction reservations overlapping [t0, t1). */
+	int sameDirectionCount(const std::string &from, const std::string &to,
+						   int lane, double t0, double t1) const
+	{
+		int n = 0;
+		auto it = _slots.find(key(from, to));
+		if (it == _slots.end())
+			return 0;
+		int dir = direction(from, to);
+		for (const Slot &s : it->second)
+			if (s.lane == lane && s.dir == dir && s.t0 < t1 && t0 < s.t1)
+				n++;
+		return n;
+	}
+
 	bool empty() const { return _slots.empty(); }
 
   private:
