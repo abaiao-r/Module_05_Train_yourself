@@ -18,6 +18,9 @@
 #include <QThread>
 
 #include "DijkstraPathfinding.hpp"
+#include "IndependentPlanner.hpp"
+#include "PrioritizedPlanner.hpp"
+#include "RefinedPlanner.hpp"
 #include "InputHandler.hpp"
 #include "Node.hpp"
 #include "Simulation.hpp"
@@ -31,7 +34,8 @@ static PathWeightMode intToWeightMode(int idx)
 	switch (idx)
 	{
 	case 1:  return PathWeightMode::Solo;
-	case 2:  return PathWeightMode::Adaptive;
+	case 2:
+	case 4:  return PathWeightMode::Adaptive; // 4 = Cooperative
 	default: return PathWeightMode::Distance;
 	}
 }
@@ -184,6 +188,10 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		Simulation sim(std::move(data.network), std::move(data.trains),
 					   std::move(data.events), std::move(pathfinder),
 					   mode, data.lines);
+		if (weightMode == 4)
+			sim.setRoutePlanner(std::make_unique<RefinedPlanner>(
+				std::make_unique<PrioritizedPlanner>(),
+				std::make_unique<IndependentPlanner>()));
 		sim.setQuiet(true);
 
 		/* Expose this simulation to enqueueAddX() calls from the GUI
@@ -507,6 +515,10 @@ void SimulationWorker::runMulti(const QString &networkFile,
 			Simulation sim(std::move(data.network), std::move(data.trains),
 						   std::move(data.events), std::move(pathfinder),
 						   mode, data.lines);
+			if (weightMode == 4)
+				sim.setRoutePlanner(std::make_unique<RefinedPlanner>(
+					std::make_unique<PrioritizedPlanner>(),
+					std::make_unique<IndependentPlanner>()));
 			sim.setQuiet(true);
 
 			if (animateFirst && run == 0)

@@ -10,6 +10,7 @@
 #include "CooperativeCost.hpp"
 #include "IndependentPlanner.hpp"
 #include "PrioritizedPlanner.hpp"
+#include "RefinedPlanner.hpp"
 #include "ReservationTable.hpp"
 #include "SegmentTiming.hpp"
 #include "Simulation.hpp"
@@ -422,6 +423,61 @@ int main()
 				  ASSERT_STR_EQ("ABD", routes["T1"], msg);
 				  ASSERT_STR_EQ("ACD", routes["T2"], msg);
 				  ASSERT_TRUE(coop + 20.0 < indep, msg);
+				  return true;
+			  });
+
+	/* Refined planner: the evaluate callback is the objective. */
+	auto refine = [](bool withEval, double viaCWeight, std::string *out) {
+		TrainFactory::resetIdCounter();
+		RailNetwork net = diamond();
+		DijkstraPathfinding dj;
+		auto t1 = trainAD("T1");
+		auto t2 = trainAD("T2");
+		FleetSnapshot f{net, {t1.get(), t2.get()}, PathWeightMode::Solo, {},
+						dj};
+		if (withEval)
+			f.evaluate = [viaCWeight](const std::vector<Route> &rs) {
+				double c = 100.0;
+				for (const Route &r : rs)
+					if (names(r) == "ACD")
+						c += viaCWeight;
+				return c;
+			};
+		RefinedPlanner rp(std::make_unique<ForcedViaC>(),
+						  std::make_unique<IndependentPlanner>());
+		auto routes = rp.planAll(f);
+		*out = names(routes[0]) + "," + names(routes[1]);
+	};
+
+	suite.run("refined: without evaluate it returns the inner routes",
+			  [&](std::string &msg) {
+				  std::string r;
+				  refine(false, 0.0, &r);
+				  ASSERT_STR_EQ("ACD,ACD", r, msg);
+				  return true;
+			  });
+
+	suite.run("refined: a flat objective keeps the baseline routes",
+			  [&](std::string &msg) {
+				  std::string r;
+				  refine(true, 0.0, &r);
+				  ASSERT_STR_EQ("ABD,ABD", r, msg);
+				  return true;
+			  });
+
+	suite.run("refined: a seed that is clearly cheaper is adopted",
+			  [&](std::string &msg) {
+				  std::string r;
+				  refine(true, -50.0, &r);
+				  ASSERT_STR_EQ("ACD,ACD", r, msg);
+				  return true;
+			  });
+
+	suite.run("refined: descent moves one train when that lowers the total",
+			  [&](std::string &msg) {
+				  std::string r;
+				  refine(true, 30.0, &r); // via C is costly: stay on B
+				  ASSERT_STR_EQ("ABD,ABD", r, msg);
 				  return true;
 			  });
 

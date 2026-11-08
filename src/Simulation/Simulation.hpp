@@ -31,6 +31,7 @@
 #include "OutputManager.hpp"
 #include "IndependentPlanner.hpp"
 #include "IRoutePlanner.hpp"
+#include "KeepPathsPlanner.hpp"
 #include "RailNetwork.hpp"
 #include "Train.hpp"
 
@@ -301,6 +302,7 @@ class Simulation
 	void computePaths();
 	void staticPreAssign();
 	double estimateTravelTime(const Train &train) const;
+	double dryRunTotal(const std::vector<Route> &routes) const;
 	void computeExpectedTimes();
 	double expectedTime(const Train &train) const;
 	void getSegmentInfo(const std::string &from, const std::string &to,

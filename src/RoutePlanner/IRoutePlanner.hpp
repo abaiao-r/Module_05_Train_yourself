@@ -1,6 +1,7 @@
 #ifndef IROUTEPLANNER_HPP
 #define IROUTEPLANNER_HPP
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -23,6 +24,10 @@ struct FleetSnapshot
 	SegmentEventRisk eventRisk; // empty unless mode is Adaptive
 	IPathfinding &pathfinder;   // per-train worker
 	bool lanesEnabled = false;  // --lines: head-on exclusion per lane
+	/* Total travel seconds of the whole fleet on these routes, measured by
+	   an event-free dry run of the real simulator; infinity if it fails.
+	   Empty when the caller cannot simulate. */
+	std::function<double(const std::vector<Route> &)> evaluate = {};
 };
 
 /**
