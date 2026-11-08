@@ -63,27 +63,35 @@ share single-track lines, each train's best path can hurt the others
 
 ```
 ./bin/train_yourself NET TRN --lines --planner cooperative
-./bin/train_yourself NET TRN --lines --compare --runs 40   # 4 columns
+./bin/train_yourself NET TRN --lines --compare --runs 40   # 5 columns
 ```
 
 `--planner independent|cooperative|cbs`; an unknown value is an error.
-`--planner` with `--compare` is an error (compare already has a Cooperative
-column). Cooperative implies Adaptive dynamics unless a mode is given.
-The GUI has a "Cooperative" entry in the Path combo (single/multi run;
-"Compare all" still shows the original three modes).
+`--planner` with `--compare` is an error (compare already has Cooperative and CBS
+columns). Cooperative implies Adaptive dynamics unless a mode is given.
+In the GUI two combos sit side by side:
+
+```
+ Path:    [Distance | Solo | Adaptive | Compare all]   how ONE train weighs routes
+ Planner: [Independent | Cooperative | CBS]            who decides the routes
+```
+
+Choosing Cooperative or CBS forces Path = Adaptive (Path greys out);
+"Compare all" runs all five variants (Distance, Solo, Adaptive, Cooperative,
+CBS) side by side and greys out Planner. Both combos have tooltips.
 
 Without `--lines` there are no head-on conflicts, so there is little for the
 planner to coordinate.
 
 ## Benchmark (`--compare --runs 40 --lines`, sum of average travel / delay)
 
-| Scenario | Distance | Solo | Adaptive | Cooperative |
-|---|---|---|---|---|
-| 07Detour (delay) | 6:33 | 6:33 | 3:46 | **3:46** |
-| 09Hub (delay) | 23:34 | 21:34 | **10:51** | **10:51** |
-| 10RushHour (delay) | 38:55 | 43:55 | **30:35** | 35:18 |
-| 12WaitOrGo (delay) | 5:23 | 5:23 | 5:23 | 5:23 |
-| 11Lisbon (delay) | 40:24 | 45:16 | **35:39** | 43:24 |
+| Scenario | Distance | Solo | Adaptive | Cooperative | CBS |
+|---|---|---|---|---|---|
+| 07Detour (delay) | 6:33 | 6:33 | 3:46 | 3:46 | 0:00 |
+| 09Hub (delay) | 19:34 | 21:34 | 10:51 | 10:51 | 10:51 |
+| 10RushHour (delay) | 42:55 | 39:10 | 28:20 | 40:48 | 41:46 |
+| 12WaitOrGo (delay) | 5:23 | 5:23 | 5:23 | 5:23 | 5:23 |
+| 11Lisbon (delay) | 39:39 | 42:01 | 43:54 | 40:16 | 44:01 |
 
 Random events move totals by +-3-5 min between runs, so small gaps are noise.
 

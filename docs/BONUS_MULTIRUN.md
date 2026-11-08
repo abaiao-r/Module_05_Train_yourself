@@ -36,11 +36,11 @@ delay and the average actual time. Its min/max are the best and worst single run
 
 ### Comparing the modes (`--compare`)
 
-`--compare` prints four mode columns: Distance, Solo, Adaptive and Cooperative
-(the cooperative planner, see [BONUS_COOPERATIVE.md](BONUS_COOPERATIVE.md)); the table is 84 characters wide.
+`--compare` prints five variant columns: Distance, Solo, Adaptive, Cooperative and CBS
+(the last two are planners, see [BONUS_COOPERATIVE.md](BONUS_COOPERATIVE.md)); the table is 90 characters wide.
 
 ```
---compare   Run Distance, Solo, Adaptive and Cooperative (N runs each with --runs N) and print
+--compare   Run Distance, Solo, Adaptive, Cooperative and CBS (N runs each with --runs N) and print
             the average travel time and the average delay per train side by
             side, each with a TOTAL row.
             The fastest mode per row is starred. Cannot be combined with

@@ -21,6 +21,7 @@
 #include "IndependentPlanner.hpp"
 #include "PrioritizedPlanner.hpp"
 #include "RefinedPlanner.hpp"
+#include "CbsPlanner.hpp"
 #include "InputHandler.hpp"
 #include "Node.hpp"
 #include "Simulation.hpp"
@@ -35,9 +36,21 @@ static PathWeightMode intToWeightMode(int idx)
 	{
 	case 1:  return PathWeightMode::Solo;
 	case 2:
-	case 4:  return PathWeightMode::Adaptive; // 4 = Cooperative
+	case 4:  // Cooperative
+	case 5:  return PathWeightMode::Adaptive; // 5 = CBS
 	default: return PathWeightMode::Distance;
 	}
+}
+
+/* 4 = Cooperative, 5 = CBS; anything else keeps the independent default. */
+static void setPlanner(Simulation &sim, int weightMode)
+{
+	if (weightMode == 4)
+		sim.setRoutePlanner(std::make_unique<RefinedPlanner>(
+			std::make_unique<PrioritizedPlanner>(),
+			std::make_unique<IndependentPlanner>()));
+	else if (weightMode == 5)
+		sim.setRoutePlanner(std::make_unique<CbsPlanner>());
 }
 
 static QString fmtHms(double seconds)
@@ -188,10 +201,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		Simulation sim(std::move(data.network), std::move(data.trains),
 					   std::move(data.events), std::move(pathfinder),
 					   mode, data.lines);
-		if (weightMode == 4)
-			sim.setRoutePlanner(std::make_unique<RefinedPlanner>(
-				std::make_unique<PrioritizedPlanner>(),
-				std::make_unique<IndependentPlanner>()));
+		setPlanner(sim, weightMode);
 		sim.setQuiet(true);
 
 		/* Expose this simulation to enqueueAddX() calls from the GUI
@@ -405,16 +415,18 @@ void SimulationWorker::runCompare(const QString &networkFile,
 		QDir projectRoot = projectRootDir();
 		QDir::setCurrent(projectRoot.absolutePath());
 
-		std::map<std::string, std::vector<double>> sums[3];
-		std::map<std::string, std::vector<double>> delays[3];
+		std::map<std::string, std::vector<double>> sums[5];
+		std::map<std::string, std::vector<double>> delays[5];
 		int done = 0;
-		for (int m = 0; m < 3; ++m)
+		for (int m = 0; m < 5; ++m)
 		{
 			for (int run = 0; run < numRuns; ++run)
 			{
 				if (_stopRequested.load(std::memory_order_relaxed))
 					throw SimulationStopException();
 				TrainFactory::resetIdCounter();
+				/* variant m -> worker code: 4 = Cooperative, 5 = CBS */
+				const int code = m >= 3 ? m + 1 : m;
 				auto data = InputHandler::loadData(
 					networkFile.toStdString(), trainFile.toStdString(),
 					LinesOptions{multiLines});
@@ -422,7 +434,8 @@ void SimulationWorker::runCompare(const QString &networkFile,
 							   std::move(data.trains),
 							   std::move(data.events),
 							   std::make_unique<DijkstraPathfinding>(),
-							   intToWeightMode(m), data.lines);
+							   intToWeightMode(code), data.lines);
+				setPlanner(sim, code);
 				sim.setQuiet(true);
 				sim.setAnimCallback(
 					[this](double, const std::vector<TrainState> &) {
@@ -439,8 +452,8 @@ void SimulationWorker::runCompare(const QString &networkFile,
 					sums[m][key].push_back(r.actualTime);
 					delays[m][key].push_back(r.totalDelay);
 				}
-				/* Shown as "N/runs": one step = the same run in all 3 modes. */
-				emit runProgress(++done / 3, numRuns);
+				/* Shown as "N/runs": one step = the same run in all 5 variants. */
+				emit runProgress(++done / 5, numRuns);
 			}
 		}
 
@@ -449,7 +462,7 @@ void SimulationWorker::runCompare(const QString &networkFile,
 		{
 			CompareRow row;
 			row.name = QString::fromStdString(pair.first);
-			for (int m = 0; m < 3; ++m)
+			for (int m = 0; m < 5; ++m)
 			{
 				double t = 0.0;
 				const auto &v = sums[m][pair.first];
@@ -515,10 +528,7 @@ void SimulationWorker::runMulti(const QString &networkFile,
 			Simulation sim(std::move(data.network), std::move(data.trains),
 						   std::move(data.events), std::move(pathfinder),
 						   mode, data.lines);
-			if (weightMode == 4)
-				sim.setRoutePlanner(std::make_unique<RefinedPlanner>(
-					std::make_unique<PrioritizedPlanner>(),
-					std::make_unique<IndependentPlanner>()));
+			setPlanner(sim, weightMode);
 			sim.setQuiet(true);
 
 			if (animateFirst && run == 0)
