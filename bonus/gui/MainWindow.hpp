@@ -19,7 +19,9 @@
 #include <QGraphicsView>
 #include <QLabel>
 #include <QListWidget>
+#include <QHash>
 #include <QMainWindow>
+#include <QSet>
 #include <QTabWidget>
 #include <QTextBrowser>
 #include <QPushButton>
@@ -139,6 +141,18 @@ class MainWindow : public QMainWindow
 	QListWidget *_eventList;
 	QTextEdit *_logView;
 	SimDashboard *_dashboard;
+
+	/* Trains and events currently drawn on the graph (toggled by clicking
+	   a train dot or a dashboard row/card). */
+	QHash<QString, TrainRunInfo> _runInfo;
+	QSet<QString> _selTrains;
+	QSet<QString> _selEvents;
+	QVector<TrainSnapshot> _lastSnaps;
+	QVector<TrainRunInfo> _pendingInfo;
+	QVector<EventOutcome> _pendingOutcomes;
+	void toggleTrain(const QString &key);
+	void toggleEvent(const QString &name);
+	void resetSelections();
 
 	static constexpr int DASH_LIVE_W  = 420; /* px – fits BOX_INNER 56 */
 	static constexpr int DASH_STATS_W = 540; /* px – fits STAT_BOX 72  */

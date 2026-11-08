@@ -13,6 +13,7 @@
 #ifndef SIMDASHBOARD_HPP
 #define SIMDASHBOARD_HPP
 
+#include <QSet>
 #include <QTextEdit>
 #include <QVector>
 #include "SimulationWorker.hpp"
@@ -38,12 +39,26 @@ class SimDashboard : public QTextEdit
 
 	void showResults(const QStringList &results);
 
+	/** Post-run table (origin/destination, depart, arrive, expected,
+		trip, delay, cause) and one clickable card per event. */
+	void showAnalysis(const QVector<TrainRunInfo> &trains,
+					  const QVector<EventOutcome> &outcomes);
+	/** Which trains/events are currently drawn on the graph. */
+	void setSelection(const QSet<QString> &trains,
+					  const QSet<QString> &events);
 	/** Show aggregated multi-run statistics table. */
 	void showCompare(const QVector<CompareRow> &rows, int runsEach);
 	void showMultiRunStats(const QVector<TrainStatRow> &stats,
 						   int completedRuns);
-
 	void clear();
+
+  signals:
+	void trainClicked(const QString &key);
+	void eventClicked(const QString &name);
+
+  protected:
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
 
   private:
 	static QString fmtTime(double seconds);
@@ -63,6 +78,12 @@ class SimDashboard : public QTextEdit
 										size_t fromIndex) const;
 
 	QVector<EventInfo> _events;
+	QVector<TrainRunInfo> _runTrains;
+	QVector<EventOutcome> _outcomes;
+	QSet<QString> _selTrains;
+	QSet<QString> _selEvents;
+	bool _analysisShown = false;
+	void renderAnalysis();
 };
 
 #endif

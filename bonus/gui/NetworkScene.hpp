@@ -19,7 +19,9 @@
 #include <QGraphicsPathItem>
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
+#include <QColor>
 #include <QMap>
+#include <QSet>
 #include <QPointF>
 #include <QString>
 #include <QVector>
@@ -94,6 +96,13 @@ class NetworkScene : public QGraphicsScene
 	void setEventInfo(const QVector<EventInfo> &events);
 	/** Briefly flash the segment/node where this event just fired. */
 	void flashEvent(const QString &eventName, const QString &trainName);
+	/** Show or hide one train's planned route (dashed) and the route it
+		actually took (solid), with markers at origin and destination. */
+	void showTrainRoute(const QString &key, const QStringList &planned,
+						const QStringList &actual, bool on);
+	/** Keep an event's location highlighted until toggled off. */
+	void showEventMark(const QString &eventName, bool on);
+	void clearOverlays();
 	/** Briefly mark the node where a train just switched paths. */
 	void markReroute(const QString &nodeName, const QString &trainName);
 
@@ -105,6 +114,11 @@ class NetworkScene : public QGraphicsScene
 
   signals:
 	void nodeClicked(const QString &name);
+	/** A train dot was clicked; key is name + id. */
+	void trainClicked(const QString &key);
+
+  protected:
+	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 
   private:
 	struct NodeVis
@@ -154,6 +168,22 @@ class NetworkScene : public QGraphicsScene
 		int lineA = -1;
 		int lineB = -1;
 	};
+
+	struct RouteSel
+	{
+		QStringList planned;
+		QStringList actual;
+		QColor color;
+	};
+	QMap<QString, RouteSel> _routeSel;
+	QSet<QString> _eventSel;
+	QVector<QGraphicsItem *> _overlayItems;
+	void rebuildOverlays();
+	void stopPulses();
+	/** Expanding ring that fades out, 3 times, centred on c; the blink
+		lanes flash in the same colour meanwhile. */
+	void pulseAt(const QPointF &c, const QColor &col,
+				 const QVector<QGraphicsPathItem *> &blink = {});
 
 	QMap<QString, NodeVis> _nodes;
 	QVector<EdgeVis> _edges;

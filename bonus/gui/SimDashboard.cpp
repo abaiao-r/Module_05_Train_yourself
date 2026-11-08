@@ -12,7 +12,11 @@
 
 
 #include "SimDashboard.hpp"
+#include <QHash>
+#include <QMouseEvent>
 #include <QRegularExpression>
+#include <QScrollBar>
+#include <QUrl>
 #include <algorithm>
 #include <cmath>
 
@@ -29,6 +33,9 @@ static const char *C_TRACK  = "#334155"; /* empty part of a progress bar */
 SimDashboard::SimDashboard(QWidget *parent) : QTextEdit(parent)
 {
 	setReadOnly(true);
+	setTextInteractionFlags(Qt::TextSelectableByMouse
+							| Qt::LinksAccessibleByMouse);
+	viewport()->setMouseTracking(true);
 	setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 	setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 	setStyleSheet(
@@ -204,6 +211,11 @@ void SimDashboard::update(double simTime,
 				.arg(MAX_CARDS)
 				.arg(_events.size()),
 			C_CYAN);
+		html += QString("<span style='color:%1;'>High-load view: train dots "
+						"only (no labels or motion trails for responsiveness). "
+						"After the run, click a train row to compare planned "
+						"and travelled routes.</span><br><br>")
+					.arg(C_DIM);
 	}
 
 	int shown = 0;
@@ -340,8 +352,141 @@ void SimDashboard::update(double simTime,
 	setHtml(html);
 }
 
+void SimDashboard::showAnalysis(const QVector<TrainRunInfo> &trains,
+								const QVector<EventOutcome> &outcomes)
+{
+	_runTrains = trains;
+	_outcomes = outcomes;
+	_analysisShown = true;
+	renderAnalysis();
+}
+
+void SimDashboard::setSelection(const QSet<QString> &trains,
+								const QSet<QString> &events)
+{
+	_selTrains = trains;
+	_selEvents = events;
+	if (_analysisShown)
+		renderAnalysis();
+}
+
+void SimDashboard::renderAnalysis()
+{
+	const int scroll = verticalScrollBar()->value();
+	const QString arrow = QString::fromUtf8("\xE2\x86\x92");
+	QString html = QString("<body style='background-color:%1;'>").arg(C_PANEL);
+	html += heading(QString::fromUtf8("Simulation complete \xE2\x9C\x93"),
+					QString("%1 train%2")
+						.arg(_runTrains.size())
+						.arg(_runTrains.size() == 1 ? "" : "s"));
+	html += QString("<span style='color:%1;'>Click an event or a train to "
+					"draw it on the graph; click again to hide it. Solid = "
+					"route travelled, dashed = original plan; green = origin, "
+					"red = destination. Events flash pink.</span>"
+					"<br>").arg(C_DIM);
+
+	if (!_events.isEmpty())
+	{
+		html += QString("<p style='margin:6px 0 2px 0;'><b style='color:%1;'>"
+						"Events</b></p>").arg(C_TITLE);
+		QHash<QString, const EventOutcome *> byName;
+		for (const auto &o : _outcomes)
+			byName.insert(o.name, &o);
+		for (const auto &e : _events)
+		{
+			const EventOutcome *o = byName.value(e.name, nullptr);
+			const bool sel = _selEvents.contains(e.name);
+			QString where = e.node2.isEmpty()
+				? QString("station %1").arg(e.node1)
+				: QString("%1 %2 %3%4").arg(e.node1, arrow, e.node2,
+											e.line >= 0
+												? QString(", line %1")
+													  .arg(e.line + 1)
+												: QString());
+			QString href = QString("ev:") + QString::fromLatin1(
+				QUrl::toPercentEncoding(e.name));
+			QString inner = QString(
+				"<a href='%1' style='text-decoration:none;'>"
+				"<span style='color:%2; font-weight:bold;'>%3 %4</span></a> "
+				"%5<br><span style='color:%6;'>%7 &middot; %8% chance "
+				"&middot; +%9 min</span>")
+				.arg(href, sel ? "#ff4da6" : C_YELLOW,
+					 sel ? QString::fromUtf8("\xE2\x97\x8F")
+						 : QString::fromUtf8("\xE2\x9A\xA0"),
+					 e.name.toHtmlEscaped(),
+					 o ? chip(QString("fired %1x").arg(o->hits), C_RED)
+					   : chip("never fired", C_DIM),
+					 C_DIM, where.toHtmlEscaped())
+				.arg(e.probability * 100.0, 0, 'f', 0)
+				.arg(e.durationSec / 60.0, 0, 'f', 1);
+			if (o)
+				inner += QString("<br><span style='color:%1;'>%2 of delay "
+								 "added; e.g. %3</span>")
+							 .arg(C_DIM, fmtTime(o->totalDelaySec),
+								  o->trains.join(", ").toHtmlEscaped());
+			html += card(inner, sel ? "#ff4da6" : C_YELLOW);
+		}
+	}
+
+	const QVector<TrainRunInfo> &rows = _runTrains;
+	html += QString("<p style='margin:8px 0 2px 0;'><b style='color:%1;'>"
+					"Trains</b></p>").arg(C_TITLE);
+	const QString th = QString("<td><b style='color:%1;'>%2</b></td>");
+	QString t = "<table width='100%' cellspacing='0' cellpadding='4'><tr>";
+	for (const char *h : {"Train", "Route", "Depart", "Arrive", "ETA", "Trip",
+						  "Delay", "Cause"})
+		t += th.arg(C_CYAN, h);
+	t += "</tr>";
+	for (const auto &r : rows)
+	{
+		const bool sel = _selTrains.contains(r.key);
+		const bool late = r.delaySec >= 1.0;
+		const QString href = QString("tr:") + QString::fromLatin1(
+			QUrl::toPercentEncoding(r.key));
+		t += QString("<tr bgcolor='%1'>"
+					 "<td><a href='%2' style='text-decoration:none;'>"
+					 "<span style='color:%3;'><b>%4%5</b></span></a></td>"
+					 "<td>%6 %7 %8</td><td>%9</td><td>%10</td><td>%11</td>"
+					 "<td>%12</td><td><span style='color:%13;'>%14</span></td>"
+					 "<td><span style='color:%15;'>%16</span></td></tr>")
+				 .arg(sel ? "#3b2a52" : C_CARD, href,
+					  sel ? "#ff4da6" : C_TITLE,
+					  sel ? QString::fromUtf8("\xE2\x97\x8F ") : QString(),
+					  r.name.toHtmlEscaped(), r.origin.toHtmlEscaped(), arrow,
+					  r.destination.toHtmlEscaped(), fmtTime(r.departureSec),
+					  fmtTime(r.arrivalSec),
+					  fmtTime(r.departureSec + r.expectedSec))
+				 .arg(fmtTime(r.actualSec), late ? C_RED : C_GREEN,
+					  fmtTime(r.delaySec), C_YELLOW,
+					  r.cause.toHtmlEscaped());
+	}
+	html += t + "</table></body>";
+	setHtml(html);
+	verticalScrollBar()->setValue(scroll);
+}
+
+void SimDashboard::mouseMoveEvent(QMouseEvent *e)
+{
+	QTextEdit::mouseMoveEvent(e);
+	viewport()->setCursor(anchorAt(e->pos()).isEmpty() ? Qt::IBeamCursor
+													   : Qt::PointingHandCursor);
+}
+
+void SimDashboard::mouseReleaseEvent(QMouseEvent *e)
+{
+	QTextEdit::mouseReleaseEvent(e);
+	if (e->button() != Qt::LeftButton)
+		return;
+	const QString a = anchorAt(e->pos());
+	if (a.startsWith("ev:"))
+		emit eventClicked(QUrl::fromPercentEncoding(a.mid(3).toLatin1()));
+	else if (a.startsWith("tr:"))
+		emit trainClicked(QUrl::fromPercentEncoding(a.mid(3).toLatin1()));
+}
+
 void SimDashboard::showResults(const QStringList &results)
 {
+	_analysisShown = false;
 	static const QRegularExpression re(
 		R"(^(.+?) : (\S+) \(delay: (\S+)\)(?: \S+ (.+))?$)");
 	QString html = QString("<body style='background-color:%1;'>").arg(C_PANEL);
@@ -471,6 +616,11 @@ void SimDashboard::showCompare(const QVector<CompareRow> &rows, int runsEach)
 
 void SimDashboard::clear()
 {
+	_analysisShown = false;
+	_runTrains.clear();
+	_outcomes.clear();
+	_selTrains.clear();
+	_selEvents.clear();
 	QString html = QString("<body style='background-color:%1;'>").arg(C_PANEL);
 	html += heading("Dashboard", QString());
 	html += card(QString("<span style='color:%1;'>Run a simulation to see "

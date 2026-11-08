@@ -88,6 +88,37 @@ struct EventInfo
 
 Q_DECLARE_METATYPE(QVector<EventInfo>)
 
+/** Post-run facts about one train, for the analysis table and the
+	planned-vs-taken route overlay. */
+struct TrainRunInfo
+{
+	QString key;  // name + id, the same key the scene uses
+	QString name;
+	QString origin;
+	QString destination;
+	double departureSec = 0.0;
+	double arrivalSec = 0.0;
+	double expectedSec = 0.0;
+	double actualSec = 0.0;
+	double delaySec = 0.0;
+	QString cause;
+	QStringList plannedPath; // route when the run started
+	QStringList actualPath;  // route after reroutes
+};
+
+Q_DECLARE_METATYPE(QVector<TrainRunInfo>)
+
+/** How often one event actually fired during the run. */
+struct EventOutcome
+{
+	QString name;
+	int hits = 0;
+	double totalDelaySec = 0.0;
+	QStringList trains; // first few affected trains
+};
+
+Q_DECLARE_METATYPE(QVector<EventOutcome>)
+
 /**
  * Aggregated statistics for one train across multiple simulation runs.
  */
@@ -186,6 +217,9 @@ class SimulationWorker : public QObject
 	void compareFinished(QVector<CompareRow> rows, int runsEach);
 	void tick(double simTime, QVector<TrainSnapshot> snapshots);
 	void finished(QStringList results);
+	/** Emitted just before finished() with the data behind the results. */
+	void analysisReady(QVector<TrainRunInfo> trains,
+					   QVector<EventOutcome> events);
 	void error(const QString &message);
 	void runProgress(int currentRun, int totalRuns);
 	void multiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
