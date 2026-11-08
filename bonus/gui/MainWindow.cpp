@@ -57,6 +57,14 @@
 #include "TrainFactory.hpp"
 
 /* Optional drawing layout next to a network file: same name, ".layout". */
+/* Per-process temp file, so two GUI instances (or a test harness) never
+   delete or overwrite each other's simulation inputs. */
+static QString tempSimFile(const char *kind)
+{
+	return QDir::tempPath() + QString("/trainsim_%1_%2.txt")
+		.arg(kind).arg(QCoreApplication::applicationPid());
+}
+
 static QString layoutPathFor(const QString &networkPath)
 {
 	if (!networkPath.endsWith(".txt"))
@@ -414,8 +422,8 @@ MainWindow::~MainWindow()
 	_simThread.wait();
 	_worker = nullptr; /* deleted by deleteLater on thread finish */
 
-	QFile::remove(QDir::tempPath() + "/trainsim_network.txt");
-	QFile::remove(QDir::tempPath() + "/trainsim_trains.txt");
+	QFile::remove(tempSimFile("network"));
+	QFile::remove(tempSimFile("trains"));
 }
 
 void MainWindow::logInfo(const QString &msg)
@@ -3674,7 +3682,7 @@ void MainWindow::onStopSimulation()
 QString MainWindow::writeTemporaryNetworkFile() const
 {
 	static QString tmpPath;
-	tmpPath = QDir::tempPath() + "/trainsim_network.txt";
+	tmpPath = tempSimFile("network");
 	QFile f(tmpPath);
 	if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
 		return tmpPath;
@@ -3720,7 +3728,7 @@ QString MainWindow::writeTemporaryNetworkFile() const
 QString MainWindow::writeTemporaryTrainFile() const
 {
 	static QString tmpPath;
-	tmpPath = QDir::tempPath() + "/trainsim_trains.txt";
+	tmpPath = tempSimFile("trains");
 	QFile f(tmpPath);
 	if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
 		return tmpPath;
