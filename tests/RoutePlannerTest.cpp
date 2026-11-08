@@ -6,6 +6,8 @@
 
 #include "DijkstraPathfinding.hpp"
 #include "IndependentPlanner.hpp"
+#include "ReservationTable.hpp"
+#include "SegmentTiming.hpp"
 #include "Simulation.hpp"
 #include "TrainFactory.hpp"
 #include "RailNetwork.hpp"
@@ -139,6 +141,73 @@ int main()
 					  ASSERT_STR_EQ(injected ? "ACD" : "ABD",
 									names(raw->getPath()), msg);
 				  }
+				  return true;
+			  });
+
+	suite.run("reservation: opposite direction conflicts, same direction does not",
+			  [](std::string &msg) {
+				  ReservationTable t;
+				  t.reserve("A", "B", 0, 100, 200);
+				  ASSERT_FALSE(t.isFree("B", "A", 0, 150, 160), msg);
+				  ASSERT_TRUE(t.isFree("A", "B", 0, 150, 160), msg);
+				  ASSERT_TRUE(t.isFree("B", "A", 1, 150, 160), msg);
+				  return true;
+			  });
+
+	suite.run("reservation: windows are half-open",
+			  [](std::string &msg) {
+				  ReservationTable t;
+				  t.reserve("A", "B", 0, 100, 200);
+				  ASSERT_TRUE(t.isFree("B", "A", 0, 200, 300), msg);
+				  ASSERT_FALSE(t.isFree("B", "A", 0, 199, 300), msg);
+				  ASSERT_TRUE(t.isFree("B", "A", 0, 0, 100), msg);
+				  return true;
+			  });
+
+	suite.run("reservation: earliestFree waits for the exact end of the blocker",
+			  [](std::string &msg) {
+				  ReservationTable t;
+				  t.reserve("A", "B", 0, 100, 200);
+				  ASSERT_EQ(200.0, t.earliestFree("B", "A", 0, 150, 20), msg);
+				  ASSERT_EQ(150.0, t.earliestFree("A", "B", 0, 150, 20), msg);
+				  ASSERT_EQ(150.0, t.earliestFree("B", "A", 1, 150, 20), msg);
+				  t.reserve("A", "B", 0, 200, 260);
+				  ASSERT_EQ(260.0, t.earliestFree("B", "A", 0, 150, 20), msg);
+				  return true;
+			  });
+
+	suite.run("reservation: legacy mode (no head-on exclusion) never conflicts",
+			  [](std::string &msg) {
+				  ReservationTable t(false);
+				  t.reserve("A", "B", 0, 100, 200);
+				  ASSERT_TRUE(t.isFree("B", "A", 0, 150, 160), msg);
+				  ASSERT_EQ(150.0, t.earliestFree("B", "A", 0, 150, 20), msg);
+				  return true;
+			  });
+
+	suite.run("reservation: same-direction overlap is measured in seconds",
+			  [](std::string &msg) {
+				  ReservationTable t;
+				  t.reserve("A", "B", 0, 100, 200);
+				  ASSERT_EQ(50.0, t.sameDirectionOverlap("A", "B", 0, 150, 400),
+							msg);
+				  ASSERT_EQ(0.0, t.sameDirectionOverlap("B", "A", 0, 150, 400),
+							msg);
+				  ASSERT_EQ(0.0, t.sameDirectionOverlap("A", "B", 1, 150, 400),
+							msg);
+				  return true;
+			  });
+
+	suite.run("free-flow seconds: 10 km at 100 km/h is 360 s, lane speed wins",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("A");
+				  net.addNode("B");
+				  net.addConnection("A", "B", 10.0, 100.0, 2, {100.0, 50.0});
+				  const Edge &e = net.getNeighbours("A")[0];
+				  ASSERT_EQ(360.0, freeFlowSeconds(e), msg);
+				  ASSERT_EQ(360.0, freeFlowSeconds(e, 0), msg);
+				  ASSERT_EQ(720.0, freeFlowSeconds(e, 1), msg);
 				  return true;
 			  });
 

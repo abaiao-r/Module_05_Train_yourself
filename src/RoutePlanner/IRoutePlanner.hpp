@@ -22,6 +22,7 @@ struct FleetSnapshot
 	PathWeightMode mode;
 	SegmentEventRisk eventRisk; // empty unless mode is Adaptive
 	IPathfinding &pathfinder;   // per-train worker
+	bool lanesEnabled = false;  // --lines: head-on exclusion per lane
 };
 
 /**
