@@ -25,9 +25,12 @@
 #include "InputHandler.hpp"
 #include "Node.hpp"
 #include "Simulation.hpp"
+#include "ParallelFor.hpp"
 #include "TrainFactory.hpp"
 
+#include <atomic>
 #include <map>
+#include <mutex>
 #include <type_traits>
 
 static PathWeightMode intToWeightMode(int idx)
@@ -446,44 +449,59 @@ void SimulationWorker::runCompare(const QString &networkFile,
 
 		std::map<std::string, std::vector<double>> sums[5];
 		std::map<std::string, std::vector<double>> delays[5];
-		int done = 0;
-		for (int m = 0; m < 5; ++m)
+
+		/* Every (variant, run) pair is independent, so spread them over the
+		   cores; results are merged in order afterwards. */
+		struct RunOut
 		{
-			for (int run = 0; run < numRuns; ++run)
+			std::map<std::string, double> actual, delay;
+		};
+		std::vector<RunOut> outs(static_cast<size_t>(5) * numRuns);
+		std::atomic<int> done{0};
+		parallelFor(5 * numRuns, [&](int k) {
+			if (_stopRequested.load(std::memory_order_relaxed))
+				throw SimulationStopException();
+			const int m = k / numRuns;
+			TrainFactory::resetIdCounter();
+			/* variant m -> worker code: 4 = Cooperative, 5 = CBS */
+			const int code = m >= 3 ? m + 1 : m;
+			auto data = InputHandler::loadData(
+				networkFile.toStdString(), trainFile.toStdString(),
+				LinesOptions{multiLines});
+			Simulation sim(std::move(data.network),
+						   std::move(data.trains),
+						   std::move(data.events),
+						   std::make_unique<DijkstraPathfinding>(),
+						   intToWeightMode(code), data.lines);
+			setPlanner(sim, code);
+			sim.setQuiet(true);
+			sim.setWriteResults(false);
+			sim.setAnimCallback(
+				[this](double, const std::vector<TrainState> &) {
+					if (_stopRequested.load(std::memory_order_relaxed))
+						throw SimulationStopException();
+				});
+			sim.run();
+			std::map<std::string, int> seen;
+			RunOut &out = outs[static_cast<size_t>(k)];
+			for (const auto &r : sim.getResults())
 			{
-				if (_stopRequested.load(std::memory_order_relaxed))
-					throw SimulationStopException();
-				TrainFactory::resetIdCounter();
-				/* variant m -> worker code: 4 = Cooperative, 5 = CBS */
-				const int code = m >= 3 ? m + 1 : m;
-				auto data = InputHandler::loadData(
-					networkFile.toStdString(), trainFile.toStdString(),
-					LinesOptions{multiLines});
-				Simulation sim(std::move(data.network),
-							   std::move(data.trains),
-							   std::move(data.events),
-							   std::make_unique<DijkstraPathfinding>(),
-							   intToWeightMode(code), data.lines);
-				setPlanner(sim, code);
-				sim.setQuiet(true);
-				sim.setAnimCallback(
-					[this](double, const std::vector<TrainState> &) {
-						if (_stopRequested.load(std::memory_order_relaxed))
-							throw SimulationStopException();
-					});
-				sim.run();
-				std::map<std::string, int> seen;
-				for (const auto &r : sim.getResults())
-				{
-					int n = seen[r.name]++;
-					std::string key = n ? r.name + " #" + std::to_string(n + 1)
-										: r.name;
-					sums[m][key].push_back(r.actualTime);
-					delays[m][key].push_back(r.totalDelay);
-				}
-				/* Shown as "N/runs": one step = the same run in all 5 variants. */
-				emit runProgress(++done / 5, numRuns);
+				int n = seen[r.name]++;
+				std::string key = n ? r.name + " #" + std::to_string(n + 1)
+									: r.name;
+				out.actual[key] = r.actualTime;
+				out.delay[key] = r.totalDelay;
 			}
+			/* Shown as "N/runs": one step = the same run in all 5 variants. */
+			emit runProgress(++done / 5, numRuns);
+		});
+		for (int k = 0; k < 5 * numRuns; ++k)
+		{
+			const int m = k / numRuns;
+			for (const auto &kv : outs[static_cast<size_t>(k)].actual)
+				sums[m][kv.first].push_back(kv.second);
+			for (const auto &kv : outs[static_cast<size_t>(k)].delay)
+				delays[m][kv.first].push_back(kv.second);
 		}
 
 		QVector<CompareRow> rows;
@@ -542,12 +560,14 @@ void SimulationWorker::runMulti(const QString &networkFile,
 		std::map<std::string, std::vector<double>> statDelay;
 		std::map<std::string, double> statEstimated;
 
-		int completedRuns = 0;
+		std::atomic<int> completedRuns{0};
+		std::mutex statMutex;
 
-		for (int run = 0; run < numRuns; ++run)
-		{
+		/* Run 0 may be animated and emits live events, so it goes first on
+		   this thread; the remaining runs are independent and parallel. */
+		auto runOne = [&](int run) {
 			if (_stopRequested.load(std::memory_order_relaxed))
-				break;
+				return;
 
 			TrainFactory::resetIdCounter();
 			auto data = InputHandler::loadData(networkFile.toStdString(),
@@ -560,6 +580,8 @@ void SimulationWorker::runMulti(const QString &networkFile,
 						   mode, data.lines);
 			setPlanner(sim, weightMode);
 			sim.setQuiet(true);
+			if (run != 0)
+				sim.setWriteResults(false);
 
 			if (animateFirst && run == 0)
 			{
@@ -637,19 +659,30 @@ void SimulationWorker::runMulti(const QString &networkFile,
 			/* Same-named trains (different departures) get separate rows:
 			   results keep load order, so the Nth duplicate is stable. */
 			std::map<std::string, int> seen;
-			for (const auto &r : sim.getResults())
 			{
-				int n = seen[r.name]++;
-				std::string key = n ? r.name + " #" + std::to_string(n + 1)
-									: r.name;
-				statActual[key].push_back(r.actualTime);
-				statDelay[key].push_back(r.totalDelay);
-				statEstimated[key] = r.estimatedTime;
+				std::lock_guard<std::mutex> lk(statMutex);
+				for (const auto &r : sim.getResults())
+				{
+					int n = seen[r.name]++;
+					std::string key = n ? r.name + " #" + std::to_string(n + 1)
+										: r.name;
+					statActual[key].push_back(r.actualTime);
+					statDelay[key].push_back(r.totalDelay);
+					statEstimated[key] = r.estimatedTime;
+				}
 			}
 
-			++completedRuns;
-			emit runProgress(completedRuns, numRuns);
+			emit runProgress(++completedRuns, numRuns);
+		};
+
+		int firstParallel = 0;
+		if (numRuns > 0)
+		{
+			runOne(0);
+			firstParallel = 1;
 		}
+		parallelFor(numRuns - firstParallel,
+					[&](int i) { runOne(firstParallel + i); });
 
 		QVector<TrainStatRow> stats;
 		for (const auto &pair : statActual)
@@ -679,11 +712,11 @@ void SimulationWorker::runMulti(const QString &networkFile,
 			row.minActual = mn;
 			row.maxActual = mx;
 			row.avgDelay = avgDelay;
-			row.runs = completedRuns;
+			row.runs = completedRuns.load();
 			stats.push_back(row);
 		}
 
-		emit multiRunFinished(stats, completedRuns);
+		emit multiRunFinished(stats, completedRuns.load());
 	}
 	catch (const SimulationStopException &)
 	{

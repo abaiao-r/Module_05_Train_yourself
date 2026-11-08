@@ -29,6 +29,7 @@
 #include "IPathfinding.hpp"
 #include "InputHandler.hpp"
 #include "Simulation.hpp"
+#include "ParallelFor.hpp"
 #include "TerminalAnimDisplay.hpp"
 #include "TrainFactory.hpp"
 
@@ -336,70 +337,106 @@ int main(int argc, char **argv)
 			std::map<std::string, double> estimated;
 		};
 
-		/* Runs the simulation numRuns times in one mode. Only the
-		   primary pass prints, animates and exports the graph. */
-		auto collect = [&](PathWeightMode mode, bool coop, bool useCbs,
-								   bool primary, Stats &st) {
-			for (int run = 0; run < numRuns; run++)
+		/* One simulation run. Only the primary run 0 prints, animates, writes
+		   the result files and exports the graph; every other run is quiet
+		   and independent, so they can execute in parallel. */
+		auto runOnce = [&](PathWeightMode mode, bool coop, bool useCbs,
+						   bool primary, int run) {
+			Stats st;
+			const bool first = primary && run == 0;
+			TrainFactory::resetIdCounter();
+			auto data = InputHandler::loadData(argv[1], argv[2], lines);
+			auto pathfinder = std::make_unique<DijkstraPathfinding>();
+
+			Simulation sim(std::move(data.network),
+						   std::move(data.trains),
+						   std::move(data.events),
+						   std::move(pathfinder), mode, data.lines);
+
+			if (coop && useCbs)
+				sim.setRoutePlanner(std::make_unique<CbsPlanner>());
+			else if (coop)
+				sim.setRoutePlanner(std::make_unique<RefinedPlanner>(
+					std::make_unique<PrioritizedPlanner>(),
+					std::make_unique<IndependentPlanner>()));
+			if (!first)
 			{
-				TrainFactory::resetIdCounter();
-				auto data = InputHandler::loadData(argv[1], argv[2], lines);
-				auto pathfinder = std::make_unique<DijkstraPathfinding>();
-
-				Simulation sim(std::move(data.network),
-							   std::move(data.trains),
-							   std::move(data.events),
-							   std::move(pathfinder), mode, data.lines);
-
-				if (coop && useCbs)
-					sim.setRoutePlanner(std::make_unique<CbsPlanner>());
-				else if (coop)
-					sim.setRoutePlanner(std::make_unique<RefinedPlanner>(
-						std::make_unique<PrioritizedPlanner>(),
-						std::make_unique<IndependentPlanner>()));
-				if (!primary || (numRuns > 1 && run > 0))
-					sim.setQuiet(true);
-				if (primary && animate && numRuns == 1)
-					sim.setQuiet(true);
-
-				TerminalAnimDisplay animDisplay;
-				if (primary && animate && run == 0)
-				{
-					sim.setAnimCallback(
-						[&animDisplay](double t,
-									   const std::vector<TrainState> &s) {
-							animDisplay.render(t, s);
-						});
-				}
-
-				sim.run();
-
-				if (primary && animate && run == 0)
-					animDisplay.cleanup();
-
-				/* Same-named trains (different departures) get separate
-				   rows: results keep load order, so the Nth duplicate is
-				   stable. */
-				std::map<std::string, int> seen;
-				for (const auto &r : sim.getResults())
-				{
-					int n = seen[r.name]++;
-					std::string key = n ? r.name + " #" + std::to_string(n + 1)
-										: r.name;
-					st.actual[key].push_back(r.actualTime);
-					st.delay[key].push_back(r.totalDelay);
-					st.estimated[key] = r.estimatedTime;
-				}
-
-				if (primary && run == 0 && !graphFile.empty())
-				{
-					std::filesystem::create_directories("output/graphs");
-					if (graphFile.find('/') == std::string::npos)
-						graphFile = "output/graphs/" + graphFile;
-					GraphExporter::exportDot(graphFile, sim.getNetwork(),
-											 sim.getTrains());
-				}
+				sim.setQuiet(true);
+				sim.setWriteResults(false);
 			}
+			if (first && animate && numRuns == 1)
+				sim.setQuiet(true);
+
+			TerminalAnimDisplay animDisplay;
+			if (first && animate)
+			{
+				sim.setAnimCallback(
+					[&animDisplay](double t,
+								   const std::vector<TrainState> &s) {
+						animDisplay.render(t, s);
+					});
+			}
+
+			sim.run();
+
+			if (first && animate)
+				animDisplay.cleanup();
+
+			/* Same-named trains (different departures) get separate
+			   rows: results keep load order, so the Nth duplicate is
+			   stable. */
+			std::map<std::string, int> seen;
+			for (const auto &r : sim.getResults())
+			{
+				int n = seen[r.name]++;
+				std::string key = n ? r.name + " #" + std::to_string(n + 1)
+									: r.name;
+				st.actual[key].push_back(r.actualTime);
+				st.delay[key].push_back(r.totalDelay);
+				st.estimated[key] = r.estimatedTime;
+			}
+
+			if (first && !graphFile.empty())
+			{
+				std::filesystem::create_directories("output/graphs");
+				if (graphFile.find('/') == std::string::npos)
+					graphFile = "output/graphs/" + graphFile;
+				GraphExporter::exportDot(graphFile, sim.getNetwork(),
+										 sim.getTrains());
+			}
+			return st;
+		};
+
+		/* Merging in run order keeps the statistics deterministic. */
+		auto merge = [](Stats &dst, const Stats &src) {
+			for (const auto &kv : src.actual)
+				dst.actual[kv.first].insert(dst.actual[kv.first].end(),
+											kv.second.begin(),
+											kv.second.end());
+			for (const auto &kv : src.delay)
+				dst.delay[kv.first].insert(dst.delay[kv.first].end(),
+										   kv.second.begin(),
+										   kv.second.end());
+			for (const auto &kv : src.estimated)
+				dst.estimated[kv.first] = kv.second;
+		};
+
+		auto collect = [&](PathWeightMode mode, bool coop, bool useCbs,
+						   bool primary, Stats &st) {
+			std::vector<Stats> per(static_cast<size_t>(numRuns));
+			int firstParallel = 0;
+			if (primary)
+			{
+				per[0] = runOnce(mode, coop, useCbs, true, 0);
+				firstParallel = 1;
+			}
+			parallelFor(numRuns - firstParallel, [&](int i) {
+				int run = firstParallel + i;
+				per[static_cast<size_t>(run)] =
+					runOnce(mode, coop, useCbs, primary, run);
+			});
+			for (const auto &r : per)
+				merge(st, r);
 		};
 
 		if (compare)
@@ -413,8 +450,16 @@ int main(int argc, char **argv)
 			const char *names[N] = {"Distance", "Solo", "Adaptive",
 									"Cooperative", "CBS"};
 			Stats res[N];
-			for (int m = 0; m < N; m++)
-				collect(modes[m], m >= 3, m == 4, false, res[m]);
+			/* Every (mode, run) pair is independent: spread them all over the
+			   cores at once. */
+			std::vector<Stats> per(static_cast<size_t>(N) * numRuns);
+			parallelFor(N * numRuns, [&](int k) {
+				int m = k / numRuns;
+				per[static_cast<size_t>(k)] =
+					runOnce(modes[m], m >= 3, m == 4, false, k % numRuns);
+			});
+			for (int k = 0; k < N * numRuns; k++)
+				merge(res[k / numRuns], per[static_cast<size_t>(k)]);
 
 			auto avgOf = [](const std::vector<double> &v) {
 				double t = 0;
