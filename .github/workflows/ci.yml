@@ -55,11 +55,13 @@ jobs:
     - name: ThreadSanitizer (${{ matrix.compiler }})
       run: make CXX=${{ matrix.compiler }} tsan
 
-    - name: Helgrind (lock order and races)
+    - name: Helgrind and DRD (lock order and races)
       if: matrix.compiler == 'g++'
       run: |
         make CXX=g++ all
-        valgrind --tool=helgrind --error-exitcode=1 ./bin/train_yourself input/railNetworkPrintFolder/railNetworkBonus09Hub.txt input/trainPrintFolder/trainPrintBonus09Hub.txt --lines --runs 4 > /dev/null
+        H="input/railNetworkPrintFolder/railNetworkBonus09Hub.txt input/trainPrintFolder/trainPrintBonus09Hub.txt"
+        valgrind --tool=helgrind --error-exitcode=1 ./bin/train_yourself $H --lines --runs 4 > /dev/null
+        valgrind --tool=drd --error-exitcode=1 ./bin/train_yourself $H --lines --runs 4 > /dev/null
 
   # ── GUI: Qt bonus builds ───────────────────────────────────────────────
   bonus:
