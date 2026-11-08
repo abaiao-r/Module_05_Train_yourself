@@ -445,8 +445,8 @@ void SimDashboard::renderAnalysis()
 			QUrl::toPercentEncoding(r.key));
 		t += QString("<tr bgcolor='%1'>").arg(sel ? "#3b2a52" : C_CARD);
 		auto cell = [&t, &href](const QString &value) {
-			t += QString("<td><a href='%1' style='color:inherit; "
-						 "text-decoration:none;'>%2</a></td>")
+			t += QString("<td nowrap><a href='%1' style='color:#e2e8f0; "
+						 "white-space:nowrap; text-decoration:none;'>%2</a></td>")
 					 .arg(href, value.isEmpty() ? QString("&nbsp;") : value);
 		};
 		cell(QString("<span style='color:%1;'><b>%2%3</b></span>")
