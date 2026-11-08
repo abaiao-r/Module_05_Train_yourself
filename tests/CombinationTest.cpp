@@ -107,7 +107,8 @@ static std::string shortLabel(const std::string &filename,
  */
 static void cleanupOutputDir()
 {
-	std::system("rm -f output/results/*.result 2>/dev/null");
+	int rc = std::system("rm -f output/results/*.result 2>/dev/null");
+	(void)rc;
 }
 
 /**

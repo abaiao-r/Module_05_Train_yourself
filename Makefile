@@ -14,7 +14,11 @@ NAME		= train_yourself
 
 # Compiler
 CXX			= c++
-CXXFLAGS	= -Wall -Wextra -Werror -Wshadow -std=c++17 -g -MMD -MP
+CXXFLAGS	= -Wall -Wextra -Werror -Wshadow -std=c++17 -O2 -g -MMD -MP
+
+# Tests link the -O2 objects (not ASAN-instrumented), which makes libc++ report
+# false container-overflow on std::string; disable that one check.
+export ASAN_OPTIONS := detect_container_overflow=0
 
 # Sanitizer flags — always enabled for tests, never for the main binary
 SANFLAGS	= -fsanitize=address -fno-omit-frame-pointer
