@@ -24,6 +24,7 @@
 #include "DijkstraPathfinding.hpp"
 #include "PrioritizedPlanner.hpp"
 #include "RefinedPlanner.hpp"
+#include "CbsPlanner.hpp"
 #include "GraphExporter.hpp"
 #include "IPathfinding.hpp"
 #include "InputHandler.hpp"
@@ -71,7 +72,8 @@ static void printHelp()
 		<< "together,\n"
 		<< "                      trains avoid each other; plans by travel "
 		<< "time, so it\n"
-		<< "                      excludes --distance and --adaptive)\n"
+		<< "                      excludes --distance and --adaptive) or cbs\n"
+		<< "                      (conflict-based search on head-on rails)\n"
 		<< "  --compare           Run all modes plus the cooperative planner "
 		<< "(with\n"
 		<< "                      --runs N each) and print them side by side\n"
@@ -186,7 +188,7 @@ int main(int argc, char **argv)
 	{
 		std::cerr << "Usage: " << argv[0]
 				  << " <network_file> <train_file> [--distance|--solo|--adaptive] "
-				     "[--planner independent|cooperative] [--graph file.dot] "
+				     "[--planner independent|cooperative|cbs] [--graph file.dot] "
 				     "[--animate] [--runs N] [--compare] [--lines]"
 				  << std::endl;
 		std::cerr << "Use --help for detailed format information."
@@ -213,6 +215,7 @@ int main(int argc, char **argv)
 	bool animate = false;
 	bool compare = false;
 	bool cooperative = false;
+	bool cbs = false;
 	LinesOptions lines;
 	int numRuns = 1;
 	for (int i = 3; i < argc; i++)
@@ -260,17 +263,19 @@ int main(int argc, char **argv)
 		{
 			if (i + 1 >= argc)
 			{
-				std::cerr << "--planner requires independent|cooperative"
+				std::cerr << "--planner requires independent|cooperative|cbs"
 						  << std::endl;
 				return EXIT_FAILURE;
 			}
 			std::string p = argv[++i];
 			if (p == "cooperative")
 				cooperative = true;
+			else if (p == "cbs")
+				cooperative = cbs = true;
 			else if (p != "independent")
 			{
 				std::cerr << "Error: unknown planner '" << p
-						  << "' (expected independent|cooperative)"
+						  << "' (expected independent|cooperative|cbs)"
 						  << std::endl;
 				return EXIT_FAILURE;
 			}
@@ -346,7 +351,9 @@ int main(int argc, char **argv)
 							   std::move(data.events),
 							   std::move(pathfinder), mode, data.lines);
 
-				if (coop)
+				if (coop && cbs)
+					sim.setRoutePlanner(std::make_unique<CbsPlanner>());
+				else if (coop)
 					sim.setRoutePlanner(std::make_unique<RefinedPlanner>(
 						std::make_unique<PrioritizedPlanner>(),
 						std::make_unique<IndependentPlanner>()));

@@ -430,7 +430,7 @@ int main()
 				  ASSERT_EQ(1, r.exitCode, msg);
 				  ASSERT_TRUE(outputContains(
 					  r.output, "unknown planner 'bogus' (expected "
-								"independent|cooperative)"), msg);
+								"independent|cooperative|cbs)"), msg);
 				  return true;
 			  });
 
