@@ -93,6 +93,8 @@ planner to coordinate.
 | 12WaitOrGo (delay) | 5:23 | 5:23 | 5:23 | 5:23 | 5:23 |
 | 11Lisbon (delay) | 39:39 | 42:01 | 43:54 | 40:16 | 44:01 |
 
+Delay is measured against each variant's own plan, so it is not comparable across columns: on Detour CBS shows 0:00 only because it already routes around the risky rail in its plan (travel 10:18 vs Adaptive 10:19, same real outcome). Compare travel time across variants.
+
 Random events move totals by +-3-5 min between runs, so small gaps are noise.
 
 ## Honest conclusion
