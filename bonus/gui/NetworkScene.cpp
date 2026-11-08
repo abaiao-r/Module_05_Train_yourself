@@ -189,9 +189,20 @@ void NetworkScene::addEdge(const QString &from, const QString &to,
 	label->setPos(mid.x() + 4, mid.y() - label->boundingRect().height());
 	label->setZValue(2);
 
+	const bool laneBefore = laneMode();
 	_edges.push_back({line, label, from, to, distKm, speedKmh, QString(),
 					  numLines, extra, lineSpeeds, {}});
-	refreshEdgeLabels();
+	/* Re-laying out every edge per add is O(E^2) while loading a big
+	   network; only the lane mode flipping needs a full refresh. */
+	if (laneMode() != laneBefore)
+		refreshEdgeLabels();
+	else
+	{
+		auto &added = _edges.last();
+		added.label->setPlainText(edgeLabelText(
+			added.distKm, added.speedKmh, added.riskNames, laneBefore));
+		repositionEdge(added);
+	}
 }
 
 /* Each line of a multi-line rail has its own colour, used for the stroke
@@ -565,50 +576,61 @@ void NetworkScene::layoutForceDirected()
 	const double ATTRACT = 0.005;
 	const double DAMPING = 0.85;
 
-	QMap<QString, QPointF> vel;
-	for (auto it = _nodes.begin(); it != _nodes.end(); ++it)
-		vel[it.key()] = QPointF(0, 0);
+	/* Index arrays instead of string-keyed maps: same maths and the same
+	   (sorted-key) order, so positions are unchanged, but far faster. */
+	const QStringList keys = _nodes.keys();
+	const int N = keys.size();
+	QHash<QString, int> idx;
+	idx.reserve(N);
+	QVector<QPointF> pos(N), vel(N, QPointF(0, 0));
+	for (int i = 0; i < N; i++)
+	{
+		idx.insert(keys[i], i);
+		pos[i] = _nodes[keys[i]].pos;
+	}
+	QVector<QPair<int, int>> links;
+	for (const auto &e : _edges)
+		if (idx.contains(e.from) && idx.contains(e.to))
+			links.push_back({idx[e.from], idx[e.to]});
 
 	for (int iter = 0; iter < ITERS; iter++)
 	{
-		QMap<QString, QPointF> force;
-		for (auto it = _nodes.begin(); it != _nodes.end(); ++it)
-			force[it.key()] = QPointF(0, 0);
+		QVector<QPointF> force(N, QPointF(0, 0));
 
-		auto keys = _nodes.keys();
-		for (int i = 0; i < keys.size(); i++)
+		for (int i = 0; i < N; i++)
 		{
-			for (int j = i + 1; j < keys.size(); j++)
+			for (int j = i + 1; j < N; j++)
 			{
-				QPointF d = _nodes[keys[i]].pos - _nodes[keys[j]].pos;
+				QPointF d = pos[i] - pos[j];
 				double dist = std::sqrt(d.x() * d.x() + d.y() * d.y());
 				if (dist < 1.0) dist = 1.0;
 				double f = REPEL / (dist * dist);
 				QPointF fn = QPointF(d.x() / dist * f, d.y() / dist * f);
-				force[keys[i]] += fn;
-				force[keys[j]] -= fn;
+				force[i] += fn;
+				force[j] -= fn;
 			}
 		}
 
-		for (const auto &e : _edges)
+		for (const auto &l : links)
 		{
-			if (!_nodes.contains(e.from) || !_nodes.contains(e.to))
-				continue;
-			QPointF d = _nodes[e.to].pos - _nodes[e.from].pos;
+			QPointF d = pos[l.second] - pos[l.first];
 			double dist = std::sqrt(d.x() * d.x() + d.y() * d.y());
 			if (dist < 1.0) dist = 1.0;
 			double f = ATTRACT * dist;
 			QPointF fn = QPointF(d.x() / dist * f, d.y() / dist * f);
-			force[e.from] += fn;
-			force[e.to] -= fn;
+			force[l.first] += fn;
+			force[l.second] -= fn;
 		}
 
-		for (auto it = _nodes.begin(); it != _nodes.end(); ++it)
+		for (int i = 0; i < N; i++)
 		{
-			vel[it.key()] = (vel[it.key()] + force[it.key()]) * DAMPING;
-			it.value().pos += vel[it.key()];
+			vel[i] = (vel[i] + force[i]) * DAMPING;
+			pos[i] += vel[i];
 		}
 	}
+
+	for (int i = 0; i < N; i++)
+		_nodes[keys[i]].pos = pos[i];
 
 	/* Apply final positions — go through setPos which triggers itemChange
 	   → nodeMoved, so edges & labels auto-reposition. */
@@ -635,11 +657,37 @@ QPointF NetworkScene::edgePosition(const QString &from, const QString &to,
 void NetworkScene::updateTrains(double /*simTime*/,
 								const QVector<TrainSnapshot> &snapshots)
 {
+	/* With hundreds of trains, per-train text labels, trails and tooltips
+	   are what freezes the GUI; draw plain dots for trains in flight only. */
+	const bool large = snapshots.size() > 150;
+	static constexpr int MAX_TRAIL_SEGS = 4000;
+
+	QHash<QString, const EdgeVis *> edgeAt;
+	edgeAt.reserve(_edges.size() * 2);
+	for (const auto &e : _edges)
+	{
+		edgeAt.insert(e.from + QLatin1Char('|') + e.to, &e);
+		edgeAt.insert(e.to + QLatin1Char('|') + e.from, &e);
+	}
+
 	for (int i = 0; i < snapshots.size(); i++)
 	{
 		const auto &s = snapshots[i];
 		QString key = s.name + QString::number(s.id);
 		QColor col = PALETTE[i % PALETTE_SIZE];
+
+		if (large && (!s.departed || s.arrived))
+		{
+			auto hidden = _trains.find(key);
+			if (hidden != _trains.end())
+			{
+				hidden->dot->setVisible(false);
+				if (hidden->label)
+					hidden->label->setVisible(false);
+				hidden->hasPrev = false;
+			}
+			continue;
+		}
 
 		QPointF pos(0, 0);
 		QString curFrom, curTo;
@@ -652,28 +700,19 @@ void NetworkScene::updateTrains(double /*simTime*/,
 				QPointF p1 = _nodes[s.from].pos;
 				QPointF p2 = _nodes[s.to].pos;
 				double frac = 0.5;
-				for (const auto &e : _edges)
+				const EdgeVis *ev = edgeAt.value(s.from + QLatin1Char('|')
+												 + s.to, nullptr);
+				if (ev)
 				{
-					if ((e.from == s.from && e.to == s.to)
-						|| (e.from == s.to && e.to == s.from))
-					{
-						double edgeM = e.distKm * 1000.0;
-						if (edgeM > 0)
-							frac = s.posOnSegment_m / edgeM;
-						break;
-					}
+					double edgeM = ev->distKm * 1000.0;
+					if (edgeM > 0)
+						frac = s.posOnSegment_m / edgeM;
 				}
 				if (frac > 1.0) frac = 1.0;
 				if (frac < 0.0) frac = 0.0;
 				pos = p1 + (p2 - p1) * frac;
-				if (s.line >= 0)
-					for (const auto &e : _edges)
-						if ((e.from == s.from && e.to == s.to)
-							|| (e.from == s.to && e.to == s.from))
-						{
-							pos += laneOffset(e, s.line, frac);
-							break;
-						}
+				if (s.line >= 0 && ev)
+					pos += laneOffset(*ev, s.line, frac);
 				curFrom = s.from;
 				curTo = s.to;
 				curFrac = frac;
@@ -692,19 +731,46 @@ void NetworkScene::updateTrains(double /*simTime*/,
 
 		if (!_trains.contains(key))
 		{
-			const double R = 8.0;
+			const double R = large ? 5.0 : 8.0;
 			auto *dot = addEllipse(-R, -R, 2 * R, 2 * R,
 								   QPen(Qt::white, 1.5), QBrush(col));
 			dot->setZValue(20);
-			auto *label = addText(s.name, QFont("Segoe UI", 8, QFont::Bold));
-			label->setDefaultTextColor(col);
-			label->setZValue(21);
+			QGraphicsTextItem *label = nullptr;
+			if (!large)
+			{
+				label = addText(s.name, QFont("Segoe UI", 8, QFont::Bold));
+				label->setDefaultTextColor(col);
+				label->setZValue(21);
+			}
 			_trains[key] = {dot, label, pos, false, curFrom, curTo, curFrac,
 							s.line};
 		}
 		auto &vis = _trains[key];
+		vis.dot->setVisible(true);
+		if (!large)
+		{
+			if (!vis.label)
+			{
+				vis.label = addText(s.name,
+									QFont("Segoe UI", 8, QFont::Bold));
+				vis.label->setDefaultTextColor(col);
+				vis.label->setZValue(21);
+			}
+			vis.label->setVisible(true);
+		}
+		if (large)
+		{
+			vis.dot->setPos(pos);
+			vis.prevPos = pos;
+			vis.hasPrev = true;
+			bool isDelayed = (s.status == QLatin1String("Delayed"));
+			vis.dot->setPen(QPen(isDelayed ? QColor(231, 76, 60) : Qt::white,
+								 isDelayed ? 2.0 : 1.0));
+			continue;
+		}
 
-		if (vis.hasPrev && s.departed && !s.arrived)
+		if (vis.hasPrev && s.departed && !s.arrived
+			&& _trailLines.size() < MAX_TRAIL_SEGS)
 		{
 			double dx = pos.x() - vis.prevPos.x();
 			double dy = pos.y() - vis.prevPos.y();
@@ -788,7 +854,7 @@ void NetworkScene::clearTrains()
 	{
 		if (it.value().dot->scene() == this)
 			removeItem(it.value().dot);
-		if (it.value().label->scene() == this)
+		if (it.value().label && it.value().label->scene() == this)
 			removeItem(it.value().label);
 		delete it.value().dot;
 		delete it.value().label;

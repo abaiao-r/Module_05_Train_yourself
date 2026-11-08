@@ -150,7 +150,7 @@ void SimDashboard::update(double simTime,
 	html += heading("Live view", QString("clock <b style='color:%1;'>%2</b>")
 									 .arg(C_CYAN, fmtTime(simTime)));
 
-	if (!_events.isEmpty())
+	if (!_events.isEmpty() && snapshots.size() <= 60)
 	{
 		QString ev = QString("<b style='color:%1;'>Events</b><br>")
 						 .arg(C_TITLE);
@@ -174,8 +174,48 @@ void SimDashboard::update(double simTime,
 		html += card(ev, C_YELLOW);
 	}
 
+	/* Thousands of cards make the HTML (and the UI) crawl, so large runs
+	   get a summary plus the first MAX_CARDS trains that are in flight. */
+	static constexpr int MAX_CARDS = 40;
+	const bool crowded = snapshots.size() > 60;
+	int nRun = 0, nWait = 0, nDone = 0, nIdle = 0;
 	for (const auto &s : snapshots)
 	{
+		if (s.arrived) ++nDone;
+		else if (!s.departed) ++nIdle;
+		else if (s.waiting) ++nWait;
+		else ++nRun;
+	}
+	if (crowded)
+	{
+		html += card(
+			QString("<b style='color:%1;'>%2 trains</b><br>"
+					"<span style='color:%3;'>running</span> %4 &nbsp; "
+					"<span style='color:%3;'>waiting</span> %5 &nbsp; "
+					"<span style='color:%3;'>arrived</span> %6 &nbsp; "
+					"<span style='color:%3;'>not departed</span> %7<br>"
+					"<span style='color:%3;'>Showing the first %8 trains in "
+					"flight. %9 events are configured (see the Events "
+					"tab).</span>")
+				.arg(C_TITLE)
+				.arg(snapshots.size())
+				.arg(C_DIM)
+				.arg(nRun).arg(nWait).arg(nDone).arg(nIdle)
+				.arg(MAX_CARDS)
+				.arg(_events.size()),
+			C_CYAN);
+	}
+
+	int shown = 0;
+	for (const auto &s : snapshots)
+	{
+		if (crowded)
+		{
+			if (!s.departed || s.arrived)
+				continue;
+			if (shown++ >= MAX_CARDS)
+				break;
+		}
 		QString accent, badge;
 		if (s.arrived)
 		{
