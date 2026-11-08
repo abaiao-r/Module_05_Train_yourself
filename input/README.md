@@ -25,6 +25,7 @@ Full test fixtures live in `tests/fixtures/`.
 | 10 | `Bonus10RushHour` | 3-, 2- and 1-line rails, line and rail events | busiest case |
 | 11 | `Bonus11LisbonMetro` | Lisbon metro: 4 lines, interchanges, real station names | drawn with the real geography (see below) |
 | 12 | `Bonus12WaitOrGo` | Wait or go | `Go` waits ~5 min for the busy 160 km/h line instead of taking the free 30 km/h one (arrives 08:16 instead of 08:43) |
+| 13 | `Bonus13Stress` | 300 nodes, 595 rails (1-4 lines, per-line speeds), 52 events, 3000 varied trains; regenerate with `scripts/gen_stress.py [seed cols rows trains]` | `--lines` (about 40 s); try `--adaptive` or `--planner cbs` |
 
 Events are random, so event cases (06, 09, 10, 11) vary run to run; use `--runs N` for averages.
 
