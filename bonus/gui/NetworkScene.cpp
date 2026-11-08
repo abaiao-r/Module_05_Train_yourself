@@ -18,6 +18,9 @@
 #include <QFile>
 #include <QFont>
 #include <QGraphicsSceneHoverEvent>
+#include <QGraphicsSceneMouseEvent>
+#include <QPainterPath>
+#include <QVariantAnimation>
 #include <QPen>
 #include <QTimer>
 #include <QtMath>
@@ -342,6 +345,7 @@ void NetworkScene::updateLaneLabels(EdgeVis &e)
 
 void NetworkScene::removeNode(const QString &name)
 {
+	stopPulses();
 	if (!_nodes.contains(name))
 		return;
 
@@ -366,6 +370,7 @@ void NetworkScene::removeNode(const QString &name)
 
 void NetworkScene::removeEdge(const QString &from, const QString &to)
 {
+	stopPulses();
 	for (int i = 0; i < _edges.size(); ++i)
 	{
 		if (((_edges[i].from == from && _edges[i].to == to)
@@ -436,6 +441,11 @@ void NetworkScene::updateEdge(const QString &from, const QString &to,
 
 void NetworkScene::clear()
 {
+	/* Running animations point at items that clear() is about to free. */
+	qDeleteAll(findChildren<QVariantAnimation *>());
+	_overlayItems.clear();
+	_routeSel.clear();
+	_eventSel.clear();
 	QGraphicsScene::clear();
 	_nodes.clear();
 	_edges.clear();
@@ -461,6 +471,7 @@ void NetworkScene::nodeMoved(const QString &name, const QPointF &newPos)
 	/* Moving the layout invalidates drawn trails and train positions, so
 	   drop them; trains reappear on the next simulation update. */
 	clearTrains();
+	rebuildOverlays();
 }
 
 void NetworkScene::repositionEdge(EdgeVis &e)
@@ -735,6 +746,7 @@ void NetworkScene::updateTrains(double /*simTime*/,
 			auto *dot = addEllipse(-R, -R, 2 * R, 2 * R,
 								   QPen(Qt::white, 1.5), QBrush(col));
 			dot->setZValue(20);
+			dot->setData(0, key);
 			QGraphicsTextItem *label = nullptr;
 			if (!large)
 			{
@@ -747,6 +759,9 @@ void NetworkScene::updateTrains(double /*simTime*/,
 		}
 		auto &vis = _trains[key];
 		vis.dot->setVisible(true);
+		vis.dot->setPen(_routeSel.contains(key)
+							? QPen(_routeSel[key].color.lighter(150), 3.5)
+							: QPen(Qt::white, 1.5));
 		if (!large)
 		{
 			if (!vis.label)
@@ -764,8 +779,10 @@ void NetworkScene::updateTrains(double /*simTime*/,
 			vis.prevPos = pos;
 			vis.hasPrev = true;
 			bool isDelayed = (s.status == QLatin1String("Delayed"));
-			vis.dot->setPen(QPen(isDelayed ? QColor(231, 76, 60) : Qt::white,
-								 isDelayed ? 2.0 : 1.0));
+			vis.dot->setPen(_routeSel.contains(key)
+								? QPen(_routeSel[key].color.lighter(150), 3.5)
+								: QPen(isDelayed ? QColor(231, 76, 60) : Qt::white,
+									   isDelayed ? 2.0 : 1.0));
 			continue;
 		}
 
@@ -936,6 +953,63 @@ void NetworkScene::drawEventMarkers()
 	}
 }
 
+static const QColor EVENT_COLOR(255, 0, 128);
+
+/* Animations hold raw pointers to lanes, so drop them before items go. */
+void NetworkScene::stopPulses()
+{
+	qDeleteAll(findChildren<QVariantAnimation *>());
+	for (auto *it : items())
+		if (it->data(1).toString() == QLatin1String("pulse"))
+		{
+			removeItem(it);
+			delete it;
+		}
+}
+
+void NetworkScene::pulseAt(const QPointF &c, const QColor &col,
+						   const QVector<QGraphicsPathItem *> &blink)
+{
+	/* Many events can fire in one frame on a big run; cap the animations. */
+	if (findChildren<QVariantAnimation *>().size() > 40)
+		return;
+	auto *ring = addEllipse(-1, -1, 2, 2, QPen(col, 3), Qt::NoBrush);
+	ring->setPos(c);
+	ring->setZValue(30);
+	ring->setData(1, "pulse");
+	QVector<QPen> originals;
+	for (auto *l : blink)
+		originals << l->pen();
+
+	auto *anim = new QVariantAnimation(this);
+	anim->setDuration(1500);
+	anim->setStartValue(0.0);
+	anim->setEndValue(1.0);
+	connect(anim, &QVariantAnimation::valueChanged, this,
+			[ring, blink, originals, col](const QVariant &v) {
+				const double t = v.toDouble();
+				/* Three expanding rings over the whole run. */
+				const double ph = std::fmod(t * 3.0, 1.0);
+				const double r = 6.0 + 34.0 * ph;
+				ring->setRect(-r, -r, 2 * r, 2 * r);
+				ring->setOpacity(1.0 - ph);
+				const bool on = static_cast<int>(t * 6.0) % 2 == 0;
+				for (int i = 0; i < blink.size(); i++)
+					blink[i]->setPen(on ? QPen(col, 5.0, Qt::SolidLine,
+											   Qt::RoundCap)
+										: originals[i]);
+			});
+	connect(anim, &QVariantAnimation::finished, this,
+			[this, anim, ring, blink, originals]() {
+				for (int i = 0; i < blink.size(); i++)
+					blink[i]->setPen(originals[i]);
+				removeItem(ring);
+				delete ring;
+				anim->deleteLater();
+			});
+	anim->start();
+}
+
 void NetworkScene::flashEvent(const QString &eventName,
 							  const QString &trainName)
 {
@@ -955,31 +1029,158 @@ void NetworkScene::flashEvent(const QString &eventName,
 			{
 				QVector<QGraphicsPathItem *> lanes = e.extraLanes;
 				lanes.push_front(e.line);
+				QVector<QGraphicsPathItem *> hit;
 				for (int li = 0; li < lanes.size(); li++)
-				{
-					if (found->line >= 0 && li != found->line)
-						continue;
-					auto *line = lanes[li];
-					QPen original = line->pen();
-					line->setPen(QPen(QColor(231, 76, 60), 4.5,
-									  Qt::SolidLine, Qt::RoundCap));
-					QTimer::singleShot(900, this, [this, line, original]() {
-						if (line->scene() == this)
-							line->setPen(original);
-					});
-				}
+					if (found->line < 0 || li == found->line)
+						hit << lanes[li];
+				pulseAt((_nodes[e.from].pos + _nodes[e.to].pos) / 2.0,
+						EVENT_COLOR, hit);
 			}
 		}
 	}
 	else if (_nodes.contains(found->node1))
+		pulseAt(_nodes[found->node1].pos, EVENT_COLOR);
+}
+
+void NetworkScene::showTrainRoute(const QString &key,
+								  const QStringList &planned,
+								  const QStringList &actual, bool on)
+{
+	if (on)
+		_routeSel[key] = {planned, actual,
+						  PALETTE[qHash(key) % static_cast<uint>(PALETTE_SIZE)]};
+	else
+		_routeSel.remove(key);
+	rebuildOverlays();
+}
+
+void NetworkScene::showEventMark(const QString &eventName, bool on)
+{
+	if (on)
+		_eventSel.insert(eventName);
+	else
+		_eventSel.remove(eventName);
+	rebuildOverlays();
+}
+
+void NetworkScene::clearOverlays()
+{
+	_routeSel.clear();
+	_eventSel.clear();
+	rebuildOverlays();
+}
+
+void NetworkScene::rebuildOverlays()
+{
+	for (auto *it : _overlayItems)
 	{
-		auto *dot = _nodes[found->node1].dot;
-		QBrush original = dot->brush();
-		dot->setBrush(QBrush(QColor(231, 76, 60)));
-		QTimer::singleShot(900, this, [this, dot, original]() {
-			if (dot->scene() == this)
-				dot->setBrush(original);
-		});
+		removeItem(it);
+		delete it;
+	}
+	_overlayItems.clear();
+
+	auto routePath = [this](const QStringList &names) {
+		QPainterPath path;
+		bool first = true;
+		for (const auto &n : names)
+		{
+			if (!_nodes.contains(n))
+				continue;
+			if (first)
+				path.moveTo(_nodes[n].pos);
+			else
+				path.lineTo(_nodes[n].pos);
+			first = false;
+		}
+		return path;
+	};
+	auto marker = [this](const QString &node, const QColor &c, bool origin) {
+		if (!_nodes.contains(node))
+			return;
+		const double r = origin ? 14.0 : 11.0;
+		auto *m = addEllipse(-r, -r, 2 * r, 2 * r, QPen(c, 3),
+							 origin ? QBrush(Qt::NoBrush)
+									: QBrush(c.darker(200)));
+		m->setPos(_nodes[node].pos);
+		m->setZValue(15);
+		_overlayItems << m;
+	};
+
+	for (auto it = _routeSel.begin(); it != _routeSel.end(); ++it)
+	{
+		const RouteSel &r = it.value();
+		const bool rerouted = r.planned != r.actual;
+		if (rerouted)
+		{
+			auto *pl = addPath(routePath(r.planned),
+							   QPen(r.color.darker(150), 2.5, Qt::DashLine,
+									Qt::RoundCap));
+			pl->setZValue(12);
+			_overlayItems << pl;
+		}
+		auto *ac = addPath(routePath(r.actual),
+						   QPen(r.color, 4.0, Qt::SolidLine, Qt::RoundCap,
+								Qt::RoundJoin));
+		ac->setZValue(13);
+		ac->setToolTip(QString("%1: %2").arg(
+			it.key(), rerouted ? "solid = route taken, dashed = original plan"
+							   : "route (unchanged from plan)"));
+		_overlayItems << ac;
+		if (!r.actual.isEmpty())
+		{
+			marker(r.actual.first(), QColor(46, 204, 113), true);
+			marker(r.actual.last(), QColor(231, 76, 60), false);
+		}
+	}
+
+	for (const auto &name : _eventSel)
+	{
+		for (const auto &ev : _events)
+		{
+			if (ev.name != name)
+				continue;
+			if (!ev.node2.isEmpty() && _nodes.contains(ev.node1)
+				&& _nodes.contains(ev.node2))
+			{
+				QPainterPath p;
+				p.moveTo(_nodes[ev.node1].pos);
+				p.lineTo(_nodes[ev.node2].pos);
+				QColor glow = EVENT_COLOR;
+				glow.setAlpha(110);
+				auto *g = addPath(p, QPen(glow, 12.0, Qt::SolidLine,
+										  Qt::RoundCap));
+				g->setZValue(6);
+				g->setToolTip(name);
+				_overlayItems << g;
+			}
+			else if (_nodes.contains(ev.node1))
+			{
+				auto *g = addEllipse(-18, -18, 36, 36,
+									 QPen(EVENT_COLOR, 4.0), Qt::NoBrush);
+				g->setPos(_nodes[ev.node1].pos);
+				g->setZValue(6);
+				g->setToolTip(name);
+				_overlayItems << g;
+			}
+		}
+	}
+}
+
+void NetworkScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
+{
+	QGraphicsScene::mousePressEvent(event);
+	if (event->button() != Qt::LeftButton)
+		return;
+	/* Dots are tiny on big runs, so accept a few pixels around the click. */
+	const QPointF p = event->scenePos();
+	for (auto *it : items(QRectF(p.x() - 6, p.y() - 6, 12, 12)))
+	{
+		const QString key = it->data(0).toString();
+		if (!key.isEmpty() && it->isVisible())
+		{
+			emit trainClicked(key);
+			return;
+		}
 	}
 }
 

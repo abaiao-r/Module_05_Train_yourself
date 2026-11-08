@@ -343,6 +343,8 @@ MainWindow::MainWindow(QWidget *parent)
 	qRegisterMetaType<QVector<TrainSnapshot>>("QVector<TrainSnapshot>");
 	qRegisterMetaType<QVector<TrainStatRow>>("QVector<TrainStatRow>");
 	qRegisterMetaType<QVector<EventInfo>>("QVector<EventInfo>");
+	qRegisterMetaType<QVector<TrainRunInfo>>("QVector<TrainRunInfo>");
+	qRegisterMetaType<QVector<EventOutcome>>("QVector<EventOutcome>");
 	qRegisterMetaType<QVector<CompareRow>>("QVector<CompareRow>");
 
 	connect(&_simThread, &QThread::finished, _worker, &QObject::deleteLater);
@@ -371,6 +373,14 @@ MainWindow::MainWindow(QWidget *parent)
 				_scene->setEventInfo(events);
 				_dashboard->setEventInfo(events);
 			});
+	connect(_worker, &SimulationWorker::analysisReady, this,
+			[this](QVector<TrainRunInfo> trains,
+				   QVector<EventOutcome> outcomes) {
+				_pendingInfo = trains;
+				_pendingOutcomes = outcomes;
+			});
+	connect(_scene, &NetworkScene::trainClicked, this,
+			&MainWindow::toggleTrain);
 	connect(_worker, &SimulationWorker::eventTriggered, this,
 			[this](QString trainName, QString eventName, QString location,
 				  double delaySec) {
@@ -836,6 +846,10 @@ void MainWindow::buildCentralWidget()
 	hintLay->addWidget(_emptyHint);
 
 	_dashboard = new SimDashboard;
+	connect(_dashboard, &SimDashboard::trainClicked, this,
+			&MainWindow::toggleTrain);
+	connect(_dashboard, &SimDashboard::eventClicked, this,
+			&MainWindow::toggleEvent);
 	_hSplit->addWidget(_dashboard);
 
 	_hSplit->setStretchFactor(0, 5);   /* graph gets lion's share  */
@@ -3385,6 +3399,7 @@ void MainWindow::onRunSimulation()
 	_stopBtn->setEnabled(true);
 	_simRunning = true;
 	_scene->clearTrains();
+	resetSelections();
 
 	/* Always write temp files from current in-memory state so that
 	   any GUI modifications (add/edit/delete) are included. */
@@ -3441,6 +3456,7 @@ void MainWindow::onSimTick(double simTime,
 						   QVector<TrainSnapshot> snapshots)
 {
 	_lastSimTime = simTime;
+	_lastSnaps = snapshots;
 	_scene->updateTrains(simTime, snapshots);
 	_dashboard->update(simTime, snapshots);
 	_worker->frameConsumed();
@@ -3466,8 +3482,73 @@ void MainWindow::onSimFinished(QStringList results)
 	logSuccess("--- Simulation complete ---");
 	for (const auto &r : results)
 		logInfo("  " + r);
-	_dashboard->showResults(results);
+	if (!_pendingInfo.isEmpty())
+	{
+		_runInfo.clear();
+		for (const auto &i : _pendingInfo)
+			_runInfo.insert(i.key, i);
+		_dashboard->showAnalysis(_pendingInfo, _pendingOutcomes);
+		_pendingInfo.clear();
+		_pendingOutcomes.clear();
+	}
+	else
+		_dashboard->showResults(results);
 	statusBar()->showMessage("Simulation finished successfully");
+}
+
+void MainWindow::resetSelections()
+{
+	_selTrains.clear();
+	_selEvents.clear();
+	_runInfo.clear();
+	_pendingInfo.clear();
+	_pendingOutcomes.clear();
+	_lastSnaps.clear();
+	_scene->clearOverlays();
+	_dashboard->clear();
+	_dashboard->setSelection(_selTrains, _selEvents);
+}
+
+void MainWindow::toggleTrain(const QString &key)
+{
+	const bool on = !_selTrains.contains(key);
+	QStringList planned, actual;
+	if (_runInfo.contains(key))
+	{
+		planned = _runInfo[key].plannedPath;
+		actual = _runInfo[key].actualPath;
+	}
+	else
+	{
+		/* Mid-run: only the first few in-flight trains carry a route. */
+		for (const auto &s : _lastSnaps)
+			if (s.name + QString::number(s.id) == key)
+				planned = actual = s.path;
+		if (on && planned.isEmpty())
+		{
+			statusBar()->showMessage(
+				"The route of this train is available once the run "
+				"finishes.", 4000);
+			return;
+		}
+	}
+	if (on)
+		_selTrains.insert(key);
+	else
+		_selTrains.remove(key);
+	_scene->showTrainRoute(key, planned, actual, on);
+	_dashboard->setSelection(_selTrains, _selEvents);
+}
+
+void MainWindow::toggleEvent(const QString &name)
+{
+	const bool on = !_selEvents.contains(name);
+	if (on)
+		_selEvents.insert(name);
+	else
+		_selEvents.remove(name);
+	_scene->showEventMark(name, on);
+	_dashboard->setSelection(_selTrains, _selEvents);
 }
 
 void MainWindow::onSimError(const QString &msg)

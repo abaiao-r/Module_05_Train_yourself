@@ -14,6 +14,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QHash>
 #include <QStringList>
 #include <QThread>
 
@@ -29,9 +30,11 @@
 #include "TrainFactory.hpp"
 
 #include <atomic>
+#include <limits>
 #include <map>
 #include <mutex>
 #include <type_traits>
+#include <unordered_map>
 
 static PathWeightMode intToWeightMode(int idx)
 {
@@ -358,11 +361,18 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 			emit eventsAvailable(evInfos);
 		}
 		QMap<QString, QStringList> triggeredEvents;
+		QMap<QString, EventOutcome> outcomes;
 		sim.setEventTriggerCallback(
-			[this, &triggeredEvents](const std::string &trainName,
+			[this, &triggeredEvents, &outcomes](const std::string &trainName,
 				  const std::string &eventName, const std::string &loc,
 				  double delaySec) {
 				QString tName = QString::fromStdString(trainName);
+				EventOutcome &oc = outcomes[QString::fromStdString(eventName)];
+				oc.name = QString::fromStdString(eventName);
+				++oc.hits;
+				oc.totalDelaySec += delaySec;
+				if (oc.trains.size() < 5 && !oc.trains.contains(tName))
+					oc.trains << tName;
 				triggeredEvents[tName] << QString("%1 (%2)")
 					.arg(QString::fromStdString(eventName),
 						 fmtHms(delaySec));
@@ -386,11 +396,68 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		static constexpr unsigned FRAME_DELAY_US = 50000; // 50 ms constant
 		double lastEmit = -BASE_INTERVAL;
 
+		/* Routes as first planned, before any reroute changes them. */
+		QHash<QString, QStringList> plannedPaths;
+		QHash<QString, QStringList> takenPaths;
+		std::unordered_map<const Train *, QString> trainKeys;
+		struct PathProgress
+		{
+			double entryTime = -1.0;
+			size_t segment = std::numeric_limits<size_t>::max();
+			int reroutes = -1;
+		};
+		std::unordered_map<const Train *, PathProgress> progress;
+
 		sim.setAnimCallback(
-			[this, &lastEmit, &sim](double simTime,
+			[this, &lastEmit, &sim, &plannedPaths, &takenPaths,
+			 &progress, &trainKeys](double simTime,
 				   const std::vector<TrainState> &states) {
 				if (_stopRequested.load(std::memory_order_relaxed))
 					throw SimulationStopException();
+				for (const auto &st : states)
+				{
+					auto keyIt = trainKeys.find(st.train);
+					if (keyIt == trainKeys.end())
+						keyIt = trainKeys.emplace(
+							st.train,
+							QString::fromStdString(st.train->getName())
+								+ QString::number(st.train->getId())).first;
+					const QString &key = keyIt->second;
+					const auto &path = st.train->getPath();
+					if (!plannedPaths.contains(key))
+					{
+						QStringList p;
+						for (const auto &n : path)
+							p << QString::fromStdString(n->getName());
+						plannedPaths.insert(key, p);
+					}
+					PathProgress &last = progress[st.train];
+					if (st.departed
+						&& (last.entryTime != st.segmentEntryTime
+							|| last.segment != st.segmentIndex
+							|| last.reroutes != st.rerouteCount))
+					{
+						if (st.segmentIndex < path.size())
+						{
+							const QString node = QString::fromStdString(
+								path[st.segmentIndex]->getName());
+							QStringList &taken = takenPaths[key];
+							if (taken.isEmpty() || taken.last() != node)
+								taken << node;
+						}
+						last.entryTime = st.segmentEntryTime;
+						last.segment = st.segmentIndex;
+						last.reroutes = st.rerouteCount;
+					}
+					if (st.arrived && !path.empty())
+					{
+						QStringList &taken = takenPaths[key];
+						const QString dest = QString::fromStdString(
+							path.back()->getName());
+						if (taken.isEmpty() || taken.last() != dest)
+							taken << dest;
+					}
+				}
 				double spd = _speedMult.load(std::memory_order_relaxed);
 				if (spd < 0.05) spd = 0.05;
 				double interval = BASE_INTERVAL * spd;
@@ -425,6 +492,36 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 				line += QString(" \xe2\x80\x94 %1").arg(cause);
 			results << line;
 		}
+		QVector<TrainRunInfo> infos;
+		QHash<QString, const Train *> byKey;
+		for (const auto &t : sim.getTrains())
+			byKey.insert(QString::fromStdString(t->getName())
+							 + QString::number(t->getId()), t.get());
+		for (const auto &r : sim.getResults())
+		{
+			TrainRunInfo info;
+			info.name = QString::fromStdString(r.name);
+			info.key = info.name + QString::number(r.id);
+			info.expectedSec = r.estimatedTime;
+			info.actualSec = r.actualTime;
+			info.delaySec = r.totalDelay;
+			info.cause = triggeredEvents.value(info.name).join(", ");
+			const Train *t = byKey.value(info.key, nullptr);
+			if (t)
+			{
+				info.origin = QString::fromStdString(t->getDepartureStation());
+				info.destination
+					= QString::fromStdString(t->getArrivalStation());
+				info.departureSec = t->getDepartureTime();
+				for (const auto &n : t->getPath())
+					info.actualPath << QString::fromStdString(n->getName());
+			}
+			info.arrivalSec = info.departureSec + r.actualTime;
+			info.plannedPath = plannedPaths.value(info.key, info.actualPath);
+			info.actualPath = takenPaths.value(info.key, info.actualPath);
+			infos.push_back(info);
+		}
+		emit analysisReady(infos, outcomes.values().toVector());
 		emit finished(results);
 	}
 	catch (const SimulationStopException &)
