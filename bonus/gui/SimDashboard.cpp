@@ -443,22 +443,27 @@ void SimDashboard::renderAnalysis()
 		const bool late = r.delaySec >= 1.0;
 		const QString href = QString("tr:") + QString::fromLatin1(
 			QUrl::toPercentEncoding(r.key));
-		t += QString("<tr bgcolor='%1'>"
-					 "<td><a href='%2' style='text-decoration:none;'>"
-					 "<span style='color:%3;'><b>%4%5</b></span></a></td>"
-					 "<td>%6 %7 %8</td><td>%9</td><td>%10</td><td>%11</td>"
-					 "<td>%12</td><td><span style='color:%13;'>%14</span></td>"
-					 "<td><span style='color:%15;'>%16</span></td></tr>")
-				 .arg(sel ? "#3b2a52" : C_CARD, href,
-					  sel ? "#ff4da6" : C_TITLE,
+		t += QString("<tr bgcolor='%1'>").arg(sel ? "#3b2a52" : C_CARD);
+		auto cell = [&t, &href](const QString &value) {
+			t += QString("<td><a href='%1' style='color:inherit; "
+						 "text-decoration:none;'>%2</a></td>")
+					 .arg(href, value.isEmpty() ? QString("&nbsp;") : value);
+		};
+		cell(QString("<span style='color:%1;'><b>%2%3</b></span>")
+				 .arg(sel ? "#ff4da6" : C_TITLE,
 					  sel ? QString::fromUtf8("\xE2\x97\x8F ") : QString(),
-					  r.name.toHtmlEscaped(), r.origin.toHtmlEscaped(), arrow,
-					  r.destination.toHtmlEscaped(), fmtTime(r.departureSec),
-					  fmtTime(r.arrivalSec),
-					  fmtTime(r.departureSec + r.expectedSec))
-				 .arg(fmtTime(r.actualSec), late ? C_RED : C_GREEN,
-					  fmtTime(r.delaySec), C_YELLOW,
-					  r.cause.toHtmlEscaped());
+					  r.name.toHtmlEscaped()));
+		cell(QString("%1 %2 %3").arg(r.origin.toHtmlEscaped(), arrow,
+									 r.destination.toHtmlEscaped()));
+		cell(fmtTime(r.departureSec));
+		cell(fmtTime(r.arrivalSec));
+		cell(fmtTime(r.departureSec + r.expectedSec));
+		cell(fmtTime(r.actualSec));
+		cell(QString("<span style='color:%1;'>%2</span>")
+				 .arg(late ? C_RED : C_GREEN, fmtTime(r.delaySec)));
+		cell(QString("<span style='color:%1;'>%2</span>")
+				 .arg(C_YELLOW, r.cause.toHtmlEscaped()));
+		t += "</tr>";
 	}
 	html += t + "</table></body>";
 	setHtml(html);

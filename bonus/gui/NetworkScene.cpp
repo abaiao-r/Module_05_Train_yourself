@@ -1044,10 +1044,11 @@ void NetworkScene::flashEvent(const QString &eventName,
 
 void NetworkScene::showTrainRoute(const QString &key,
 								  const QStringList &planned,
-								  const QStringList &actual, bool on)
+								  const QStringList &actual,
+								  const QVector<int> &actualLines, bool on)
 {
 	if (on)
-		_routeSel[key] = {planned, actual,
+		_routeSel[key] = {planned, actual, actualLines,
 						  PALETTE[qHash(key) % static_cast<uint>(PALETTE_SIZE)]};
 	else
 		_routeSel.remove(key);
@@ -1079,18 +1080,30 @@ void NetworkScene::rebuildOverlays()
 	}
 	_overlayItems.clear();
 
-	auto routePath = [this](const QStringList &names) {
+	auto routePath = [this](const QStringList &names,
+							const QVector<int> &lines) {
 		QPainterPath path;
-		bool first = true;
-		for (const auto &n : names)
+		for (int i = 0; i + 1 < names.size(); ++i)
 		{
-			if (!_nodes.contains(n))
+			const QString &from = names[i];
+			const QString &to = names[i + 1];
+			const EdgeVis *edge = nullptr;
+			for (const auto &candidate : _edges)
+				if ((candidate.from == from && candidate.to == to)
+					|| (candidate.from == to && candidate.to == from))
+				{
+					edge = &candidate;
+					break;
+				}
+			if (!edge)
 				continue;
-			if (first)
-				path.moveTo(_nodes[n].pos);
-			else
-				path.lineTo(_nodes[n].pos);
-			first = false;
+			int lane = lines.value(i, 0);
+			if (lane < 0 || lane >= edge->numLines)
+				lane = 0;
+			QGraphicsPathItem *rail =
+				lane == 0 ? edge->line : edge->extraLanes.value(lane - 1);
+			if (rail)
+				path.addPath(rail->path());
 		}
 		return path;
 	};
@@ -1102,7 +1115,7 @@ void NetworkScene::rebuildOverlays()
 							 origin ? QBrush(Qt::NoBrush)
 									: QBrush(c.darker(200)));
 		m->setPos(_nodes[node].pos);
-		m->setZValue(15);
+		m->setZValue(9);
 		_overlayItems << m;
 	};
 
@@ -1112,16 +1125,16 @@ void NetworkScene::rebuildOverlays()
 		const bool rerouted = r.planned != r.actual;
 		if (rerouted)
 		{
-			auto *pl = addPath(routePath(r.planned),
-							   QPen(r.color.darker(150), 2.5, Qt::DashLine,
+			auto *pl = addPath(routePath(r.planned, {}),
+							   QPen(r.color.darker(150), 3.0, Qt::DashLine,
 									Qt::RoundCap));
-			pl->setZValue(12);
+			pl->setZValue(1.4);
 			_overlayItems << pl;
 		}
-		auto *ac = addPath(routePath(r.actual),
+		auto *ac = addPath(routePath(r.actual, r.actualLines),
 						   QPen(r.color, 4.0, Qt::SolidLine, Qt::RoundCap,
 								Qt::RoundJoin));
-		ac->setZValue(13);
+		ac->setZValue(1.5);
 		ac->setToolTip(QString("%1: %2").arg(
 			it.key(), rerouted ? "solid = route taken, dashed = original plan"
 							   : "route (unchanged from plan)"));

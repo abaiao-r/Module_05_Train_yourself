@@ -103,7 +103,8 @@ struct TrainRunInfo
 	double delaySec = 0.0;
 	QString cause;
 	QStringList plannedPath; // route when the run started
-	QStringList actualPath;  // route after reroutes
+	QStringList actualPath;  // stations actually traversed
+	QVector<int> actualLines; // line used for each traversed segment
 };
 
 Q_DECLARE_METATYPE(QVector<TrainRunInfo>)
