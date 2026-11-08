@@ -435,7 +435,8 @@ void Simulation::run()
 			}
 
 			double modt = std::fmod(s.timeSinceDepart, OUTPUT_INTERVAL);
-			if (modt < DT || s.arrived)
+			/* The dry run has a NullObserver, so skip the O(trains) blocking scan. */
+			if (!_dryRun && (modt < DT || s.arrived))
 			{
 				double distRem = totalRemainingDistance(s) / 1000.0;
 				auto &p = s.train->getPath();
