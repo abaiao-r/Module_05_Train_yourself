@@ -254,6 +254,14 @@ void SimDashboard::update(double simTime,
 					  .arg(muted("Done", QString("%1%")
 											 .arg(static_cast<int>(
 												 frac * 100.0))));
+			if (s.expectedTrip_s > 0.0)
+			{
+				double left = std::max(0.0, s.expectedTrip_s - s.timeSinceDepart);
+				in += QString("<br>%1%2")
+						  .arg(muted("ETA", "<b>" + fmtTime(simTime + left)
+												+ "</b>"))
+						  .arg(muted("Left (planned)", fmtTime(left)));
+			}
 
 			if (!s.blockedByName.isEmpty())
 				in += QString("<br><span style='color:%1;'>Blocked by %2"
