@@ -186,6 +186,7 @@ class Simulation
 	EventTriggerCallback _eventTriggerCallback;
 	RerouteCallback _rerouteCallback;
 	bool _quiet;
+	bool _writeResults = true;
 	LinesOptions _lines;
 	bool _dryRun = false;
 	/* A rail event fired this tick (cooperative planners re-plan trains
@@ -263,6 +264,8 @@ class Simulation
 	void setAnimCallback(AnimTickCallback cb);
 	/** Suppress stdout output (useful for multi-run). */
 	void setQuiet(bool q);
+	/** Off: skip the per-train output/results files (statistics runs). */
+	void setWriteResults(bool w);
 
 	/** Invoked (from the simulation thread) whenever a random event
 		actually triggers on a train, for displays that want to show it

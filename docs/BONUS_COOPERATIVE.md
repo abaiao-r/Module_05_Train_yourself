@@ -127,6 +127,14 @@ cooperative) - static, event-free, head-on-prone networks.
 * CBS 40-run delay sums (Hub 10:51, RushHour 35:31, Lisbon 42:53) are within
   event noise of cooperative; it is not a measured improvement.
 
+## Parallel runs
+
+`--runs N`, `--compare` and the GUI Compare / multi-run spread independent
+runs over all CPU cores (`src/Simulation/ParallelFor.hpp`). A single run stays
+sequential. Run 0 (animation, output, graph) is serial; the other runs are
+quiet and do not write `output/results` files, so parallel runs never collide.
+In `--compare`, no run writes result files.
+
 ## References
 
 Prioritized planning and Conflict-Based Search (multi-agent path finding),

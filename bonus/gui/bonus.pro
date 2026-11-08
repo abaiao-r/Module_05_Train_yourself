@@ -1,7 +1,7 @@
 QT       += core gui widgets
 TARGET    = TrainGUI
 TEMPLATE  = app
-CONFIG   += c++17 release
+CONFIG   += c++17 release thread
 DESTDIR   = ../../bin
 
 # ─── Project source layout ───────────────────────────────────────────────────

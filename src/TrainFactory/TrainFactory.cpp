@@ -15,7 +15,7 @@
 #include <cmath>
 #include <stdexcept>
 
-int TrainFactory::_nextId = 1;
+thread_local int TrainFactory::_nextId = 1;
 
 void TrainFactory::resetIdCounter() { _nextId = 1; }
 

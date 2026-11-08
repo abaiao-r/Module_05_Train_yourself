@@ -95,6 +95,7 @@ void Simulation::setRerouteCallback(RerouteCallback cb)
 }
 
 void Simulation::setQuiet(bool q) { _quiet = q; }
+void Simulation::setWriteResults(bool w) { _writeResults = w; }
 
 void Simulation::enqueueMutation(LiveMutation mutation)
 {
@@ -302,7 +303,7 @@ void Simulation::run()
 		s.segmentEntryTime = train->getDepartureTime();
 		states.push_back(s);
 
-		if (_dryRun)
+		if (_dryRun || !_writeResults)
 			_observers.push_back(std::make_unique<NullObserver>());
 		else
 			_observers.push_back(std::make_unique<FileOutputObserver>(
@@ -435,8 +436,9 @@ void Simulation::run()
 			}
 
 			double modt = std::fmod(s.timeSinceDepart, OUTPUT_INTERVAL);
-			/* The dry run has a NullObserver, so skip the O(trains) blocking scan. */
-			if (!_dryRun && (modt < DT || s.arrived))
+			/* Dry and no-output runs have NullObservers, so skip the
+			   O(trains) blocking scan. */
+			if (!_dryRun && _writeResults && (modt < DT || s.arrived))
 			{
 				double distRem = totalRemainingDistance(s) / 1000.0;
 				auto &p = s.train->getPath();

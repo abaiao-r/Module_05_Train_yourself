@@ -14,7 +14,7 @@ NAME		= train_yourself
 
 # Compiler
 CXX			= c++
-CXXFLAGS	= -Wall -Wextra -Werror -Wshadow -std=c++17 -O2 -g -MMD -MP
+CXXFLAGS	= -Wall -Wextra -Werror -Wshadow -std=c++17 -O2 -g -pthread -MMD -MP
 
 # Tests link the -O2 objects (not ASAN-instrumented), which makes libc++ report
 # false container-overflow on std::string; disable that one check.

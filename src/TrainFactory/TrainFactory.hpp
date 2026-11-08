@@ -32,7 +32,8 @@ class TrainFactory
 	static void resetIdCounter();
 
   private:
-	static int _nextId;
+	/* Per thread, so parallel simulation runs number trains identically. */
+	static thread_local int _nextId;
 };
 
 #endif
