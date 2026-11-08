@@ -53,6 +53,89 @@ static void setPlanner(Simulation &sim, int weightMode)
 		sim.setRoutePlanner(std::make_unique<CbsPlanner>());
 }
 
+/* Heavy fields (route, segment length, physics) are only filled for the
+   first DETAILED_MAX trains in flight; the dashboard never shows more
+   cards than that, so thousands of trains stay cheap to snapshot. */
+static constexpr int DETAILED_MAX = 40;
+
+static QVector<TrainSnapshot> buildSnapshots(
+	const std::vector<TrainState> &states, Simulation &sim)
+{
+	QVector<TrainSnapshot> snaps;
+	snaps.reserve(static_cast<int>(states.size()));
+	int detailed = 0;
+	for (const auto &s : states)
+	{
+		TrainSnapshot snap;
+		snap.name = QString::fromStdString(s.train->getName());
+		snap.id = s.train->getId();
+		snap.departure = QString::fromStdString(
+			s.train->getDepartureStation());
+		snap.arrival = QString::fromStdString(
+			s.train->getArrivalStation());
+		auto &path = s.train->getPath();
+		bool onSegment = path.size() >= 2
+			&& s.segmentIndex + 1 < path.size();
+		if (onSegment)
+		{
+			snap.from = QString::fromStdString(
+				path[s.segmentIndex]->getName());
+			snap.to = QString::fromStdString(
+				path[s.segmentIndex + 1]->getName());
+		}
+		snap.posOnSegment_m = s.posOnSegment_m;
+		snap.speed_ms = s.speed_ms;
+		snap.timeSinceDepart = s.timeSinceDepart;
+		snap.expectedTrip_s = 0.0;
+		snap.stopTimer = s.stopTimer;
+		snap.line = s.lineId;
+		snap.waiting = s.waiting;
+		snap.departed = s.departed;
+		snap.arrived = s.arrived;
+		snap.segmentIndex = s.segmentIndex;
+		snap.pathSize = path.size();
+		snap.segmentLength_m = 0.0;
+		snap.status = QString::fromStdString(
+			Train::statusToString(s.train->getStatus()));
+		snap.rerouteCount = s.rerouteCount;
+		snap.weightTons = s.train->getWeight();
+		snap.frictionCoeff = s.train->getFrictionCoefficient();
+		snap.maxAccelKn = s.train->getMaxAccelForce();
+		snap.maxBrakeKn = s.train->getMaxBrakeForce();
+		snap.accelRate_ms2 = s.train->getAccelRate();
+		snap.decelRate_ms2 = s.train->getDecelRate();
+
+		if (s.departed && !s.arrived && detailed < DETAILED_MAX)
+		{
+			++detailed;
+			snap.expectedTrip_s = sim.expectedTripSeconds(*s.train);
+			for (const auto &node : path)
+				snap.path << QString::fromStdString(node->getName());
+			if (onSegment)
+			{
+				try {
+					const auto &edges = sim.getNetwork()
+						.getNeighbours(path[s.segmentIndex]->getName());
+					for (const auto &e : edges)
+						if (e.destination->getName()
+							== path[s.segmentIndex + 1]->getName())
+						{
+							snap.segmentLength_m = e.distance * 1000.0;
+							break;
+						}
+				} catch (...) {}
+			}
+			snap.blockedByName = s.blockedByTrain
+				? QString::fromStdString(s.blockedByTrain->getName())
+				: QString();
+			snap.lastRerouteReason =
+				QString::fromStdString(s.lastRerouteReason);
+		}
+		snaps.push_back(snap);
+	}
+	return snaps;
+}
+
 static QString fmtHms(double seconds)
 {
 	int total = static_cast<int>(seconds);
@@ -90,6 +173,13 @@ void SimulationWorker::requestStop()
 bool SimulationWorker::isStopRequested() const
 {
 	return _stopRequested.load(std::memory_order_relaxed);
+}
+
+void SimulationWorker::frameConsumed()
+{
+	int cur = _pendingFrames.load(std::memory_order_acquire);
+	while (cur > 0 && !_pendingFrames.compare_exchange_weak(cur, cur - 1))
+		;
 }
 
 namespace
@@ -182,6 +272,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 									 int weightMode, bool multiLines)
 {
 	_stopRequested.store(false, std::memory_order_relaxed);
+	_pendingFrames.store(0, std::memory_order_release);
 
 	try
 	{
@@ -303,77 +394,14 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 				if (interval < 1.0) interval = 1.0;
 				if (simTime - lastEmit < interval)
 					return;
+				/* The GUI still owns the previous frame: drop this one
+				   rather than queueing events it can never catch up on. */
+				if (_pendingFrames.load(std::memory_order_acquire) > 0)
+					return;
 				lastEmit = simTime;
 
-				QVector<TrainSnapshot> snaps;
-				snaps.reserve(static_cast<int>(states.size()));
-				for (const auto &s : states)
-				{
-					TrainSnapshot snap;
-					snap.name = QString::fromStdString(
-						s.train->getName());
-					snap.id = s.train->getId();
-					snap.departure = QString::fromStdString(
-						s.train->getDepartureStation());
-					snap.arrival = QString::fromStdString(
-						s.train->getArrivalStation());
-					auto &path = s.train->getPath();
-					if (path.size() >= 2
-						&& s.segmentIndex + 1 < path.size())
-					{
-						snap.from = QString::fromStdString(
-							path[s.segmentIndex]->getName());
-						snap.to = QString::fromStdString(
-							path[s.segmentIndex + 1]->getName());
-					}
-					snap.posOnSegment_m = s.posOnSegment_m;
-					snap.speed_ms = s.speed_ms;
-					snap.timeSinceDepart = s.timeSinceDepart;
-					snap.expectedTrip_s = sim.expectedTripSeconds(*s.train);
-					snap.stopTimer = s.stopTimer;
-					snap.line = s.lineId;
-					snap.waiting = s.waiting;
-					snap.departed = s.departed;
-					snap.arrived = s.arrived;
-					snap.segmentIndex = s.segmentIndex;
-					snap.pathSize = path.size();
-					snap.path.clear();
-					for (const auto &node : path)
-						snap.path << QString::fromStdString(node->getName());
-					snap.segmentLength_m = 0.0;
-					if (path.size() >= 2
-						&& s.segmentIndex + 1 < path.size())
-					{
-						try {
-							const auto &edges = sim.getNetwork()
-								.getNeighbours(path[s.segmentIndex]->getName());
-							for (const auto &e : edges)
-							{
-								if (e.destination->getName()
-									== path[s.segmentIndex + 1]->getName())
-								{
-									snap.segmentLength_m = e.distance * 1000.0;
-									break;
-								}
-							}
-						} catch (...) {}
-					}
-					snap.status = QString::fromStdString(
-						Train::statusToString(s.train->getStatus()));
-					snap.blockedByName = s.blockedByTrain
-						? QString::fromStdString(s.blockedByTrain->getName())
-						: QString();
-					snap.rerouteCount = s.rerouteCount;
-					snap.lastRerouteReason =
-						QString::fromStdString(s.lastRerouteReason);
-					snap.weightTons = s.train->getWeight();
-					snap.frictionCoeff = s.train->getFrictionCoefficient();
-					snap.maxAccelKn = s.train->getMaxAccelForce();
-					snap.maxBrakeKn = s.train->getMaxBrakeForce();
-					snap.accelRate_ms2 = s.train->getAccelRate();
-					snap.decelRate_ms2 = s.train->getDecelRate();
-					snaps.push_back(snap);
-				}
+				QVector<TrainSnapshot> snaps = buildSnapshots(states, sim);
+				_pendingFrames.fetch_add(1, std::memory_order_acq_rel);
 				emit tick(simTime, snaps);
 				QThread::usleep(FRAME_DELAY_US); // constant ~20 FPS
 			});
@@ -498,6 +526,7 @@ void SimulationWorker::runMulti(const QString &networkFile,
 								bool animateFirst, bool multiLines)
 {
 	_stopRequested.store(false, std::memory_order_relaxed);
+	_pendingFrames.store(0, std::memory_order_release);
 
 	try
 	{
@@ -583,76 +612,12 @@ void SimulationWorker::runMulti(const QString &networkFile,
 						if (interval < 1.0) interval = 1.0;
 						if (simTime - lastEmit < interval)
 							return;
+						if (_pendingFrames.load(std::memory_order_acquire) > 0)
+							return;
 						lastEmit = simTime;
 
-						QVector<TrainSnapshot> snaps;
-						snaps.reserve(static_cast<int>(states.size()));
-						for (const auto &s : states)
-						{
-							TrainSnapshot snap;
-							snap.name = QString::fromStdString(s.train->getName());
-							snap.id = s.train->getId();
-							snap.departure = QString::fromStdString(
-								s.train->getDepartureStation());
-							snap.arrival = QString::fromStdString(
-								s.train->getArrivalStation());
-							auto &path = s.train->getPath();
-							if (path.size() >= 2
-								&& s.segmentIndex + 1 < path.size())
-							{
-								snap.from = QString::fromStdString(
-									path[s.segmentIndex]->getName());
-								snap.to = QString::fromStdString(
-									path[s.segmentIndex + 1]->getName());
-							}
-							snap.posOnSegment_m = s.posOnSegment_m;
-							snap.speed_ms = s.speed_ms;
-							snap.timeSinceDepart = s.timeSinceDepart;
-					snap.expectedTrip_s = sim.expectedTripSeconds(*s.train);
-							snap.stopTimer = s.stopTimer;
-					snap.line = s.lineId;
-					snap.waiting = s.waiting;
-							snap.departed = s.departed;
-							snap.arrived = s.arrived;
-							snap.segmentIndex = s.segmentIndex;
-							snap.pathSize = path.size();
-							snap.path.clear();
-							for (const auto &node : path)
-								snap.path << QString::fromStdString(node->getName());
-							snap.segmentLength_m = 0.0;
-							if (path.size() >= 2
-								&& s.segmentIndex + 1 < path.size())
-							{
-								try {
-									const auto &edges = sim.getNetwork()
-										.getNeighbours(path[s.segmentIndex]->getName());
-									for (const auto &e : edges)
-									{
-										if (e.destination->getName()
-											== path[s.segmentIndex + 1]->getName())
-										{
-											snap.segmentLength_m = e.distance * 1000.0;
-											break;
-										}
-									}
-								} catch (...) {}
-							}
-							snap.status = QString::fromStdString(
-								Train::statusToString(s.train->getStatus()));
-							snap.blockedByName = s.blockedByTrain
-								? QString::fromStdString(s.blockedByTrain->getName())
-								: QString();
-							snap.rerouteCount = s.rerouteCount;
-							snap.lastRerouteReason =
-								QString::fromStdString(s.lastRerouteReason);
-							snap.weightTons = s.train->getWeight();
-							snap.frictionCoeff = s.train->getFrictionCoefficient();
-							snap.maxAccelKn = s.train->getMaxAccelForce();
-							snap.maxBrakeKn = s.train->getMaxBrakeForce();
-							snap.accelRate_ms2 = s.train->getAccelRate();
-							snap.decelRate_ms2 = s.train->getDecelRate();
-							snaps.push_back(snap);
-						}
+						QVector<TrainSnapshot> snaps = buildSnapshots(states, sim);
+						_pendingFrames.fetch_add(1, std::memory_order_acq_rel);
 						emit tick(simTime, snaps);
 						QThread::usleep(FRAME_DELAY_US);
 					});

@@ -3435,6 +3435,7 @@ void MainWindow::onSimTick(double simTime,
 	_lastSimTime = simTime;
 	_scene->updateTrains(simTime, snapshots);
 	_dashboard->update(simTime, snapshots);
+	_worker->frameConsumed();
 
 	int h = static_cast<int>(simTime) / 3600;
 	int m = (static_cast<int>(simTime) % 3600) / 60;

@@ -136,6 +136,10 @@ class SimulationWorker : public QObject
 	void requestStop();
 	bool isStopRequested() const;
 
+	/** Thread-safe: the GUI calls this once it has drawn a tick, so the
+	    worker only sends a new frame when the previous one is done. */
+	void frameConsumed();
+
 	/**
 	 * Thread-safe: queue an addition into the currently-running
 	 * simulation. Returns false (no-op) if no simulation is running.
@@ -206,6 +210,7 @@ class SimulationWorker : public QObject
   private:
 	std::atomic<double> _speedMult{1.0};
 	std::atomic<bool> _stopRequested{false};
+	std::atomic<int> _pendingFrames{0};
 	mutable std::mutex _liveSimMutex;
 	Simulation *_liveSim = nullptr;
 };
