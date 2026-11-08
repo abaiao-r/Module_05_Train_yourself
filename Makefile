@@ -376,7 +376,10 @@ bonus:
 tsan:
 	@mkdir -p $(BINDIR)
 	$(CXX) -std=c++17 -O1 -g -pthread -fsanitize=thread $(INC) $(SRCS) -o $(BINDIR)/train_tsan
-	./$(BINDIR)/train_tsan input/railNetworkPrintFolder/railNetworkBonus09Hub.txt input/trainPrintFolder/trainPrintBonus09Hub.txt --lines --compare --runs 6 > /dev/null
+	@set -e; H="input/railNetworkPrintFolder/railNetworkBonus09Hub.txt input/trainPrintFolder/trainPrintBonus09Hub.txt"; \
+	for a in "--runs 8" "--compare --runs 6" "--runs 6 --animate" "--runs 6 --planner cooperative"; do \
+		echo "tsan: $$a"; ./$(BINDIR)/train_tsan $$H --lines $$a > /dev/null; \
+	done
 	@echo "tsan: no data races reported"
 
 bonus-clean:
