@@ -399,6 +399,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		/* Routes as first planned, before any reroute changes them. */
 		QHash<QString, QStringList> plannedPaths;
 		QHash<QString, QStringList> takenPaths;
+		QHash<QString, QVector<int>> takenLines;
 		std::unordered_map<const Train *, QString> trainKeys;
 		struct PathProgress
 		{
@@ -409,7 +410,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 		std::unordered_map<const Train *, PathProgress> progress;
 
 		sim.setAnimCallback(
-			[this, &lastEmit, &sim, &plannedPaths, &takenPaths,
+			[this, &lastEmit, &sim, &plannedPaths, &takenPaths, &takenLines,
 			 &progress, &trainKeys](double simTime,
 				   const std::vector<TrainState> &states) {
 				if (_stopRequested.load(std::memory_order_relaxed))
@@ -444,6 +445,14 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 							QStringList &taken = takenPaths[key];
 							if (taken.isEmpty() || taken.last() != node)
 								taken << node;
+							if (st.segmentIndex + 1 < path.size())
+							{
+								QVector<int> &lines = takenLines[key];
+								const int leg = taken.size() - 1;
+								if (lines.size() <= leg)
+									lines.resize(leg + 1);
+								lines[leg] = st.lineId;
+							}
 						}
 						last.entryTime = st.segmentEntryTime;
 						last.segment = st.segmentIndex;
@@ -519,6 +528,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 			info.arrivalSec = info.departureSec + r.actualTime;
 			info.plannedPath = plannedPaths.value(info.key, info.actualPath);
 			info.actualPath = takenPaths.value(info.key, info.actualPath);
+			info.actualLines = takenLines.value(info.key);
 			infos.push_back(info);
 		}
 		emit analysisReady(infos, outcomes.values().toVector());

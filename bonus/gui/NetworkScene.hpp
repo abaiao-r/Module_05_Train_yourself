@@ -99,7 +99,8 @@ class NetworkScene : public QGraphicsScene
 	/** Show or hide one train's planned route (dashed) and the route it
 		actually took (solid), with markers at origin and destination. */
 	void showTrainRoute(const QString &key, const QStringList &planned,
-						const QStringList &actual, bool on);
+						const QStringList &actual,
+						const QVector<int> &actualLines, bool on);
 	/** Keep an event's location highlighted until toggled off. */
 	void showEventMark(const QString &eventName, bool on);
 	void clearOverlays();
@@ -173,6 +174,7 @@ class NetworkScene : public QGraphicsScene
 	{
 		QStringList planned;
 		QStringList actual;
+		QVector<int> actualLines;
 		QColor color;
 	};
 	QMap<QString, RouteSel> _routeSel;

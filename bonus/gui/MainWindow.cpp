@@ -3479,6 +3479,10 @@ void MainWindow::onSimFinished(QStringList results)
 	updateRunState();
 	_stopBtn->setEnabled(false);
 	_stopBtn->setText("  Stop  ");
+	_scene->clearTrains();
+	_scene->clearOverlays();
+	_selTrains.clear();
+	_dashboard->setSelection(_selTrains, _selEvents);
 	logSuccess("--- Simulation complete ---");
 	for (const auto &r : results)
 		logInfo("  " + r);
@@ -3513,10 +3517,12 @@ void MainWindow::toggleTrain(const QString &key)
 {
 	const bool on = !_selTrains.contains(key);
 	QStringList planned, actual;
+	QVector<int> actualLines;
 	if (_runInfo.contains(key))
 	{
 		planned = _runInfo[key].plannedPath;
 		actual = _runInfo[key].actualPath;
+		actualLines = _runInfo[key].actualLines;
 	}
 	else
 	{
@@ -3536,7 +3542,7 @@ void MainWindow::toggleTrain(const QString &key)
 		_selTrains.insert(key);
 	else
 		_selTrains.remove(key);
-	_scene->showTrainRoute(key, planned, actual, on);
+	_scene->showTrainRoute(key, planned, actual, actualLines, on);
 	_dashboard->setSelection(_selTrains, _selEvents);
 }
 
