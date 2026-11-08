@@ -13,6 +13,7 @@ INCLUDEPATH += \
     ../../src/Event \
     ../../src/TrainFactory \
     ../../src/IPathfinding \
+    ../../src/RoutePlanner \
     ../../src/DijkstraPathfinding \
     ../../src/InputHandler \
     ../../src/OutputManager \

@@ -588,6 +588,12 @@ void Simulation::run()
 	}
 }
 
+void Simulation::setRoutePlanner(std::unique_ptr<IRoutePlanner> planner)
+{
+	if (planner)
+		_planner = std::move(planner);
+}
+
 void Simulation::computePaths()
 {
 	if (!_quiet)
@@ -600,37 +606,15 @@ void Simulation::computePaths()
 	if (_weightMode == PathWeightMode::Adaptive)
 		eventRisk = buildEventRisk();
 
+	FleetSnapshot fleet{_network, {}, _weightMode, eventRisk, *_pathfinder};
 	for (auto &train : _trains)
+		fleet.trains.push_back(train.get());
+	std::vector<Route> routes = _planner->planAll(fleet);
+	for (size_t i = 0; i < _trains.size(); i++)
 	{
-		std::vector<std::shared_ptr<Node>> path;
-		try
-		{
-			if (_weightMode == PathWeightMode::Adaptive)
-				path = _pathfinder->findPath(train->getDepartureStation(),
-											 train->getArrivalStation(),
-											 _network, _weightMode,
-											 SegmentOccupancy{}, {},
-											 eventRisk);
-			else
-				path = _pathfinder->findPath(train->getDepartureStation(),
-											 train->getArrivalStation(),
-											 _network, _weightMode);
-		}
-		catch (const std::exception &e)
-		{
-			throw std::runtime_error("No path found for "
-									 + train->getName() + ": " + e.what());
-		}
-		if (path.empty())
-		{
-			throw std::runtime_error("No path found for "
-									 + train->getName() + " ("
-									 + train->getDepartureStation() + " -> "
-									 + train->getArrivalStation() + ")");
-		}
-		train->setPath(path);
+		_trains[i]->setPath(routes[i]);
 		if (!_quiet)
-			_output.printTrainPath(*train);
+			_output.printTrainPath(*_trains[i]);
 	}
 	if (!_quiet)
 		std::cout << std::endl;
