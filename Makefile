@@ -372,6 +372,13 @@ bonus:
 	@cd bonus/gui && $(QMAKE) bonus.pro && $(MAKE) -j4
 	@echo "\nTrainGUI built successfully ✓  →  bin/TrainGUI\n"
 
+# ThreadSanitizer build of the CLI: checks the parallel --runs / --compare.
+tsan:
+	@mkdir -p $(BINDIR)
+	$(CXX) -std=c++17 -O1 -g -pthread -fsanitize=thread $(INC) $(SRCS) -o $(BINDIR)/train_tsan
+	./$(BINDIR)/train_tsan input/railNetworkPrintFolder/railNetworkBonus09Hub.txt input/trainPrintFolder/trainPrintBonus09Hub.txt --lines --compare --runs 6 > /dev/null
+	@echo "tsan: no data races reported"
+
 bonus-clean:
 	@cd bonus/gui && [ -f Makefile ] && $(MAKE) clean || true
 	rm -rf objs/gui
@@ -390,6 +397,6 @@ run-gui: bonus
 		./$(BINDIR)/TrainGUI; \
 	fi
 
-.PHONY: all clean fclean re test run run-solo run-graph run-graph-solo \
+.PHONY: tsan all clean fclean re test run run-solo run-graph run-graph-solo \
         run-adaptive setup \
         bonus bonus-clean run-animate run-multi run-gui

@@ -395,6 +395,34 @@ int main()
 				  return true;
 			  });
 
+	suite.run("16 parallel runs give the same deterministic times as 2 runs",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN
+					  + " input/railNetworkPrintFolder/railNetworkBonus12WaitOrGo.txt"
+					  + " input/trainPrintFolder/trainPrintBonus12WaitOrGo.txt"
+					  + " --lines --runs 16");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(
+					  r.output, "Back          00h08m23s     00h08m23s"), msg);
+				  ASSERT_TRUE(outputContains(
+					  r.output, "Go            00h13m46s     00h13m46s"), msg);
+				  return true;
+			  });
+
+	suite.run("--compare with parallel runs -> exit 0 + totals row",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN
+					  + " input/railNetworkPrintFolder/railNetworkBonus12WaitOrGo.txt"
+					  + " input/trainPrintFolder/trainPrintBonus12WaitOrGo.txt"
+					  + " --lines --compare --runs 8");
+				  ASSERT_EQ(0, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(r.output, "TOTAL (sum)"), msg);
+				  ASSERT_TRUE(outputContains(r.output,
+					  "Go                  00h05m23s *   00h05m23s *   "
+					  "00h05m23s *   00h05m23s *   00h05m23s *"), msg);
+				  return true;
+			  });
+
 	suite.run("no events: estimate (incl. waiting for traffic) equals the simulated time",
 			  [](std::string &msg) {
 				  auto r = runCmd(BIN

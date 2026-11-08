@@ -367,9 +367,13 @@ int main(int argc, char **argv)
 			if (first && animate && numRuns == 1)
 				sim.setQuiet(true);
 
-			TerminalAnimDisplay animDisplay;
+			/* Its destructor writes to cout, so only run 0 owns one. */
+			std::unique_ptr<TerminalAnimDisplay> animPtr;
+			if (first)
+				animPtr = std::make_unique<TerminalAnimDisplay>();
 			if (first && animate)
 			{
+				TerminalAnimDisplay &animDisplay = *animPtr;
 				sim.setAnimCallback(
 					[&animDisplay](double t,
 								   const std::vector<TrainState> &s) {
@@ -380,7 +384,7 @@ int main(int argc, char **argv)
 			sim.run();
 
 			if (first && animate)
-				animDisplay.cleanup();
+				animPtr->cleanup();
 
 			/* Same-named trains (different departures) get separate
 			   rows: results keep load order, so the Nth duplicate is
