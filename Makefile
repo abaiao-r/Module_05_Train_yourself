@@ -41,6 +41,7 @@ INC			= -I$(SRCDIR)/Edge \
 			  -I$(SRCDIR)/TrainFactory \
 			  -I$(SRCDIR)/IPathfinding \
 			  -I$(SRCDIR)/DijkstraPathfinding \
+			  -I$(SRCDIR)/RoutePlanner \
 			  -I$(SRCDIR)/InputHandler \
 			  -I$(SRCDIR)/OutputManager \
 			  -I$(SRCDIR)/Simulation \
@@ -187,7 +188,8 @@ TESTS = $(BINDIR)/NodeTest \
 		$(BINDIR)/LiveMutationTest \
 		$(BINDIR)/CongestionTest \
 		$(BINDIR)/AdaptiveRerouteTest \
-		$(BINDIR)/LinesTest
+		$(BINDIR)/LinesTest \
+		$(BINDIR)/RoutePlannerTest
 
 test: $(TESTS)
 	@echo ""
@@ -208,6 +210,7 @@ test: $(TESTS)
 	@./$(BINDIR)/CongestionTest || exit 1
 	@./$(BINDIR)/AdaptiveRerouteTest || exit 1
 	@./$(BINDIR)/LinesTest || exit 1
+	@./$(BINDIR)/RoutePlannerTest || exit 1
 
 $(BINDIR)/NodeTest: $(TESTDIR)/NodeTest.cpp $(OBJDIR)/Node/Node.o
 	@mkdir -p $(BINDIR)
@@ -269,6 +272,10 @@ LIB_OBJS	= $(OBJDIR)/Node/Node.o \
 			  $(OBJDIR)/TerminalAnimDisplay/TerminalAnimDisplay.o
 
 $(BINDIR)/LinesTest: $(TESTDIR)/LinesTest.cpp $(LIB_OBJS)
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
+
+$(BINDIR)/RoutePlannerTest: $(TESTDIR)/RoutePlannerTest.cpp $(LIB_OBJS)
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(SANFLAGS) $(INC) -I$(TESTDIR) $^ -o $@
 

@@ -29,6 +29,8 @@
 #include "LinesOptions.hpp"
 #include "ISimulationObserver.hpp"
 #include "OutputManager.hpp"
+#include "IndependentPlanner.hpp"
+#include "IRoutePlanner.hpp"
 #include "RailNetwork.hpp"
 #include "Train.hpp"
 
@@ -172,6 +174,8 @@ class Simulation
 	std::vector<Event> _events;
 	std::unique_ptr<IPathfinding> _pathfinder;
 	PathWeightMode _weightMode;
+	std::unique_ptr<IRoutePlanner> _planner =
+		std::make_unique<IndependentPlanner>();
 	OutputManager _output;
 	std::mt19937 _rng;
 	std::vector<std::unique_ptr<ISimulationObserver>> _observers;
@@ -229,6 +233,9 @@ class Simulation
 	Simulation(const Simulation &) = delete;
 	Simulation &operator=(const Simulation &) = delete;
 	~Simulation();
+
+	/** Swap the fleet routing strategy (default: IndependentPlanner). */
+	void setRoutePlanner(std::unique_ptr<IRoutePlanner> planner);
 
 	void run();
 
