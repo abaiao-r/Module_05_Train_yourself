@@ -1,11 +1,15 @@
 /* Fleet route planning: the IRoutePlanner strategy. */
 
+#include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "DijkstraPathfinding.hpp"
+#include "CooperativeCost.hpp"
 #include "IndependentPlanner.hpp"
+#include "PrioritizedPlanner.hpp"
 #include "ReservationTable.hpp"
 #include "SegmentTiming.hpp"
 #include "Simulation.hpp"
@@ -13,16 +17,17 @@
 #include "RailNetwork.hpp"
 #include "TestFramework.hpp"
 
-/* A-B-D is 10 km + 10 km, A-C-D is 12 km + 12 km: B is the best route. */
-static RailNetwork diamond()
+/* A-B-D is 10 km + 10 km; A-C-D is 2 x cKm. With the default 12 km, B
+   is clearly the best route. */
+static RailNetwork diamond(double cKm = 12.0)
 {
 	RailNetwork net;
 	for (const char *n : {"A", "B", "C", "D"})
 		net.addNode(n);
 	net.addConnection("A", "B", 10.0, 100.0);
 	net.addConnection("B", "D", 10.0, 100.0);
-	net.addConnection("A", "C", 12.0, 100.0);
-	net.addConnection("C", "D", 12.0, 100.0);
+	net.addConnection("A", "C", cKm, 100.0);
+	net.addConnection("C", "D", cKm, 100.0);
 	return net;
 }
 
@@ -61,6 +66,37 @@ class ForcedViaC : public IRoutePlanner
 	}
 	const char *name() const override { return "stub"; }
 };
+
+static std::unique_ptr<Train> trainAt(const std::string &name, double dep,
+									  const std::string &from = "A",
+									  const std::string &to = "D")
+{
+	return TrainFactory::createTrain(name, 80.0, 0.05, 356.0, 30.0, from, to,
+									 dep, 0.0);
+}
+
+/* Total actual seconds of the fleet on the diamond with a given planner. */
+static double simulate(std::unique_ptr<IRoutePlanner> planner,
+					   std::vector<std::unique_ptr<Train>> trains,
+					   std::map<std::string, std::string> *routes = nullptr)
+{
+	std::vector<const Train *> raw;
+	for (auto &t : trains)
+		raw.push_back(t.get());
+	Simulation sim(diamond(10.0), std::move(trains), {},
+				   std::make_unique<DijkstraPathfinding>(),
+				   PathWeightMode::Solo);
+	sim.setQuiet(true);
+	sim.setRoutePlanner(std::move(planner));
+	sim.run();
+	double total = 0;
+	for (const auto &r : sim.getResults())
+		total += r.actualTime;
+	if (routes)
+		for (const Train *t : raw)
+			(*routes)[t->getName()] = names(t->getPath());
+	return total;
+}
 
 int main()
 {
@@ -208,6 +244,184 @@ int main()
 				  ASSERT_EQ(360.0, freeFlowSeconds(e), msg);
 				  ASSERT_EQ(360.0, freeFlowSeconds(e, 0), msg);
 				  ASSERT_EQ(720.0, freeFlowSeconds(e, 1), msg);
+				  return true;
+			  });
+
+	/* A-B-D = 720 s and A-C-D = 756 s free-flow; every same-way train
+	   already on a rail adds 20 s. */
+	auto routeWith = [](const ReservationTable &table, bool lanes = false) {
+		RailNetwork net = diamond(10.5);
+		DijkstraPathfinding dj;
+		SegmentEventRisk risk = tollMap(table, net, "A", 0.0, 0.0, lanes);
+		return names(dj.findConstrainedPath("A", "D", net, {}, risk, 0.0));
+	};
+
+	suite.run("toll: empty table adds nothing and the free-flow route wins",
+			  [&](std::string &msg) {
+				  ReservationTable t;
+				  RailNetwork net = diamond(10.5);
+				  ASSERT_TRUE(tollMap(t, net, "A", 0.0, 0.0, false).empty(), msg);
+				  ASSERT_STR_EQ("ABD", routeWith(t), msg);
+				  return true;
+			  });
+
+	suite.run("toll: the detour wins once the toll passes its 36 s extra cost",
+			  [&](std::string &msg) {
+				  ReservationTable one;
+				  one.reserve("B", "D", 0, 360, 720); // toll 20 s: 740 < 756
+				  ASSERT_STR_EQ("ABD", routeWith(one), msg);
+				  ReservationTable two = one;
+				  two.reserve("B", "D", 0, 400, 760); // toll 40 s: 760 > 756
+				  ASSERT_STR_EQ("ACD", routeWith(two), msg);
+				  return true;
+			  });
+
+	suite.run("toll: opposite traffic is priced as the exact wait",
+			  [&](std::string &msg) {
+				  RailNetwork net = diamond(10.5);
+				  const Edge &bd = net.getNeighbours("B")[1];
+				  ReservationTable t;
+				  t.reserve("D", "B", 0, 300, 800);
+				  ASSERT_EQ(440.0, segmentToll(t, "B", bd, 360.0, true), msg);
+				  ReservationTable legacy(false);
+				  legacy.reserve("D", "B", 0, 300, 800);
+				  ASSERT_EQ(0.0, segmentToll(legacy, "B", bd, 360.0, false), msg);
+				  return true;
+			  });
+
+	suite.run("toll: a free parallel lane costs 0, all lanes blocked wait",
+			  [](std::string &msg) {
+				  RailNetwork net;
+				  net.addNode("B");
+				  net.addNode("D");
+				  net.addConnection("B", "D", 10.0, 100.0, 2);
+				  const Edge &e = net.getNeighbours("B")[0];
+				  ReservationTable t;
+				  t.reserve("D", "B", 0, 300, 800);
+				  auto one = bestLane(t, "B", e, 360.0, true);
+				  ASSERT_EQ(1, one.first, msg);
+				  ASSERT_EQ(0.0, one.second, msg);
+				  t.reserve("D", "B", 1, 300, 900);
+				  auto both = bestLane(t, "B", e, 360.0, true);
+				  ASSERT_EQ(0, both.first, msg);
+				  ASSERT_EQ(440.0, both.second, msg); // lane 0 frees at 800
+				  return true;
+			  });
+
+	suite.run("toll: never negative or infinite, whatever is reserved",
+			  [](std::string &msg) {
+				  RailNetwork net = diamond();
+				  ReservationTable t;
+				  for (int i = 0; i < 20; i++)
+				  {
+					  t.reserve(i % 2 ? "A" : "B", i % 2 ? "B" : "A", 0,
+							    i * 37.0, i * 37.0 + 500.0);
+					  t.reserve("C", "D", 0, i * 11.0, i * 11.0 + 90.0);
+				  }
+				  for (bool lanes : {false, true})
+					  for (const auto &kv : tollMap(t, net, "A", 0.0, 60.0, lanes))
+					  {
+						  ASSERT_TRUE(kv.second > 0.0, msg);
+						  ASSERT_TRUE(kv.second < 1e9, msg);
+					  }
+				  return true;
+			  });
+
+	suite.run("prioritized: first train keeps the best route, second is sent round",
+			  [](std::string &msg) {
+				  TrainFactory::resetIdCounter();
+				  RailNetwork net = diamond(10.0);
+				  DijkstraPathfinding dj;
+				  auto t1 = trainAt("T1", 28800.0);
+				  auto t2 = trainAt("T2", 28800.0);
+				  FleetSnapshot f{net, {t1.get(), t2.get()},
+								  PathWeightMode::Solo, {}, dj};
+				  auto routes = PrioritizedPlanner().planAll(f);
+				  ASSERT_STR_EQ("ABD", names(routes[0]), msg);
+				  ASSERT_STR_EQ("ACD", names(routes[1]), msg);
+				  return true;
+			  });
+
+	suite.run("prioritized: priority follows departure time, ties follow name",
+			  [](std::string &msg) {
+				  TrainFactory::resetIdCounter();
+				  RailNetwork net = diamond(10.0);
+				  DijkstraPathfinding dj;
+				  auto late = trainAt("Aaa", 28810.0);
+				  auto early = trainAt("Zzz", 28800.0);
+				  FleetSnapshot f{net, {late.get(), early.get()},
+								  PathWeightMode::Solo, {}, dj};
+				  auto routes = PrioritizedPlanner().planAll(f);
+				  ASSERT_STR_EQ("ACD", names(routes[0]), msg); // late: round
+				  ASSERT_STR_EQ("ABD", names(routes[1]), msg); // early: best
+				  auto x = trainAt("Zzz", 28800.0);
+				  auto y = trainAt("Aaa", 28800.0);
+				  FleetSnapshot g{net, {x.get(), y.get()},
+								  PathWeightMode::Solo, {}, dj};
+				  auto tie = PrioritizedPlanner().planAll(g);
+				  ASSERT_STR_EQ("ACD", names(tie[0]), msg); // Zzz plans second
+				  ASSERT_STR_EQ("ABD", names(tie[1]), msg); // Aaa plans first
+				  return true;
+			  });
+
+	suite.run("prioritized: a train planned alone gets the independent route",
+			  [](std::string &msg) {
+				  TrainFactory::resetIdCounter();
+				  RailNetwork net = diamond(10.0);
+				  DijkstraPathfinding dj;
+				  auto t1 = trainAt("T1", 28800.0);
+				  auto t2 = trainAt("T2", 28800.0);
+				  auto t3 = trainAt("T3", 28800.0);
+				  FleetSnapshot one{net, {t1.get()}, PathWeightMode::Solo, {}, dj};
+				  FleetSnapshot three{net, {t1.get(), t2.get(), t3.get()},
+									  PathWeightMode::Solo, {}, dj};
+				  auto alone = PrioritizedPlanner().planAll(one);
+				  auto fleet = PrioritizedPlanner().planAll(three);
+				  ASSERT_STR_EQ(names(IndependentPlanner().planAll(one)[0]),
+								names(alone[0]), msg);
+				  ASSERT_STR_EQ(names(alone[0]), names(fleet[0]), msg);
+				  return true;
+			  });
+
+	suite.run("prioritized: with two lanes both trains take the short route",
+			  [](std::string &msg) {
+				  TrainFactory::resetIdCounter();
+				  RailNetwork net;
+				  for (const char *n : {"A", "B", "C", "D"})
+					  net.addNode(n);
+				  net.addConnection("A", "B", 10.0, 100.0, 2);
+				  net.addConnection("B", "D", 10.0, 100.0, 2);
+				  net.addConnection("A", "C", 10.0, 100.0);
+				  net.addConnection("C", "D", 10.0, 100.0);
+				  DijkstraPathfinding dj;
+				  auto t1 = trainAt("T1", 28800.0);
+				  auto t2 = trainAt("T2", 28800.0, "D", "A");
+				  FleetSnapshot f{net, {t1.get(), t2.get()},
+								  PathWeightMode::Solo, {}, dj, true};
+				  auto routes = PrioritizedPlanner().planAll(f);
+				  ASSERT_STR_EQ("ABD", names(routes[0]), msg);
+				  ASSERT_STR_EQ("DBA", names(routes[1]), msg); // other lane
+				  return true;
+			  });
+
+	suite.run("prioritized: simulated total beats independent on the diamond",
+			  [](std::string &msg) {
+				  std::map<std::string, std::string> routes;
+				  TrainFactory::resetIdCounter();
+				  std::vector<std::unique_ptr<Train>> a;
+				  a.push_back(trainAt("T1", 28800.0));
+				  a.push_back(trainAt("T2", 28800.0));
+				  double indep = simulate(std::make_unique<IndependentPlanner>(),
+										  std::move(a));
+				  TrainFactory::resetIdCounter();
+				  std::vector<std::unique_ptr<Train>> b;
+				  b.push_back(trainAt("T1", 28800.0));
+				  b.push_back(trainAt("T2", 28800.0));
+				  double coop = simulate(std::make_unique<PrioritizedPlanner>(),
+										 std::move(b), &routes);
+				  ASSERT_STR_EQ("ABD", routes["T1"], msg);
+				  ASSERT_STR_EQ("ACD", routes["T2"], msg);
+				  ASSERT_TRUE(coop + 20.0 < indep, msg);
 				  return true;
 			  });
 
