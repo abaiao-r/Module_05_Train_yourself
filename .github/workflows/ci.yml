@@ -39,6 +39,28 @@ jobs:
     - name: Verify clean/fclean/re
       run: make CXX=${{ matrix.compiler }} clean && make CXX=${{ matrix.compiler }} fclean && make CXX=${{ matrix.compiler }} re
 
+  # ── Threads: parallel --runs/--compare must be race-free ───────────────
+  threads:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: sudo apt-get update -qq && sudo apt-get install -y build-essential g++ clang make valgrind
+
+    - name: ThreadSanitizer (${{ matrix.compiler }})
+      run: make CXX=${{ matrix.compiler }} tsan
+
+    - name: Helgrind (lock order and races)
+      if: matrix.compiler == 'g++'
+      run: |
+        make CXX=g++ all
+        valgrind --tool=helgrind --error-exitcode=1 ./bin/train_yourself input/railNetworkPrintFolder/railNetworkBonus09Hub.txt input/trainPrintFolder/trainPrintBonus09Hub.txt --lines --runs 4 > /dev/null
+
   # ── GUI: Qt bonus builds ───────────────────────────────────────────────
   bonus:
     runs-on: ubuntu-latest
