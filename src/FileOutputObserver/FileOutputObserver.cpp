@@ -16,6 +16,7 @@
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
+#include <sys/resource.h>
 
 std::string FileOutputObserver::fmtTimeShort(double seconds)
 {
@@ -31,6 +32,23 @@ std::string FileOutputObserver::fmtTimeShort(double seconds)
 static void ensureDir(const std::string &path)
 {
 	std::filesystem::create_directories(path);
+}
+
+/* Every train keeps its result file open for the whole run, so thousands of
+   trains exceed the default soft limit (256 for a macOS GUI app). Raise it
+   to the hard limit once; returns true if the limit actually grew. */
+static bool raiseOpenFileLimit()
+{
+	struct rlimit rl;
+	if (getrlimit(RLIMIT_NOFILE, &rl) != 0 || rl.rlim_cur >= rl.rlim_max)
+		return false;
+	rlim_t old = rl.rlim_cur;
+	rl.rlim_cur = rl.rlim_max;
+#ifdef __APPLE__
+	if (rl.rlim_cur > 10240)
+		rl.rlim_cur = 10240;
+#endif
+	return setrlimit(RLIMIT_NOFILE, &rl) == 0 && rl.rlim_cur > old;
 }
 
 std::string FileOutputObserver::buildFilename(const std::string &trainName,
@@ -55,6 +73,8 @@ FileOutputObserver::FileOutputObserver(const std::string &trainName,
 	: _filename(buildFilename(trainName, departureTimeSec))
 {
 	_file.open(_filename);
+	if (!_file.is_open() && raiseOpenFileLimit())
+		_file.open(_filename);
 	if (!_file.is_open())
 		throw std::runtime_error("Cannot create output file: " + _filename);
 }

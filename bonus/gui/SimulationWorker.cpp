@@ -329,6 +329,7 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 					snap.posOnSegment_m = s.posOnSegment_m;
 					snap.speed_ms = s.speed_ms;
 					snap.timeSinceDepart = s.timeSinceDepart;
+					snap.expectedTrip_s = sim.expectedTripSeconds(*s.train);
 					snap.stopTimer = s.stopTimer;
 					snap.line = s.lineId;
 					snap.waiting = s.waiting;
@@ -607,6 +608,7 @@ void SimulationWorker::runMulti(const QString &networkFile,
 							snap.posOnSegment_m = s.posOnSegment_m;
 							snap.speed_ms = s.speed_ms;
 							snap.timeSinceDepart = s.timeSinceDepart;
+					snap.expectedTrip_s = sim.expectedTripSeconds(*s.train);
 							snap.stopTimer = s.stopTimer;
 					snap.line = s.lineId;
 					snap.waiting = s.waiting;

@@ -41,6 +41,7 @@ struct TrainSnapshot
 	double posOnSegment_m;
 	double speed_ms;
 	double timeSinceDepart;
+	double expectedTrip_s = 0.0; // planned trip time (no random events)
 	double stopTimer;
 	bool departed;
 	bool arrived;

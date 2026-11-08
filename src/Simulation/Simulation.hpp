@@ -232,6 +232,10 @@ class Simulation
 	static constexpr double REPLAY_MAX_SEC = 36000.0;
 
   public:
+	/** Planned trip seconds (deterministic dry run, no random events);
+		the live ETA is departure + this. */
+	double expectedTripSeconds(const Train &t) const { return expectedTime(t); }
+
 	Simulation(RailNetwork network,
 			   std::vector<std::unique_ptr<Train>> trains,
 			   std::vector<Event> events,

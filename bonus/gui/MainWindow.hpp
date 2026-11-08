@@ -123,7 +123,7 @@ class MainWindow : public QMainWindow
 	std::vector<Event> _eventDefs;
 	QString _networkFilePath;
 	QString _trainFilePath;
-	int _weightMode;  // 0 = Distance, 1 = Solo, 2 = Adaptive, 3 = compare all
+	int _weightMode;  // worker code: 0 Distance, 1 Solo, 2 Adaptive, 3 compare all, 4 Cooperative, 5 CBS
 	bool _simRunning;
 	double _lastSimTime = 0.0;  // seconds from midnight, updated on each tick
 
@@ -150,8 +150,7 @@ class MainWindow : public QMainWindow
 	QSpinBox *_runsSpinBox;
 	QCheckBox *_animateCheck;
 	QCheckBox *_linesCheck;
-	QComboBox *_pathWeightCombo;
-	QComboBox *_plannerCombo;
+	QComboBox *_modeCombo;
 
 	QComboBox *_presetNetworkCombo;
 	QComboBox *_presetTrainCombo;
