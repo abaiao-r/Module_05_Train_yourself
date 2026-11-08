@@ -19,7 +19,7 @@
 class PrioritizedPlanner : public IRoutePlanner
 {
   public:
-	std::vector<Route> planAll(const FleetSnapshot &fleet) override
+	static std::vector<size_t> priorityOrder(const FleetSnapshot &fleet)
 	{
 		std::vector<size_t> order(fleet.trains.size());
 		std::iota(order.begin(), order.end(), 0);
@@ -32,6 +32,24 @@ class PrioritizedPlanner : public IRoutePlanner
 										< y.getDepartureTime();
 							 return x.getName() < y.getName();
 						 });
+		return order;
+	}
+
+	/* Sum of free-flow travel seconds when the routes are booked one
+	   after another in priority order (waits for opposite traffic count). */
+	static double timelineSeconds(const FleetSnapshot &fleet,
+								  const std::vector<Route> &routes)
+	{
+		ReservationTable table(fleet.lanesEnabled);
+		double total = 0.0;
+		for (size_t i : priorityOrder(fleet))
+			total += reserve(fleet, table, routes[i], *fleet.trains[i]);
+		return total;
+	}
+
+	std::vector<Route> planAll(const FleetSnapshot &fleet) override
+	{
+		std::vector<size_t> order = priorityOrder(fleet);
 
 		ReservationTable table(fleet.lanesEnabled);
 		std::vector<Route> routes(fleet.trains.size());
@@ -44,6 +62,33 @@ class PrioritizedPlanner : public IRoutePlanner
 	}
 
 	const char *name() const override { return "cooperative"; }
+
+	/* Walks the route on a free-flow timeline (waiting for opposite
+	   traffic where needed) and books every segment; returns the seconds the train needs. */
+	static double reserve(const FleetSnapshot &fleet, ReservationTable &table,
+						const Route &route, const Train &train)
+	{
+		double t = train.getDepartureTime();
+		for (size_t k = 0; k + 1 < route.size(); k++)
+		{
+			const std::string &from = route[k]->getName();
+			const std::string &to = route[k + 1]->getName();
+			for (const Edge &e : fleet.network.getNeighbours(from))
+			{
+				if (e.destination->getName() != to)
+					continue;
+				int lane = bestLane(table, from, e, t, fleet.lanesEnabled).first;
+				double dur = freeFlowSeconds(e, lane);
+				double start = table.earliestFree(from, to, lane, t, dur);
+				table.reserve(from, to, lane, start, start + dur);
+				t = start + dur;
+				if (k + 2 < route.size())
+					t += train.getStopDuration();
+				break;
+			}
+		}
+		return t - train.getDepartureTime();
+	}
 
   private:
 	static Route planOne(const FleetSnapshot &fleet,
@@ -74,31 +119,6 @@ class PrioritizedPlanner : public IRoutePlanner
 		return path;
 	}
 
-	/* Walks the route on a free-flow timeline (waiting for opposite
-	   traffic where needed) and books every segment. */
-	static void reserve(const FleetSnapshot &fleet, ReservationTable &table,
-						const Route &route, const Train &train)
-	{
-		double t = train.getDepartureTime();
-		for (size_t k = 0; k + 1 < route.size(); k++)
-		{
-			const std::string &from = route[k]->getName();
-			const std::string &to = route[k + 1]->getName();
-			for (const Edge &e : fleet.network.getNeighbours(from))
-			{
-				if (e.destination->getName() != to)
-					continue;
-				int lane = bestLane(table, from, e, t, fleet.lanesEnabled).first;
-				double dur = freeFlowSeconds(e, lane);
-				double start = table.earliestFree(from, to, lane, t, dur);
-				table.reserve(from, to, lane, start, start + dur);
-				t = start + dur;
-				if (k + 2 < route.size())
-					t += train.getStopDuration();
-				break;
-			}
-		}
-	}
 };
 
 #endif

@@ -7,10 +7,12 @@
 #include <vector>
 
 #include "DijkstraPathfinding.hpp"
+#include "CbsPlanner.hpp"
 #include "CooperativeCost.hpp"
 #include "IndependentPlanner.hpp"
 #include "PrioritizedPlanner.hpp"
 #include "RefinedPlanner.hpp"
+#include "ReplanPolicy.hpp"
 #include "ReservationTable.hpp"
 #include "SegmentTiming.hpp"
 #include "Simulation.hpp"
@@ -478,6 +480,129 @@ int main()
 				  std::string r;
 				  refine(true, 30.0, &r); // via C is costly: stay on B
 				  ASSERT_STR_EQ("ABD,ABD", r, msg);
+				  return true;
+			  });
+
+	/* CBS-lite: head-on pairs on the single-line diamond. */
+	auto cbsRun = [](int budget, bool lanes, const std::string &dirs,
+					 std::vector<Route> *out, CbsPlanner &cbs,
+					 double *prioCost) {
+		TrainFactory::resetIdCounter();
+		static RailNetwork net;
+		net = diamond(10.0);
+		static DijkstraPathfinding dj;
+		static std::vector<std::unique_ptr<Train>> ts;
+		ts.clear();
+		std::vector<const Train *> raw;
+		for (size_t i = 0; i < dirs.size(); i++)
+		{
+			bool fwd = dirs[i] == 'f';
+			/* the reverse train leaves one rail-time later so that it
+			   meets the forward train head-on on rail B-D */
+			ts.push_back(trainAt("T" + std::to_string(i + 1),
+								 fwd ? 28800.0 : 29160.0,
+								 fwd ? "A" : "D", fwd ? "D" : "A"));
+			raw.push_back(ts.back().get());
+		}
+		FleetSnapshot f{net, raw, PathWeightMode::Solo, {}, dj, lanes};
+		(void)budget;
+		*out = cbs.planAll(f);
+		if (prioCost)
+			*prioCost = PrioritizedPlanner::timelineSeconds(
+				f, PrioritizedPlanner().planAll(f));
+		return PrioritizedPlanner::timelineSeconds(f, *out);
+	};
+
+	suite.run("cbs: no conflict equals independent with 0 expansions",
+			  [&](std::string &msg) {
+				  CbsPlanner cbs;
+				  std::vector<Route> r;
+				  cbsRun(0, false, "fr", &r, cbs, nullptr);
+				  ASSERT_STR_EQ("ABD", names(r[0]), msg);
+				  ASSERT_STR_EQ("DBA", names(r[1]), msg);
+				  ASSERT_EQ(0, cbs.lastExpansions(), msg);
+				  return true;
+			  });
+
+	suite.run("cbs: a head-on pair is split with one expansion",
+			  [&](std::string &msg) {
+				  CbsPlanner cbs;
+				  std::vector<Route> r;
+				  double prio = 0;
+				  double c = cbsRun(0, true, "fr", &r, cbs, &prio);
+				  ASSERT_EQ(1, cbs.lastExpansions(), msg);
+				  ASSERT_TRUE(!(names(r[0]) == "ABD" && names(r[1]) == "DBA"),
+							  msg);
+				  ASSERT_TRUE(c <= prio, msg);
+				  ASSERT_NEAR(1440.0, c, 1.0, msg);
+				  return true;
+			  });
+
+	suite.run("cbs: exhausted budget keeps a valid plan and prints the notice",
+			  [&](std::string &msg) {
+				  CbsPlanner cbs(0);
+				  std::vector<Route> r;
+				  double prio = 0;
+				  double c = cbsRun(0, true, "fr", &r, cbs, &prio);
+				  ASSERT_STR_EQ("CBS: budget of 0 expansions reached, using "
+								"the best solution found",
+								cbs.lastNotice(), msg);
+				  ASSERT_EQ(2u, r.size(), msg);
+				  ASSERT_STR_EQ("A", r[0].front()->getName(), msg);
+				  ASSERT_STR_EQ("D", r[0].back()->getName(), msg);
+				  ASSERT_NEAR(prio, c, 0.001, msg);
+				  return true;
+			  });
+
+	suite.run("cbs: three trains with crossing directions finish in budget",
+			  [&](std::string &msg) {
+				  CbsPlanner cbs;
+				  std::vector<Route> r;
+				  double prio = 0;
+				  double c = cbsRun(0, true, "frf", &r, cbs, &prio);
+				  ASSERT_EQ(3u, r.size(), msg);
+				  ASSERT_TRUE(cbs.lastExpansions() <= CbsPlanner::DEFAULT_BUDGET,
+							  msg);
+				  ASSERT_TRUE(c <= prio, msg);
+				  return true;
+			  });
+
+	/* Event re-planning: the diamond's ABD is 720 s, ACD is 756 s, so a
+	   risk of R seconds on B->D gains R - 36 s for a switch. */
+	auto replanVia = [](double risk, double othersExtra, bool withEval) {
+		TrainFactory::resetIdCounter();
+		RailNetwork net = diamond(10.5);
+		DijkstraPathfinding dj;
+		auto t = trainAD("T2");
+		FleetSnapshot f{net, {t.get()}, PathWeightMode::Solo, {}, dj};
+		if (withEval)
+			f.evaluate = [othersExtra](const std::vector<Route> &rs) {
+				return names(rs[0]) == "ACD" ? 100.0 + 36.0 + othersExtra
+											 : 100.0;
+			};
+		std::vector<Route> cur = {dj.findPath("A", "D", net,
+											  PathWeightMode::Solo)};
+		SegmentEventRisk r{{"B->D", risk}};
+		return names(ReplanPolicy::replan(f, cur, 0, r));
+	};
+
+	suite.run("replan: a gain of 29 s keeps the route, 30 s switches",
+			  [&](std::string &msg) {
+				  ASSERT_STR_EQ("", replanVia(65.0, 0, false), msg);
+				  ASSERT_STR_EQ("ACD", replanVia(66.0, 0, false), msg);
+				  return true;
+			  });
+
+	suite.run("replan: others losing more than the gain blocks the switch",
+			  [&](std::string &msg) {
+				  ASSERT_STR_EQ("", replanVia(96.0, 90.0, true), msg);
+				  ASSERT_STR_EQ("ACD", replanVia(96.0, 50.0, true), msg);
+				  return true;
+			  });
+
+	suite.run("replan: no risk means no new route (equals planAll)",
+			  [&](std::string &msg) {
+				  ASSERT_STR_EQ("", replanVia(0.0, 0, false), msg);
 				  return true;
 			  });
 

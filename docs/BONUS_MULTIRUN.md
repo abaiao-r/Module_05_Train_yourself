@@ -36,7 +36,7 @@ delay and the average actual time. Its min/max are the best and worst single run
 
 ### Comparing the modes (`--compare`)
 
-`--compare` prints four columns: Distance, Solo, Adaptive and Cooperative
+`--compare` prints four mode columns: Distance, Solo, Adaptive and Cooperative
 (the cooperative planner, see [BONUS_COOPERATIVE.md](BONUS_COOPERATIVE.md)); the table is 84 characters wide.
 
 ```

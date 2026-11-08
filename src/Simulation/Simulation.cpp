@@ -11,6 +11,7 @@
 /* ************************************************************************** */
 
 #include "Simulation.hpp"
+#include "ReplanPolicy.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -346,6 +347,9 @@ void Simulation::run()
 		for (const auto &mutation : drainMutations())
 			applyMutation(mutation, states, simTime);
 
+		if (_eventPending)
+			replanUncommitted(states);
+
 		if (_lines.enabled)
 			admitWaiting(states, simTime);
 
@@ -624,6 +628,49 @@ void Simulation::computePaths()
 	}
 	if (!_quiet)
 		std::cout << std::endl;
+}
+
+/* After a rail event: trains that have not departed may still change
+   route (once per run), but only for a clear gain (ReplanPolicy). Trains
+   already under way keep their route; Adaptive handles them live. */
+void Simulation::replanUncommitted(std::vector<TrainState> &states)
+{
+	_eventPending = false;
+	if (_dryRun || std::string(_planner->name()) == "independent")
+		return;
+
+	SegmentEventRisk risk = buildEventRisk();
+	risk[_eventFrom + "->" + _eventTo] += _eventDelay;
+	risk[_eventTo + "->" + _eventFrom] += _eventDelay;
+
+	FleetSnapshot fleet{_network, {}, _weightMode, risk, *_pathfinder,
+						_lines.enabled};
+	std::vector<Route> routes;
+	for (auto &train : _trains)
+	{
+		fleet.trains.push_back(train.get());
+		routes.push_back(train->getPath());
+	}
+	fleet.evaluate = [this](const std::vector<Route> &r) {
+		return dryRunTotal(r);
+	};
+
+	for (size_t i = 0; i < states.size(); i++)
+	{
+		if (states[i].departed || states[i].arrived
+			|| _replanned.count(_trains[i]->getName()))
+			continue;
+		Route better = ReplanPolicy::replan(fleet, routes, i, risk);
+		if (better.empty())
+			continue;
+		routes[i] = better;
+		_trains[i]->setPath(better);
+		_replanned.insert(_trains[i]->getName());
+		if (!_quiet)
+			std::cout << "[replan] " << _trains[i]->getName()
+					  << " rerouted after the event on " << _eventFrom
+					  << "-" << _eventTo << std::endl;
+	}
 }
 
 /* Total travel seconds of the fleet on the given routes in an event-free
@@ -964,6 +1011,10 @@ void Simulation::rollSegmentEvents(TrainState &s, size_t trainIdx)
 		{
 			double delay = event->getDuration();
 			holdTrain(s, delay, true);
+			_eventPending = true;
+			_eventFrom = segFrom;
+			_eventTo = segTo;
+			_eventDelay = delay;
 			if (!_quiet)
 				_output.printEvent(*event, *s.train);
 			std::string loc = event->getNodeName() + "-"

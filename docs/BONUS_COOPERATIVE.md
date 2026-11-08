@@ -22,7 +22,8 @@ share single-track lines, each train's best path can hurt the others
  Simulation --owns--> IRoutePlanner            (fleet level: ALL trains)
                          |- IndependentPlanner   one Dijkstra per train (default)
                          |- PrioritizedPlanner   trains planned one by one
-                         |- KeepPathsPlanner     replays given routes (dry runs)
+                         |- CbsPlanner           conflict-based search (--planner cbs)
+                         |- KeepPathsPlanner     internal: replays given routes in dry runs
                          '- RefinedPlanner       decorator: local search
                                  |
                                  v uses
@@ -32,16 +33,31 @@ share single-track lines, each train's best path can hurt the others
 * `ReservationTable` - which (lane, direction) is booked in which time window.
   Opposite directions on one lane conflict, same direction does not.
 * `CooperativeCost` - turns reservations into a *toll* in seconds per directed
-  segment: the exact wait for opposite traffic, or `FOLLOW_PENALTY_SEC = 20`
+  segment: the estimated wait for opposite traffic (free-flow model), or `FOLLOW_PENALTY_SEC = 20`
   per same-way train. A free parallel lane costs 0. The toll is added to the
   existing event risk, so Dijkstra itself is untouched.
 * `PrioritizedPlanner` - order by departure (ties by name). Each train is
   routed with the toll of the trains before it, then reserves its own path.
+* `CbsPlanner` (`--planner cbs`) - conflict-based search, lite. Plans every
+  train alone, finds the first head-on conflict (opposite directions on a
+  single-line rail in overlapping free-flow windows), branches by forbidding
+  that rail to one of the two trains (the lower train name is branched first), re-plans only that
+  train and expands best-first by fleet cost. The prioritized solution is the
+  fallback incumbent, so the plan is never costlier than `PrioritizedPlanner`
+  *under CBS's own cost model* (the dry run, or the free-flow timeline); this
+  says nothing about real simulated time. Budget 200 expansions; when exhausted it prints
+  `CBS: budget of N expansions reached, using the best solution found`.
+* `ReplanPolicy` - after a rail event, trains that have **not departed yet**
+  may switch route once per run, only if their own gain is >= 30 s and the
+  other trains lose no more than that gain (checked with the dry run).
+  Trains already under way keep their route; Adaptive handles them live.
+  Active for `cooperative` and `cbs` (not `independent`); a `[replan]` log line appears only when a switch really happens.
 * `RefinedPlanner(inner, baseline)` - starts from the better of
   {inner, baseline}, then tries, per train, alternatives that forbid one rail
   of its current route. A move is kept only if the dry-run total of the whole
   fleet (plus expected random-event delay) drops by at least 1 s. Max 3 passes.
-  The baseline wins ties, so it can only help in the dry-run model.
+  The baseline wins ties, so it can only help in the dry-run model. Its search is
+  limited to alternatives that avoid one rail of the current route.
 
 ## Usage
 
@@ -50,7 +66,7 @@ share single-track lines, each train's best path can hurt the others
 ./bin/train_yourself NET TRN --lines --compare --runs 40   # 4 columns
 ```
 
-`--planner independent|cooperative`; an unknown value is an error.
+`--planner independent|cooperative|cbs`; an unknown value is an error.
 `--planner` with `--compare` is an error (compare already has a Cooperative
 column). Cooperative implies Adaptive dynamics unless a mode is given.
 The GUI has a "Cooperative" entry in the Path combo (single/multi run;
@@ -90,11 +106,16 @@ cooperative) - static, event-free, head-on-prone networks.
 
 ## Limits / not done
 
-* #159 (re-plan not-yet-departed trains when an event fires): not implemented.
-  Live rerouting is already done by Adaptive (`considerReroute`).
-* #162 (conflict-based search): not implemented, left open.
+* CBS-lite only resolves head-on conflicts on single-line rails, in the
+  free-flow model; there is no fixture where it strictly beats Prioritized, so
+  a mutation that branches on only one of the two trains is not caught by a
+  test.
+* Event re-planning only touches trains that have not departed; a train
+  re-planned once is never re-planned again (no flip-flop by construction).
 * Live-added trains (`addTrain`) use plain pathfinding, not the planner.
 * Planning costs about 1.5 s per run on Lisbon (dry-run evaluations).
+* CBS 40-run delay sums (Hub 10:51, RushHour 35:31, Lisbon 42:53) are within
+  event noise of cooperative; it is not a measured improvement.
 
 ## References
 

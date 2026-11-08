@@ -17,6 +17,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <random>
 #include <string>
 #include <unordered_map>
@@ -187,6 +188,12 @@ class Simulation
 	bool _quiet;
 	LinesOptions _lines;
 	bool _dryRun = false;
+	/* A rail event fired this tick (cooperative planners re-plan trains
+	   that have not departed yet); trains re-planned once stay put. */
+	bool _eventPending = false;
+	std::string _eventFrom, _eventTo;
+	double _eventDelay = 0.0;
+	std::set<std::string> _replanned;
 	/* Traffic-aware expected time per (train name, departure), filled by
 	   a deterministic event-free dry run at the start of run(). */
 	std::map<std::pair<std::string, double>, double> _expected;
@@ -303,6 +310,7 @@ class Simulation
 	void staticPreAssign();
 	double estimateTravelTime(const Train &train) const;
 	double dryRunTotal(const std::vector<Route> &routes) const;
+	void replanUncommitted(std::vector<TrainState> &states);
 	void computeExpectedTimes();
 	double expectedTime(const Train &train) const;
 	void getSegmentInfo(const std::string &from, const std::string &to,
