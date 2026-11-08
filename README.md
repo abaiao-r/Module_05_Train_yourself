@@ -30,6 +30,7 @@ A physics-based train simulation engine that models rail traffic across a config
 | **Terminal Animation** | `--animate` — live full-screen terminal dashboard with Unicode box drawing, progress bars, coloured status indicators, ~20 FPS | [docs/BONUS_ANIMATE.md](docs/BONUS_ANIMATE.md) |
 | **Qt GUI** | Interactive graph editor with full CRUD, drag-and-drop nodes, force-directed layout, live simulation with animated train dots, real-time dashboard, speed control, preset library | [docs/BONUS_GUI.md](docs/BONUS_GUI.md) |
 | **Multiple Lines** | `--lines` — edges hold several lines (`Rail A B km kmh [numLines]`); opposite-direction trains never share a line (no head-on), also a GUI checkbox | [docs/BONUS_LINES.md](docs/BONUS_LINES.md) |
+| **Cooperative Planner** | `--planner cooperative` — plans the whole fleet together (reservations, tolls, local search); 4th column in `--compare`. Honest benchmark: does not beat Adaptive | [docs/BONUS_COOPERATIVE.md](docs/BONUS_COOPERATIVE.md) |
 
 ---
 
@@ -242,6 +243,7 @@ All diagrams live in `docs/diagrams/` (`.puml` sources + `.png` renders):
 
 | Document | Content |
 |----------|---------|
+| [docs/BONUS_COOPERATIVE.md](docs/BONUS_COOPERATIVE.md) | Cooperative fleet planner, benchmark, limits |
 | [docs/BONUS_MULTIRUN.md](docs/BONUS_MULTIRUN.md) | Multi-run statistics architecture, output format, CLI usage |
 | [docs/BONUS_ANIMATE.md](docs/BONUS_ANIMATE.md) | Terminal animation rendering, ANSI codes, frame layout |
 | [docs/BONUS_GUI.md](docs/BONUS_GUI.md) | Qt GUI architecture, CRUD, graph editor, simulation runner, dashboard |
