@@ -22,6 +22,8 @@
 #include <vector>
 
 #include "DijkstraPathfinding.hpp"
+#include "PrioritizedPlanner.hpp"
+#include "RefinedPlanner.hpp"
 #include "GraphExporter.hpp"
 #include "IPathfinding.hpp"
 #include "InputHandler.hpp"
@@ -63,8 +65,16 @@ static void printHelp()
 		<< "the simulation\n"
 		<< "  --runs N            Run simulation N times and report "
 		<< "average travel times\n"
-		<< "  --compare           Run all three modes (with --runs N each) and\n"
-		<< "                      print their travel times side by side\n"
+		<< "  --planner <p>       Bonus: independent (default, every train picks "
+		<< "its own\n"
+		<< "                      route) or cooperative (the fleet is routed "
+		<< "together,\n"
+		<< "                      trains avoid each other; plans by travel "
+		<< "time, so it\n"
+		<< "                      excludes --distance and --adaptive)\n"
+		<< "  --compare           Run all modes plus the cooperative planner "
+		<< "(with\n"
+		<< "                      --runs N each) and print them side by side\n"
 		<< "  --lines             Bonus: rails may hold several lines "
 		<< "(optional\n"
 		<< "                      trailing count on Rail); opposite-"
@@ -172,11 +182,12 @@ int main(int argc, char **argv)
 			return EXIT_SUCCESS;
 		}
 	}
-	if (argc < 3 || argc > 12)
+	if (argc < 3 || argc > 14)
 	{
 		std::cerr << "Usage: " << argv[0]
 				  << " <network_file> <train_file> [--distance|--solo|--adaptive] "
-				     "[--graph file.dot] [--animate] [--runs N] [--compare] [--lines]"
+				     "[--planner independent|cooperative] [--graph file.dot] "
+				     "[--animate] [--runs N] [--compare] [--lines]"
 				  << std::endl;
 		std::cerr << "Use --help for detailed format information."
 				  << std::endl;
@@ -201,6 +212,7 @@ int main(int argc, char **argv)
 	std::string graphFile;
 	bool animate = false;
 	bool compare = false;
+	bool cooperative = false;
 	LinesOptions lines;
 	int numRuns = 1;
 	for (int i = 3; i < argc; i++)
@@ -244,6 +256,25 @@ int main(int argc, char **argv)
 			lines.enabled = true;
 		else if (std::strcmp(argv[i], "--compare") == 0)
 			compare = true;
+		else if (std::strcmp(argv[i], "--planner") == 0)
+		{
+			if (i + 1 >= argc)
+			{
+				std::cerr << "--planner requires independent|cooperative"
+						  << std::endl;
+				return EXIT_FAILURE;
+			}
+			std::string p = argv[++i];
+			if (p == "cooperative")
+				cooperative = true;
+			else if (p != "independent")
+			{
+				std::cerr << "Error: unknown planner '" << p
+						  << "' (expected independent|cooperative)"
+						  << std::endl;
+				return EXIT_FAILURE;
+			}
+		}
 		else if (std::strcmp(argv[i], "--runs") == 0)
 		{
 			if (i + 1 >= argc)
@@ -281,6 +312,16 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
+	if (cooperative && compare)
+	{
+		std::cerr << "Error: --compare already includes the cooperative "
+					 "planner; do not combine it with --planner"
+				  << std::endl;
+		return EXIT_FAILURE;
+	}
+	if (cooperative && !weightModeSet)
+		weightMode = PathWeightMode::Adaptive;
+
 	try
 	{
 		struct Stats
@@ -292,7 +333,8 @@ int main(int argc, char **argv)
 
 		/* Runs the simulation numRuns times in one mode. Only the
 		   primary pass prints, animates and exports the graph. */
-		auto collect = [&](PathWeightMode mode, bool primary, Stats &st) {
+		auto collect = [&](PathWeightMode mode, bool coop, bool primary,
+								   Stats &st) {
 			for (int run = 0; run < numRuns; run++)
 			{
 				TrainFactory::resetIdCounter();
@@ -304,6 +346,10 @@ int main(int argc, char **argv)
 							   std::move(data.events),
 							   std::move(pathfinder), mode, data.lines);
 
+				if (coop)
+					sim.setRoutePlanner(std::make_unique<RefinedPlanner>(
+						std::make_unique<PrioritizedPlanner>(),
+						std::make_unique<IndependentPlanner>()));
 				if (!primary || (numRuns > 1 && run > 0))
 					sim.setQuiet(true);
 				if (primary && animate && numRuns == 1)
@@ -351,13 +397,16 @@ int main(int argc, char **argv)
 
 		if (compare)
 		{
-			const PathWeightMode modes[3] = {PathWeightMode::Distance,
+			const int N = 4;
+			const PathWeightMode modes[N] = {PathWeightMode::Distance,
 											 PathWeightMode::Solo,
+											 PathWeightMode::Adaptive,
 											 PathWeightMode::Adaptive};
-			const char *names[3] = {"Distance", "Solo", "Adaptive"};
-			Stats res[3];
-			for (int m = 0; m < 3; m++)
-				collect(modes[m], false, res[m]);
+			const char *names[N] = {"Distance", "Solo", "Adaptive",
+									"Cooperative"};
+			Stats res[N];
+			for (int m = 0; m < N; m++)
+				collect(modes[m], m == 3, false, res[m]);
 
 			auto avgOf = [](const std::vector<double> &v) {
 				double t = 0;
@@ -371,20 +420,20 @@ int main(int argc, char **argv)
 				std::cout << "=== " << title << " (" << numRuns
 						  << (numRuns == 1 ? " run" : " runs")
 						  << " each, * = best) ===" << std::endl;
-				std::cout << std::string(68, '-') << std::endl;
+				std::cout << std::string(84, '-') << std::endl;
 				std::cout << std::left << std::setw(20) << "Train";
-				for (int m = 0; m < 3; m++)
+				for (int m = 0; m < N; m++)
 					std::cout << std::setw(16) << names[m];
-				std::cout << std::endl << std::string(68, '-') << std::endl;
+				std::cout << std::endl << std::string(84, '-') << std::endl;
 
 				auto printRow = [&](const std::string &label,
-									const double v[3]) {
+									const double v[N]) {
 					int best = 0;
-					for (int m = 1; m < 3; m++)
+					for (int m = 1; m < N; m++)
 						if (v[m] < v[best] - 0.5)
 							best = m;
 					std::cout << std::left << std::setw(20) << label;
-					for (int m = 0; m < 3; m++)
+					for (int m = 0; m < N; m++)
 					{
 						bool star = v[m] <= v[best] + 0.5;
 						std::cout << std::setw(16)
@@ -392,11 +441,11 @@ int main(int argc, char **argv)
 					}
 					std::cout << std::endl;
 				};
-				double total[3] = {0, 0, 0};
+				double total[N] = {0, 0, 0, 0};
 				for (const auto &pair : res[0].actual)
 				{
-					double v[3];
-					for (int m = 0; m < 3; m++)
+					double v[N];
+					for (int m = 0; m < N; m++)
 					{
 						auto &mp = res[m].*field;
 						auto it = mp.find(pair.first);
@@ -405,9 +454,9 @@ int main(int argc, char **argv)
 					}
 					printRow(pair.first, v);
 				}
-				std::cout << std::string(68, '-') << std::endl;
+				std::cout << std::string(84, '-') << std::endl;
 				printRow("TOTAL (sum)", total);
-				std::cout << std::string(68, '-') << std::endl;
+				std::cout << std::string(84, '-') << std::endl;
 			};
 			printTable("Mode comparison: average travel time", &Stats::actual);
 			std::cout << std::endl;
@@ -416,7 +465,7 @@ int main(int argc, char **argv)
 		}
 
 		Stats stats;
-		collect(weightMode, true, stats);
+		collect(weightMode, cooperative, true, stats);
 		auto &statActual = stats.actual;
 		auto &statDelay = stats.delay;
 		auto &statEstimated = stats.estimated;

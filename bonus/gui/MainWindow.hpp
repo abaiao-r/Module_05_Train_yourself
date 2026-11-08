@@ -123,7 +123,7 @@ class MainWindow : public QMainWindow
 	std::vector<Event> _eventDefs;
 	QString _networkFilePath;
 	QString _trainFilePath;
-	int _weightMode;  // 0 = Distance, 1 = Solo, 2 = Adaptive, 3 = compare all
+	int _weightMode;  // 0 = Distance, 1 = Solo, 2 = Adaptive, 3 = compare all, 4 = cooperative
 	bool _simRunning;
 	double _lastSimTime = 0.0;  // seconds from midnight, updated on each tick
 

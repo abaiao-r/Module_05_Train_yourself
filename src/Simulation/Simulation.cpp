@@ -603,12 +603,18 @@ void Simulation::computePaths()
 	   mode avoids event-prone routes from the very first path assignment,
 	   not just later reroutes. */
 	SegmentEventRisk eventRisk;
-	if (_weightMode == PathWeightMode::Adaptive)
+	if (_weightMode == PathWeightMode::Adaptive
+		|| std::string(_planner->name()) != "independent")
 		eventRisk = buildEventRisk();
 
-	FleetSnapshot fleet{_network, {}, _weightMode, eventRisk, *_pathfinder};
+	FleetSnapshot fleet{_network, {}, _weightMode, eventRisk, *_pathfinder,
+						_lines.enabled};
 	for (auto &train : _trains)
 		fleet.trains.push_back(train.get());
+	if (std::string(_planner->name()) != "independent")
+		fleet.evaluate = [this](const std::vector<Route> &routes) {
+			return dryRunTotal(routes);
+		};
 	std::vector<Route> routes = _planner->planAll(fleet);
 	for (size_t i = 0; i < _trains.size(); i++)
 	{
@@ -618,6 +624,36 @@ void Simulation::computePaths()
 	}
 	if (!_quiet)
 		std::cout << std::endl;
+}
+
+/* Total travel seconds of the fleet on the given routes in an event-free
+   dry run; infinity if the scenario cannot be simulated. */
+double Simulation::dryRunTotal(const std::vector<Route> &routes) const
+{
+	try
+	{
+		std::vector<std::unique_ptr<Train>> copies;
+		for (size_t i = 0; i < _trains.size(); i++)
+		{
+			copies.push_back(std::make_unique<Train>(*_trains[i]));
+			copies.back()->setPath(routes[i]);
+		}
+		Simulation dry(_network, std::move(copies), {},
+					   std::make_unique<DijkstraPathfinding>(), _weightMode,
+					   _lines);
+		dry.setRoutePlanner(std::make_unique<KeepPathsPlanner>());
+		dry._dryRun = true;
+		dry._quiet = true;
+		dry.run();
+		double total = 0.0;
+		for (const auto &r : dry.getResults())
+			total += r.actualTime;
+		return total;
+	}
+	catch (const std::exception &)
+	{
+		return std::numeric_limits<double>::infinity();
+	}
 }
 
 /* Expected time = the train's time in a deterministic dry run of the same
@@ -638,6 +674,9 @@ void Simulation::computeExpectedTimes()
 		Simulation dry(_network, std::move(copies), {},
 					   std::make_unique<DijkstraPathfinding>(), _weightMode,
 					   _lines);
+		/* Replay the routes the real planner chose instead of re-planning. */
+		if (std::string(_planner->name()) != "independent")
+			dry.setRoutePlanner(std::make_unique<KeepPathsPlanner>());
 		dry._dryRun = true;
 		dry._quiet = true;
 		dry.run();

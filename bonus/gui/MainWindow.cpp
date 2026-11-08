@@ -725,6 +725,7 @@ void MainWindow::buildToolbar()
 	_pathWeightCombo->addItem("Solo");
 	_pathWeightCombo->addItem("Adaptive");
 	_pathWeightCombo->addItem("Compare all");
+	_pathWeightCombo->addItem("Cooperative");
 	_pathWeightCombo->setCurrentIndex(0);
 	_pathWeightCombo->setToolTip(
 		"Pathfinding weight:\n"
@@ -735,7 +736,9 @@ void MainWindow::buildToolbar()
 		"AND avoids\n"
 		"               routes prone to costly random events\n"
 		"  Compare all — runs all three (Runs each) and shows them "
-		"side by side");
+		"side by side\n"
+		"  Cooperative — plans the whole fleet together (Adaptive "
+		"dynamics); best with Multi-line rails");
 	_pathWeightCombo->setFixedWidth(115);
 	_pathWeightCombo->setStyleSheet(
 		"QComboBox { background: #1e293b; color: #e0e0e0; "

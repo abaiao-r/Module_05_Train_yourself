@@ -418,7 +418,30 @@ int main()
 				  ASSERT_TRUE(outputContains(r.output, "average delay"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "Distance"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "Adaptive"), msg);
+				  ASSERT_TRUE(outputContains(r.output, "Cooperative"), msg);
 				  ASSERT_TRUE(outputContains(r.output, "TOTAL (sum)"), msg);
+				  return true;
+			  });
+
+	suite.run("--planner bogus -> exit 1 with the expected values",
+			  [](std::string &msg) {
+				  auto r = runCmd(BIN + " " + NET + " " + TRN
+								  + " --planner bogus");
+				  ASSERT_EQ(1, r.exitCode, msg);
+				  ASSERT_TRUE(outputContains(
+					  r.output, "unknown planner 'bogus' (expected "
+								"independent|cooperative)"), msg);
+				  return true;
+			  });
+
+	suite.run("--planner cooperative runs; --planner with --compare -> exit 1",
+			  [](std::string &msg) {
+				  auto ok = runCmd(BIN + " " + NET + " " + TRN
+								   + " --planner cooperative");
+				  ASSERT_EQ(0, ok.exitCode, msg);
+				  auto bad = runCmd(BIN + " " + NET + " " + TRN
+									+ " --compare --planner cooperative");
+				  ASSERT_EQ(1, bad.exitCode, msg);
 				  return true;
 			  });
 
