@@ -1,0 +1,64 @@
+@startuml activity_fleet_planner_modes
+
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam ActivityFontSize 12
+
+title Fleet Planners — Who Chooses the Routes?
+
+start
+
+if (--compare?) then (yes)
+  :Run five variants independently:\nDistance / Independent;\nSolo / Independent;\nAdaptive / Independent;\nAdaptive / Cooperative;\nAdaptive / CBS;
+  stop
+else (single planner)
+endif
+
+:Select planner;\nDefault = Independent;
+
+if (Independent?) then (yes)
+  :For each train, run its own path search;
+  :Other trains do not affect its initial route;
+elseif (Cooperative?) then (yes)
+  :Order trains by departure time,\nthen name;
+  :Route each train using earlier trains'\nreservation tolls;
+  :Reserve each selected route;
+  :Refine the fleet routes with dry-run cost\nand expected event delay when supplied;
+  note right
+    RefinedPlanner compares independent
+    and prioritized seeds, then tries
+    one-rail alternatives (up to 3 passes).
+    Keep only whole-fleet gains >= 1 s.
+    Event risk is included when Adaptive
+    supplies the fleet risk map.
+  end note
+else (CBS)
+  :Create independent routes and a\nprioritized fallback solution;
+  while (Conflict found and budget remains?) is (yes)
+    :Choose the first overlapping,\nopposite-direction single-line conflict;
+    :Branch: forbid that rail for train A\nor forbid it for train B;
+    :Re-route the affected train;\nqueue branches by fleet cost;
+  endwhile (no conflict / budget reached)
+  :Return best conflict-free solution found,\nor the prioritized fallback;
+  note right
+    At most 200 expansions by default.
+    Conflict branching needs --lines;
+    without it there are no modeled
+    head-on conflicts to resolve.
+  end note
+endif
+
+if (Rail event during a cooperative/CBS run?) then (yes)
+  :Reconsider only trains not yet departed;
+  :Switch once per train only when own gain\nis at least 30 s and no greater than\nother trains' added cost;
+else (no)
+endif
+
+note right
+  CLI: Cooperative/CBS default to Adaptive unless a path mode is explicit.
+  --lines is an independent track-safety option, not a planner.
+end note
+
+stop
+
+@enduml

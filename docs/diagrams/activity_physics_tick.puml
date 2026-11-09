@@ -18,8 +18,8 @@ end note
 :Pick target end speed;
 note right
   final segment: 0
-  otherwise: next segment's speed limit
-  (no needless stop at intermediate nodes)
+  default mode: next segment's speed limit
+  --lines mode: brake to 0 at intermediate stations
 end note
 
 :Compute braking distance;

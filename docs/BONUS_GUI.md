@@ -175,7 +175,7 @@ Two combo boxes in the sidebar auto-populate by scanning:
 - `input/railNetworkPrintFolder/` — network presets
 - `input/trainPrintFolder/` — train presets
 
-Select a preset from the dropdown to load it instantly. This makes it easy to test with the bundled sample networks (France, Portugal, Lisbon Metro, Paris Metro, Europe, etc.).
+Select a preset from the dropdown to load it instantly. This makes it easy to test with the bundled sample networks (France, Portugal, Lisbon Metro, Greater Lisbon commuter rail, Paris Metro, Europe, etc.).
 
 ### 4. Simulation Runner
 

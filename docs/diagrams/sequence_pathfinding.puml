@@ -16,8 +16,11 @@ Sim -> Dijk : findPath("CityA", "CityB", network, mode)
 note over Sim
     **PathWeightMode** (--distance / --solo / --adaptive)
     • Distance — edge weight = distance km
-    • Solo (default) — edge weight = free-flow time
-    • Adaptive — Solo + congestion-aware rerouting
+    • Solo (CLI default) — edge weight = distance / speed limit
+    • Adaptive — Solo time + expected event risk;
+      a supplied occupancy snapshot adds congestion cost
+    • Adaptive in-motion rerouting is decided by Simulation,
+      not by this Dijkstra call
 end note
 
 == Validation ==
@@ -47,9 +50,11 @@ loop while priority queue not empty
             note right of Dijk
                 Distance: weight = edge.distance
                 Solo:     weight = distance / speedLimit
-                Adaptive: Solo + occupancy, segment-clear
-                time and event-risk penalties (adaptive
-                overload); findConstrainedPath() for detours
+                Adaptive: Solo + expected event delay;
+                add a congestion penalty only when
+                occupied lines >= edge.numLines
+                (adaptive overload). Candidate detours use
+                findConstrainedPath() with forbidden rails.
             end note
             Dijk -> Dijk : newDist = dist[current] + weight
             alt newDist < dist[neighbour]

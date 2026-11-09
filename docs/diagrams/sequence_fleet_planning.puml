@@ -1,0 +1,114 @@
+@startuml sequence_fleet_planning
+
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+title Route Planning — Planner Choice, Route Evaluation, and Simulation
+
+actor "CLI / GUI" as UI
+participant "Simulation" as Sim
+participant "IRoutePlanner" as Planner
+participant "DijkstraPathfinding" as Dijk
+participant "RailNetwork" as Net
+participant "ReservationTable" as Reservations
+participant "Fleet dry-run evaluator" as Evaluator
+participant "ReplanPolicy" as Replan
+
+UI -> Sim : run()
+Sim -> Planner : planAll(FleetSnapshot)
+
+alt IndependentPlanner (default)
+    loop each train
+        Planner -> Dijk : findPath(start, end, network, weightMode)
+        Dijk -> Net : getNeighbours(current node)
+        Net --> Dijk : outgoing edges
+        Dijk -> Dijk : relax edges using selected path cost
+        Dijk --> Planner : best route for this train
+    end
+    note over Planner,Dijk
+      Independent plans each train alone;
+      it does not reserve other trains' routes.
+    end note
+else Cooperative (Prioritized + Refined)
+    Planner -> Dijk : compute independent baseline routes
+    loop each train
+        Dijk -> Net : getNeighbours(current node)
+        Net --> Dijk : outgoing edges
+        Dijk --> Planner : baseline route
+    end
+    Planner -> Planner : order by departure time, then name
+    loop each train in priority order
+        Planner -> Reservations : derive tolls from prior bookings
+        Planner -> Dijk : findConstrainedPath(event risk + tolls)
+        Dijk -> Net : inspect candidate edges
+        Net --> Dijk : edge distances, speeds, line counts
+        Dijk --> Planner : lowest-cost route
+        Planner -> Reservations : reserve route time windows
+    end
+    Planner -> Evaluator : evaluate independent and prioritized seeds
+    Evaluator --> Planner : whole-fleet dry-run cost + supplied event risk
+    loop up to 3 refinement passes
+        Planner -> Dijk : try alternatives forbidding one route rail
+        Dijk --> Planner : candidate route
+        Planner -> Evaluator : score trial fleet routes
+        Evaluator --> Planner : trial cost
+        note right of Evaluator
+          Accept only a fleet-cost reduction
+          of at least 1 second. Event risk is
+          included when Adaptive supplied it.
+        end note
+    end
+else CBS
+    Planner -> Planner : independent root + prioritized fallback
+    Planner -> Evaluator : score route set
+    Evaluator --> Planner : fleet cost
+    loop conflict found and expansion budget remains
+        Planner -> Planner : find first overlapping head-on conflict
+        alt --lines enabled and conflict exists
+            Planner -> Dijk : replan train A with rail forbidden
+            Dijk --> Planner : branch A route
+            Planner -> Dijk : replan train B with rail forbidden
+            Dijk --> Planner : branch B route
+            Planner -> Evaluator : score both branches
+            Evaluator --> Planner : branch costs
+            Planner -> Planner : expand lowest-cost branch next
+        else no modeled conflict
+            Planner -> Planner : stop search
+        end
+    end
+    note over Planner
+      Best-first search; default budget 200 expansions.
+      Keep the best conflict-free result, otherwise
+      fall back to the prioritized solution.
+    end note
+end
+
+Planner --> Sim : selected route for every train
+Sim -> Sim : assign paths and create TrainState records
+
+loop simulation ticks
+    opt rail event with Cooperative or CBS
+        Sim -> Replan : reconsider un-departed trains once
+        Replan --> Sim : switch only if fleet cost improves\nand own gain is at least 30 s
+    end
+    opt Adaptive path mode
+        Sim -> Sim : check eligible blocked-follower triggers
+        Sim -> Dijk : find constrained detour from next station
+        Dijk --> Sim : candidate path
+        Sim -> Sim : replay stay vs. detour; switch only\nif detour saves more than 30 s
+    end
+    opt --lines enabled
+        Sim -> Sim : admit waiting trains before physics;
+        note right
+          Opposing trains cannot enter
+          the same line simultaneously.
+          See sequence_line_admission.
+        end note
+    end
+    Sim -> Sim : update train physics, events,\nblocking, observers
+end
+
+Sim --> UI : results
+
+@enduml

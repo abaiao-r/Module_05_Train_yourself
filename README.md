@@ -20,7 +20,7 @@ A physics-based train simulation engine that models rail traffic across a config
 | **Random events** | Probability-based disruptions at stations (riots, discomfort, …) inject delays |
 | **555 unit / integration tests** | Custom TestFramework, 16 suites covering nodes, networks, trains, events, pathfinding, I/O, factories, edge cases, combinations, end-to-end, input combos |
 | **5 design patterns + 6 principles** | Strategy, Factory, Observer, Mediator, Dependency Injection · KISS, DRY, Encapsulation, SRP, Separation of Concerns, Interface Segregation |
-| **7 UML diagrams** | Class, 3 sequence, state machine, 2 activity — PlantUML sources + PNG + SVG |
+| **12 UML diagrams** | 7 foundational diagrams, 3 routing-mode diagrams, and 2 multi-line diagrams — PlantUML sources + PNG + SVG |
 
 ### Bonus Features
 
@@ -212,7 +212,7 @@ See [docs/TECHNICAL.md](docs/TECHNICAL.md) for the full documentation index, or 
 | [Architecture](docs/ARCHITECTURE.md) | Layered design, folder structure, data flow |
 | [Design Patterns](docs/DESIGN_PATTERNS.md) | Strategy, Factory, Observer, Mediator · DI · Class Relationships · 6 Design Principles |
 | [Class Reference](docs/CLASS_REFERENCE.md) | Per-class API documentation |
-| [Diagrams](docs/DIAGRAMS.md) | 7 UML diagrams (class, state, sequence, activity) |
+| [Diagrams](docs/DIAGRAMS.md) | 7 foundational, 3 routing-mode, and 2 multi-line UML diagrams |
 | [Diagrams explained](docs/DIAGRAMS_EXPLAINED.md) | Plain-English walkthrough of the diagrams (no tech background needed) |
 | [Diagrams explained + code](docs/DIAGRAMS_EXPLAINED_CODE.md) | Same walkthrough with code snippets and file locations |
 | [Build & Testing](docs/BUILD_SYSTEM.md) | Makefile targets, 555 tests, CI pipeline |
