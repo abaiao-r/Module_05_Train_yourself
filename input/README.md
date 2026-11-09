@@ -1,6 +1,6 @@
 # Demo inputs
 
-One normal pair and twelve bonus pairs. Run from the repo root after `make`.
+One normal pair and fourteen bonus pairs. Run from the repo root after `make`.
 Full test fixtures live in `tests/fixtures/`.
 
 ## Normal (no flags needed)
@@ -26,6 +26,7 @@ Full test fixtures live in `tests/fixtures/`.
 | 11 | `Bonus11LisbonMetro` | Lisbon metro: 4 lines, interchanges, real station names | drawn with the real geography (see below) |
 | 12 | `Bonus12WaitOrGo` | Wait or go | `Go` waits ~5 min for the busy 160 km/h line instead of taking the free 30 km/h one (arrives 08:16 instead of 08:43) |
 | 13 | `Bonus13Stress` | 300 nodes, 595 rails (1-4 lines, per-line speeds), 52 events, 3000 varied trains; regenerate with `scripts/gen_stress.py [seed cols rows trains]` | `--lines` (about 40 s); try `--adaptive` or `--planner cbs` |
+| 14 | `Bonus14GreaterLisbon` | 71 stations across CP Urbanos and Fertagus commuter corridors | OSM-geographic layout; includes Sintra, Azambuja, Cascais, Sado and Fertagus services |
 
 Events are random, so event cases (06, 09, 10, 11) vary run to run; use `--runs N` for averages.
 
@@ -35,6 +36,7 @@ N=input/railNetworkPrintFolder/railNetwork; T=input/trainPrintFolder/trainPrint
 ./bin/train_yourself ${N}Bonus01HeadOn.txt ${T}Bonus01HeadOn.txt --lines
 ./bin/train_yourself ${N}Bonus07Detour.txt ${T}Bonus07Detour.txt --lines --adaptive
 ./bin/train_yourself ${N}Bonus11LisbonMetro.txt ${T}Bonus11LisbonMetro.txt --lines --adaptive
+./bin/train_yourself ${N}Bonus14GreaterLisbon.txt ${T}Bonus14GreaterLisbon.txt --lines --adaptive
 ```
 
 Bonus files are rejected without `--lines` (the line-count token is invalid by design).
@@ -45,3 +47,29 @@ A network file may have a sidecar `railNetwork<Name>.layout` with one
 `Station x y` per line (`#` comments). The GUI uses it instead of the
 automatic layout when it places every station; the CLI ignores it.
 `Bonus11LisbonMetro.layout` follows the shape of the real network.
+
+`Bonus14GreaterLisbon.layout` uses OpenStreetMap station coordinates for the
+CP Urbanos and Fertagus heavy-rail network. The Metro remains a separate sample
+(`Bonus11LisbonMetro`): Metro tracks are not physically connected to the
+commuter-rail tracks, so combining them would let simulated trains use routes
+that do not exist.
+
+The Greater Lisbon data represents real stations, corridors, and rolling-stock
+series, not live train tracking. Departures and simulator vehicle parameters
+are representative examples, not current timetables or manufacturer-verified
+physics. Cascais segment lengths use published chainage; other segment lengths
+are estimates derived as 1.10 times the OSM station-to-station geodesic
+distance. Track counts and speeds are simplified for this simulation; the
+simulator applies its configured stop duration at intermediate stations and
+does not model each service's skip-stop pattern.
+
+Sources: [CP Urbanos de Lisboa](https://www.cp.pt/passageiros/en/how-to-travel/lisbon-urban-trains);
+[Sintra service](https://pt.wikipedia.org/wiki/Linha_de_Sintra_%28CP%29) and
+[Azambuja service](https://pt.wikipedia.org/wiki/Linha_da_Azambuja),
+[Cascais station chainage](https://pt.wikipedia.org/wiki/Linha_de_Cascais),
+[Sado service](https://pt.wikipedia.org/wiki/Linha_do_Sado), and the
+[Fertagus network map](https://www.fertagus.pt/pt/viajar/mapa-de-rede).
+Station positions are from [OpenStreetMap](https://www.openstreetmap.org/copyright)
+(© OpenStreetMap contributors), licensed under the ODbL. Rolling-stock references: [CP Series 2300](https://pt.wikipedia.org/wiki/S%C3%A9rie_2300_da_CP),
+[CP Series 3150](https://pt.wikipedia.org/wiki/S%C3%A9rie_3150_da_CP), and
+[Series 3500](https://pt.wikipedia.org/wiki/S%C3%A9rie_3500_da_CP).

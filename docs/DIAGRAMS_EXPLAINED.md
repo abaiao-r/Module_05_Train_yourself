@@ -1,7 +1,7 @@
 # The Diagrams, Explained in Plain English
 
-This page walks through every diagram in [`docs/diagrams/`](diagrams/) without any programming knowledge.
-Its twin, [DIAGRAMS_EXPLAINED_CODE.md](DIAGRAMS_EXPLAINED_CODE.md), follows the **same sections in the same order** and shows the exact code behind each idea.
+This page walks through the seven foundational diagrams in [`docs/diagrams/`](diagrams/) without any programming knowledge. The routing-mode diagrams are indexed in [DIAGRAMS.md](DIAGRAMS.md#path-weight-modes); the two multi-line bonus diagrams are explained in [BONUS_LINES.md](BONUS_LINES.md#diagrams).
+Its twin, [DIAGRAMS_EXPLAINED_CODE.md](DIAGRAMS_EXPLAINED_CODE.md), follows the **same core sections in the same order** and shows the code behind each idea.
 
 **The big picture in one paragraph.** We are building a *model railway on a computer*. You describe a map (cities and the tracks between them), some trains (how heavy and powerful they are, where they go and when they leave) and, optionally, things that can go wrong (a signal failure, a strike). The program then "plays" the day second by second, moves every train like a real one would move, and writes down what happened to each train in a text file.
 
@@ -19,7 +19,7 @@ Think of the program as a small company where every employee has one job.
 |---|---|
 | **RailNetwork** | The map: a list of cities and the tracks joining them. |
 | **Node** | One city / station. |
-| **Edge** | One track between two cities: how long it is and how fast trains may go on it. |
+| **Edge** | A connection between stations: its distance and speed limit. With `--lines`, it can contain several protected parallel lines. |
 | **Train** | One train: weight, engine power, brake power, where it starts and ends, when it leaves, how long it waits at stations. |
 | **Event** | Something that *might* go wrong ("signal failure, 30 % chance, costs 10 minutes"). |
 | **InputHandler** | Reads the text files and builds the map, trains and events. Refuses nonsense. |
@@ -48,10 +48,14 @@ A train is always in one of four situations:
 3. **Delayed** – on the move but forced to go slower, because the train in front is slower. (Just like being stuck behind a lorry.) This label is re-checked every second; when the road clears it goes back to *Running*.
 4. **Arrived** – finished; its diary is closed.
 
-Two things look like states but are not:
+In the default mode, two things look like states but are not:
 
-- **Waiting at a station.** At a middle station the train simply stands still for its "stop time". The train is still *Running* as far as the program is concerned; it just has a countdown (a stop-watch) that must reach zero before it moves again. The same stop-watch is used when an Event (e.g. signal failure) holds the train.
+- **A normal station dwell.** At a middle station the train simply stands still for its "stop time". The train is still *Running* as far as the program is concerned; it just has a countdown (a stop-watch) that must reach zero before it moves again. The same stop-watch is used when an Event (e.g. signal failure) holds the train.
 - **Pressing "Stop" in the window.** That is not something that happens to the train; it cancels the whole simulation.
+
+With `--lines`, a train waiting for line admission at a station has the actual
+`Waiting` status. It owns no line until admitted. See the [line-admission
+diagrams](BONUS_LINES.md#diagrams).
 
 ---
 
@@ -63,13 +67,13 @@ Two things look like states but are not:
 
 Every simulated second, for every moving train, the referee asks the same questions:
 
-1. **Where am I going next?** If this is the last track, I must end up stopped. If not, I only need to slow down to the speed limit of the *next* track (no point stopping at every junction).
+1. **Where am I going next?** If this is the last track, I must end up stopped. Otherwise the default mode targets the next track's speed limit; `--lines` mode brakes to zero at an intermediate station before requesting the next line.
 2. **How much road do I need to slow down?** Heavy trains and weak brakes need more.
 3. **Am I close enough that I must brake now?** If yes → brake.
 4. **Otherwise, am I below the speed limit?** If yes → accelerate (a heavy train accelerates slowly).
 5. **Otherwise** → keep the current speed.
 6. **Move forward** using the average of the speed at the start and end of the second (more accurate than using just one).
-7. **Did I reach the end of this track?** If so: I arrived at a station. Check if something goes wrong there; if it was the final station, I'm done; otherwise start the stop-watch and move on to the next track.
+7. **Did I reach the end of this track?** If so: check for a station event; if it was the final station, I'm done; otherwise apply the configured dwell. In `--lines` mode, release the old line and wait for admission to the next one.
 8. **Once a minute** write a line in the train's diary.
 9. **If an animation or window is watching,** tell it the new positions.
 
@@ -104,10 +108,10 @@ Like a satnav, the program looks for the "cheapest" path, where cheap can mean t
 | Mode | Cheapest means… |
 |---|---|
 | `--distance` | the shortest number of kilometres |
-| `--solo` (default) | the fastest if the train had the line to itself |
-| `--adaptive` | like *solo*, but it adds a "penalty" for tracks that are currently busy or likely to have an Event, and trains may change route mid-journey |
+| `--solo` (CLI default) | the fastest if the train had the line to itself |
+| `--adaptive` | time-based route cost plus expected event risk; the simulator may later choose a detour when a faster train is blocked and the replay predicts a worthwhile gain |
 
-The algorithm (Dijkstra) works like spreading water out from the start city: it always explores the cheapest unexplored city next, so the first time it reaches the destination, it has found the cheapest route.
+The algorithm (Dijkstra) works like spreading water out from the start city: it always explores the cheapest unexplored city next, so the first time it reaches the destination, it has found the cheapest route. Path weighting answers "what does one train consider cheap?"; the separate fleet planner answers "how are routes chosen together?" See the [planner activity diagram](DIAGRAMS.md#fleet-planner-modes) and [planning sequence](DIAGRAMS.md#fleet-planning-sequence).
 
 ---
 
@@ -133,7 +137,7 @@ In the graphical version, the window reads the files itself so it can show the m
 
 This is a "who talks to whom" timeline of a normal run:
 
-1. `main` reads the options you typed (`--animate`, `--runs`, `--graph`, …).
+1. `main` reads the options you typed (`--distance` / `--solo` / `--adaptive`, `--planner`, `--compare`, `--animate`, `--runs`, `--graph`, …).
 2. The input is loaded; the Simulation is created.
 3. `run()` computes routes, then loops second by second. Each second the Simulation tells the train's diary what happened, and, if animation is on, tells the display.
 4. At the end each diary gets its final line ("Actual travel time: …") and the screen prints the summary.
@@ -145,7 +149,7 @@ This is a "who talks to whom" timeline of a normal run:
 
 These are the "why" behind the diagrams.
 
-**Trains cannot pass each other on the same track.** A faster train behind a slower one slows down to match it and keeps a safe gap of 200 m. (Head-on traffic is deliberately not modelled: all trains on a track go the same way.)
+**Following and head-on protection depend on mode.** In the default mode, same-direction trains on a directed track keep a 200 m safe gap; opposing directions are not protected from one another. With `--lines`, an undirected connection has one or more lines, and opposite-direction trains cannot occupy the same line at once. See the [line-admission diagrams](BONUS_LINES.md#diagrams).
 
 **Events are dice rolls.** Each Event has a probability. When a train reaches the place (a city or a track), the program "rolls a die"; if it hits, the train is stopped for the event's duration and the delay is added to its record. A train that is stopped on the open track keeps its place in the queue; the others cannot jump in front of it.
 

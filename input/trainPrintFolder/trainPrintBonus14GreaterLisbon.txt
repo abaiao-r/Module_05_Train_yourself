@@ -1,0 +1,12 @@
+CP2300_Sintra 200.0 0.002 277.0 200.0 Rossio Sintra 08h00 00h01
+CP2300_Sintra_Return 200.0 0.002 277.0 200.0 Sintra Rossio 08h01 00h01
+CP3150_Cascais 118.0 0.002 105.0 118.0 Cais_do_Sodré Cascais 08h02 00h01
+CP3150_Cascais_Return 118.0 0.002 105.0 118.0 Cascais Cais_do_Sodré 08h03 00h01
+CP2300_Azambuja 200.0 0.002 277.0 200.0 Santa_Apolónia Azambuja 08h04 00h01
+CP2300_Azambuja_Return 200.0 0.002 277.0 200.0 Azambuja Santa_Apolónia 08h05 00h01
+Fertagus3500_Setubal 223.0 0.002 250.0 220.0 Roma-Areeiro Setúbal 08h06 00h01
+Fertagus3500_Setubal_Return 223.0 0.002 250.0 220.0 Setúbal Roma-Areeiro 08h07 00h01
+CP2300_Sado 200.0 0.002 277.0 200.0 Barreiro Praias_do_Sado-A 08h08 00h01
+CP2300_Sado_Return 200.0 0.002 277.0 200.0 Praias_do_Sado-A Barreiro 08h09 00h01
+CP2300_Sintra_Alverca 200.0 0.002 277.0 200.0 Sintra Alverca 08h10 00h01
+CP2300_Alverca_Sintra 200.0 0.002 277.0 200.0 Alverca Sintra 08h11 00h01

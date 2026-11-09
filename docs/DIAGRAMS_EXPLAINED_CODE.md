@@ -1,6 +1,6 @@
 # The Diagrams, Explained — with the Code
 
-Twin of [DIAGRAMS_EXPLAINED.md](DIAGRAMS_EXPLAINED.md). Same sections, same order; here every idea is tied to the code that does it.
+Code-focused twin of [DIAGRAMS_EXPLAINED.md](DIAGRAMS_EXPLAINED.md). It covers the seven foundational diagrams in the same order; routing-mode diagrams are indexed in [DIAGRAMS.md](DIAGRAMS.md#path-weight-modes), and the multi-line bonus diagrams are explained in [BONUS_LINES.md](BONUS_LINES.md#diagrams).
 Line numbers are at the time of writing; search by function name if they drift. Snippets are condensed/paraphrased from the real code for readability (identifiers are real; check the referenced function for exact text).
 
 ---
@@ -10,6 +10,7 @@ Line numbers are at the time of writing; search by function name if they drift. 
 | Class | File |
 |---|---|
 | `RailNetwork`, `Node`, `Edge` | `src/RailNetwork/`, `src/Node/`, `src/Edge/` |
+| `LinesOptions` | `src/RailNetwork/LinesOptions.hpp` |
 | `Train`, `TrainStatus` | `src/Train/Train.hpp` (enum at line 22) |
 | `Event` | `src/Event/Event.cpp` |
 | `InputHandler` | `src/InputHandler/InputHandler.cpp` |
@@ -32,8 +33,15 @@ struct TrainState {
     bool   departed, arrived;
     Train *blockedByTrain;   // who is capping my speed this tick
     int    rerouteCount;  int segsSinceReroute;  /* … */
+    bool   waiting;       // lines mode: waiting at a station for admission
+    int    lineId;        // -1 while waiting, otherwise the occupied line
+    double waitSince;
+    bool   waitEvalDone;
 };
 ```
+
+The last four fields are only used by `--lines`; the full line-mode model is
+shown in [BONUS_LINES.md](BONUS_LINES.md#diagrams).
 
 The final score card (`Simulation.hpp`):
 
@@ -311,6 +319,13 @@ for (const auto *ev : getEventsOnSegment(fromName, toName))
 for (const auto *ev : getEventsAtNode(toName)) expectedDelay += /* same */;
 ```
 
+`PathWeightMode` decides the cost for one route; `IRoutePlanner` decides how
+routes are chosen for the fleet. Independent plans each train alone,
+Cooperative uses departure-ordered reservations then refines a fleet-wide
+dry-run cost, and CBS branches on detected head-on conflicts when `--lines`
+is enabled. See the [planner activity diagram](DIAGRAMS.md#fleet-planner-modes)
+and [fleet-planning sequence](DIAGRAMS.md#fleet-planning-sequence).
+
 ---
 
 ## 6. Reading the Input Files (sequence diagram)
@@ -318,14 +333,13 @@ for (const auto *ev : getEventsAtNode(toName)) expectedDelay += /* same */;
 **Entry point** — `InputHandler::loadData` (`InputHandler.cpp:120`):
 
 ```cpp
-SimulationData data;
-parseNetworkFile(networkFile, data.network, data.events);   // cities, tracks, events
-data.trains = parseTrainFile(trainFile);                    // trains
-validateData(networkFile, trainFile, data);                 // cross-check
-return data;
+LinesOptions lines;  // disabled by default; enabled by --lines
+SimulationData data = InputHandler::loadData(networkFile, trainFile, lines);
 ```
 
-Bad input is rejected with the file and line (`throw ParseException(...)`, e.g. `InputHandler.cpp:136`).
+The `loadData`/`parseNetworkFile` option defaults to disabled, preserving the
+legacy parser behavior. Bad input is rejected with the file and line
+(`throw ParseException(...)`, e.g. `InputHandler.cpp:136`).
 
 **The train checklist** — `TrainFactory::createTrain` (`TrainFactory.cpp:22`):
 
@@ -350,9 +364,9 @@ The name check is a safety measure: the name becomes a file name, so `../` must 
 
 | Step in the diagram | Code |
 |---|---|
-| Options typed | `main` option loop, `src/main.cpp:154`+ (`--distance`, `--solo`, `--adaptive` are mutually exclusive; `--runs N`; `--graph`; `--animate`) |
+| Options typed | `main` option loop, `src/main.cpp:154`+ (`--distance`, `--solo`, `--adaptive` are mutually exclusive; `--planner`; `--compare`; `--runs N`; `--graph`; `--animate`; `--lines`) |
 | Load input | `InputHandler::loadData` |
-| Create Simulation | `Simulation(network, trains, events, pathfinder, weightMode)` |
+| Create Simulation | `Simulation(network, trains, events, pathfinder, weightMode, data.lines)` |
 | Run | `sim.run()` (`main.cpp:297`) |
 | Diary lines | `FileOutputObserver::onTrainStart / onTrainStep / onTrainEvent / onTrainFinish` (`src/FileOutputObserver/`) |
 | Animation | `sim.setAnimCallback(...)` → `TerminalAnimDisplay::render` / GUI `tick` signal |
@@ -371,6 +385,10 @@ if (behind->speed_ms > ahead->speed_ms) { behind->speed_ms = ahead->speed_ms; ca
 double maxBehindPos = ahead->posOnSegment_m - MIN_SAFE_FOLLOWING_DISTANCE_M;
 if (behind->posOnSegment_m > maxBehindPos) { behind->posOnSegment_m = std::max(maxBehindPos, 0.0); capped = true; }
 ```
+
+This describes the default mode. With `--lines`, admission serializes opposing
+trains on each corridor line before physics; the admission sequence is
+documented in [BONUS_LINES.md](BONUS_LINES.md#diagrams).
 
 **Events halt the train** — `holdTrain` (`Simulation.cpp:767`). A train held on the open track keeps its queue position (`heldBySegmentEvent`):
 

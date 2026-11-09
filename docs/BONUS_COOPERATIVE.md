@@ -1,6 +1,8 @@
 # Bonus: cooperative fleet routing (`--planner cooperative`)
 
 Epic #154. Opt-in; the default behaviour and all golden outputs are unchanged.
+For visual explanations, see the [planner activity](DIAGRAMS.md#fleet-planner-modes)
+and [route-planning sequence](DIAGRAMS.md#fleet-planning-sequence).
 
 ## The problem: every train is selfish
 

@@ -1,0 +1,142 @@
+Node Agualva-Cacém
+Node Alcântara-Mar
+Node Alcântara-Terra
+Node Algés
+Node Algueirão_Mem_Martins
+Node Alhandra
+Node Alhos_Vedros
+Node Alverca
+Node Amadora
+Node Azambuja
+Node Baixa_da_Banheira
+Node Barreiro
+Node Belém
+Node Benfica
+Node Bobadela
+Node Braço_de_Prata
+Node Cais_do_Sodré
+Node Campolide
+Node Carcavelos
+Node Carregado
+Node Cascais
+Node Castanheira_do_Ribatejo
+Node Caxias
+Node Chelas
+Node Coina
+Node Corroios
+Node Cruz_Quebrada
+Node Entrecampos
+Node Estoril
+Node Fogueteiro
+Node Foros_de_Amora
+Node Lavradio
+Node Marvila
+Node Massamá-Barcarena
+Node Mercês
+Node Mira_Sintra-Meleças
+Node Moita
+Node Monte_Abraão
+Node Monte_Estoril
+Node Moscavide
+Node Oeiras
+Node Oriente
+Node Paço_de_Arcos
+Node Palmela
+Node Parede
+Node Penalva
+Node Penteado
+Node Pinhal_Novo
+Node Portela_de_Sintra
+Node Póvoa
+Node Pragal
+Node Praias_do_Sado-A
+Node Queluz-Belas
+Node Reboleira
+Node Rio_de_Mouro
+Node Roma-Areeiro
+Node Rossio
+Node Sacavém
+Node Santa_Apolónia
+Node Santa_Cruz-Damaia
+Node Santa_Iria
+Node Santo_Amaro
+Node Santos
+Node São_João_do_Estoril
+Node São_Pedro_do_Estoril
+Node Sete_Rios
+Node Setúbal
+Node Sintra
+Node Venda_do_Alcaide
+Node Vila_Franca_de_Xira
+Node Vila_Nova_da_Rainha
+
+Rail Agualva-Cacém Massamá-Barcarena 2.260 90.0 4
+Rail Agualva-Cacém Mira_Sintra-Meleças 3.127 90.0 2
+Rail Agualva-Cacém Rio_de_Mouro 3.067 90.0 2
+Rail Alcântara-Mar Alcântara-Terra 0.566 40.0 1
+Rail Alcântara-Mar Belém 2.193 90.0 2
+Rail Alcântara-Mar Santos 1.721 90.0 2
+Rail Alcântara-Terra Campolide 3.115 40.0 1
+Rail Algés Belém 2.944 90.0 2
+Rail Algés Cruz_Quebrada 1.988 90.0 2
+Rail Algueirão_Mem_Martins Mercês 1.118 90.0 2
+Rail Algueirão_Mem_Martins Portela_de_Sintra 3.414 90.0 2
+Rail Alhandra Alverca 4.692 120.0 2
+Rail Alhandra Vila_Franca_de_Xira 4.523 120.0 2
+Rail Alhos_Vedros Baixa_da_Banheira 1.948 120.0 2
+Rail Alhos_Vedros Moita 3.065 120.0 2
+Rail Alverca Póvoa 4.713 120.0 4
+Rail Amadora Queluz-Belas 1.974 90.0 4
+Rail Amadora Reboleira 1.639 90.0 4
+Rail Azambuja Vila_Nova_da_Rainha 7.043 120.0 2
+Rail Baixa_da_Banheira Lavradio 1.363 120.0 2
+Rail Barreiro Lavradio 2.280 120.0 2
+Rail Benfica Campolide 3.370 90.0 4
+Rail Benfica Santa_Cruz-Damaia 1.336 90.0 4
+Rail Bobadela Sacavém 1.532 120.0 4
+Rail Bobadela Santa_Iria 4.407 120.0 4
+Rail Braço_de_Prata Marvila 1.138 90.0 2
+Rail Braço_de_Prata Oriente 2.560 90.0 4
+Rail Braço_de_Prata Santa_Apolónia 4.495 120.0 2
+Rail Cais_do_Sodré Santos 0.947 90.0 2
+Rail Campolide Pragal 8.191 120.0 2
+Rail Campolide Rossio 3.303 90.0 2
+Rail Campolide Sete_Rios 0.951 90.0 2
+Rail Carcavelos Oeiras 1.598 90.0 2
+Rail Carcavelos Parede 1.708 90.0 2
+Rail Carregado Castanheira_do_Ribatejo 2.296 120.0 2
+Rail Carregado Vila_Nova_da_Rainha 4.504 120.0 2
+Rail Cascais Monte_Estoril 1.094 90.0 2
+Rail Castanheira_do_Ribatejo Vila_Franca_de_Xira 4.582 120.0 2
+Rail Caxias Cruz_Quebrada 1.970 90.0 2
+Rail Caxias Paço_de_Arcos 1.443 90.0 2
+Rail Chelas Marvila 1.992 90.0 2
+Rail Chelas Roma-Areeiro 2.347 90.0 2
+Rail Coina Fogueteiro 5.686 120.0 2
+Rail Coina Penalva 5.426 120.0 2
+Rail Corroios Foros_de_Amora 2.924 120.0 2
+Rail Corroios Pragal 4.510 120.0 2
+Rail Entrecampos Roma-Areeiro 1.256 90.0 4
+Rail Entrecampos Sete_Rios 1.804 90.0 4
+Rail Estoril Monte_Estoril 0.688 90.0 2
+Rail Estoril São_João_do_Estoril 1.151 90.0 2
+Rail Fogueteiro Foros_de_Amora 2.923 120.0 2
+Rail Massamá-Barcarena Monte_Abraão 1.881 90.0 4
+Rail Mercês Rio_de_Mouro 1.430 90.0 2
+Rail Moita Penteado 3.859 120.0 2
+Rail Monte_Abraão Queluz-Belas 0.918 90.0 4
+Rail Moscavide Oriente 1.203 120.0 4
+Rail Moscavide Sacavém 2.118 120.0 4
+Rail Oeiras Santo_Amaro 0.636 90.0 2
+Rail Paço_de_Arcos Santo_Amaro 2.365 90.0 2
+Rail Palmela Setúbal 5.708 120.0 2
+Rail Palmela Venda_do_Alcaide 3.827 120.0 2
+Rail Parede São_Pedro_do_Estoril 1.549 90.0 2
+Rail Penalva Pinhal_Novo 9.276 120.0 2
+Rail Penteado Pinhal_Novo 4.264 120.0 2
+Rail Pinhal_Novo Venda_do_Alcaide 3.726 120.0 2
+Rail Portela_de_Sintra Sintra 0.931 90.0 2
+Rail Póvoa Santa_Iria 2.698 120.0 4
+Rail Praias_do_Sado-A Setúbal 4.749 120.0 2
+Rail Reboleira Santa_Cruz-Damaia 1.049 90.0 4
+Rail São_João_do_Estoril São_Pedro_do_Estoril 1.455 90.0 2

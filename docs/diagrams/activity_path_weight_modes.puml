@@ -1,0 +1,59 @@
+@startuml activity_path_weight_modes
+
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam ActivityFontSize 12
+
+title Path-Weight Modes — What Makes a Route "Best"?
+
+start
+
+:Select PathWeightMode;
+note right
+  CLI default: Solo
+  Pathfinding API default: Distance
+  Explicit options: --distance, --solo, --adaptive
+  These choose the cost for one train;
+  planner selection is a separate choice.
+end note
+
+if (Distance?) then (yes)
+  :Dijkstra edge cost = distance (km);
+  :Choose the route with the least total distance;
+elseif (Solo?) then (yes)
+  :Dijkstra edge cost = distance / speed limit;
+  :Choose the fastest free-flow route;
+else (Adaptive)
+  :Base edge cost = distance / speed limit;
+  :Add expected event delay\n(probability × duration);
+  :When a live occupancy snapshot is supplied,\nadd a penalty if every line is occupied;
+  :Choose the lowest-cost candidate route;
+endif
+
+:Run the simulation with the selected path;
+
+if (Adaptive mode?) then (yes)
+  :At eligible triggers, inspect a train\nbehind a slower leader;
+  if (Leader continues beyond the next station?) then (yes)
+    :Replay staying vs. a detour from that station;
+    if (Detour saves more than 30 s?) then (yes)
+      :Change the route at the station;
+    else (no)
+      :Keep the current route;
+    endif
+  else (no)
+    :Keep the current route;
+  endif
+else (Distance or Solo)
+  :No in-motion adaptive rerouting;
+endif
+
+note right
+  Cooperative/CBS can separately reconsider routes of trains
+  that have not departed after a rail event. This is planner
+  behavior, not a PathWeightMode.
+end note
+
+stop
+
+@enduml

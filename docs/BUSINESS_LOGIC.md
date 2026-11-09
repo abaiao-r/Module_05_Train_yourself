@@ -20,6 +20,12 @@ A rail network consists of **stations** (nodes) connected by **tracks** (edges).
 
 Connections are **bidirectional** — if CityA connects to CityB, CityB also connects to CityA. Self-loops (a station connected to itself) are forbidden. Duplicate connections between the same pair of stations are rejected.
 
+With the optional `--lines` mode, a connection can have multiple parallel
+lines. Opposing trains may use different lines at the same time but may not
+occupy the same line simultaneously. A train waiting for an available line
+waits at a station without occupying the corridor. With the option off, the
+legacy directed-track behavior is unchanged.
+
 ### 2. Train Specification
 
 Each train has:
@@ -37,17 +43,32 @@ Input format: `name weight friction accelForce brakeForce from to time stopDurat
 
 ### 3. Route Selection
 
-Before simulation begins, each train is assigned an **optimal route** through the network using Dijkstra's algorithm. The cost metric is configurable via `PathWeightMode`:
+Before simulation begins, routes are computed using Dijkstra's algorithm. The
+single-train cost (`PathWeightMode`) is separate from the fleet-level planner
+(`IRoutePlanner`):
 
-- **Distance** (default) — minimises total kilometres: edge weight = `distance`
-- **Solo** — fastest route if this train were the only one on the track: edge weight = `distance / speedLimit`, ignores other trains and random events
-- **Adaptive** — the ultimate mode: builds on Solo's time weighting, plus dynamically re-routes around occupied segments and avoids routes prone to costly random events (see §3a)
+- **Distance** (`--distance`) — minimises total kilometres: edge weight = `distance`.
+- **Solo** (`--solo`) — fastest free-flow route: edge weight = `distance / speedLimit`, ignoring other trains and random events.
+- **Adaptive** (`--adaptive`) — uses Solo time plus expected event delay. With live occupancy, it penalizes an edge only when all its lines are occupied. During the run, an eligible faster follower may switch to a detour when physics replay predicts a gain greater than 30 seconds (see §3a).
 
-Pass `--distance`, `--solo`, or `--adaptive` on the command line (mutually exclusive; `--solo` is the default with no flag). If no route exists for a train, the simulation aborts with a `runtime_error` naming that train (`No path found for <train> (A -> B)`); trains are never silently skipped.
+The CLI defaults to **Solo** when no path-weight flag is given; the lower-level
+pathfinding API defaults to Distance. The planner defaults to Independent.
+Cooperative and CBS default to Adaptive unless a path-weight mode was
+explicitly selected. `--compare` runs five fixed combinations:
+Distance/Independent, Solo/Independent, Adaptive/Independent,
+Adaptive/Cooperative, and Adaptive/CBS. See the [path-weight
+diagram](DIAGRAMS.md#path-weight-modes), [fleet-planner
+diagram](DIAGRAMS.md#fleet-planner-modes), and [planning
+sequence](DIAGRAMS.md#fleet-planning-sequence).
+
+Pass `--distance`, `--solo`, or `--adaptive` on the command line (mutually
+exclusive). If no route exists for a train, the simulation aborts with a
+`runtime_error` naming that train (`No path found for <train> (A -> B)`);
+trains are never silently skipped.
 
 ### 3a. Adaptive Mode: Congestion + Event-Aware Routing
 
-When `--adaptive` is active, the simulator **dynamically re-routes trains at runtime** to spread traffic across parallel corridors, avoid crowded segments, and steer away from routes prone to costly random events. This contrasts with Distance and Solo modes, where every train's path is fixed before the simulation starts and never changes.
+When `--adaptive` is active, the simulator may **dynamically re-route a moving train** around congestion or expected event cost, subject to the checks below. Distance and Solo do not enable this in-motion rerouting. Cooperative/CBS planners have a separate event-triggered replan for trains that have not departed yet.
 
 #### The rule: "am I stuck, and does a detour pay?"
 
@@ -72,7 +93,11 @@ A train cannot turn around mid-segment, so the earliest switch point is the **ne
 
 The cheap checks (1-3 and shared-stretch) are pure arithmetic every tick. The expensive part (constrained Dijkstra + two replays) runs only on triggers, at most 3 times per train per segment: on **segment entry**, on **leader change / leader reroute / leader starts dwelling / topology or event change**, and once when the train is within `PRE_PIVOT_HORIZON_SEC` (60 s) of the pivot. Candidate paths are cached per (pivot, destination, forbidden set, dwell) and cleared when topology or events change; the decision itself is never cached. A 3-segment cooldown remains as secondary anti-churn.
 
-A dwelling train does not block. Directional tracks: `A->B` and `B->A` are independent (head-on conflicts are out of scope).
+A dwelling train does not block. In the default mode, `A->B` and `B->A` are
+independent directed tracks, so head-on conflicts are not prevented. With
+`--lines`, occupancy is shared by direction on each line and opposing trains
+are serialized at station admission. See [BONUS_LINES.md](BONUS_LINES.md) for
+the complete movement and pathfinding rules.
 
 #### Per-train ETA profile
 
@@ -121,7 +146,14 @@ Speed is capped at the segment's speed limit. Position advances by $v \cdot \Del
 
 ### 5. Station Stops
 
-When a train reaches an intermediate node (not the final destination), it stops for the configured **stop duration**. During stops, the train remains at position 0 on the next segment with speed 0. Output lines during stops show action `Stopped`. A dwelling train is **not** a blocker for trains behind it; when its dwell ends it re-queues (its right-of-way entry time is reset), so a train that overtook it during the dwell is now ahead.
+When a train reaches an intermediate node (not the final destination), it stops
+for the configured **stop duration**. During stops, the train remains at
+position 0 on the next segment with speed 0. Output lines during stops show
+action `Stopped`. In `--lines` mode it also brakes to zero at each intermediate
+station before line admission, and waits there if all lines carry opposing
+traffic. A dwelling train is **not** a blocker for trains behind it; when its
+dwell ends it re-queues (its right-of-way entry time is reset), so a train that
+overtook it during the dwell is now ahead.
 
 ### 6. Concurrent Multi-Train Simulation
 

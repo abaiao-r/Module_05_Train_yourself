@@ -4,7 +4,12 @@
 >
 > New to the project? Read [the diagrams explained in plain English](DIAGRAMS_EXPLAINED.md) or [the same with code snippets](DIAGRAMS_EXPLAINED_CODE.md).
 
-All diagrams are PlantUML sources in `docs/diagrams/`. Pre-rendered **PNG** and **SVG** versions are committed alongside.
+The seven foundational diagrams, three routing-mode diagrams, and two
+multi-line bonus diagrams are PlantUML sources in `docs/diagrams/`.
+Pre-rendered **PNG** and **SVG** versions are committed alongside.
+The Greater Lisbon geographic view is supplied as a `.layout` input file for
+the GUI, rather than as a separate architecture diagram; see the [input
+catalog](../input/README.md).
 
 - **PNG** — bitmap, good for GitHub README previews.
 - **SVG** — vector, scalable without loss, ideal for zooming into the class diagram.
@@ -73,11 +78,63 @@ SVG: [sequence_input_parsing.svg](diagrams/sequence_input_parsing.svg) · Source
 
 ## Sequence — Dijkstra Pathfinding
 
-The shortest-path algorithm: validation, priority queue loop, and path reconstruction. Weight modes are `PathWeightMode {Distance, Solo, Adaptive}` (the rendered diagram predates Solo/Adaptive).
+The shortest-path algorithm: validation, priority queue loop, and path reconstruction, including the edge costs for Distance, Solo, and Adaptive.
 
 ![Pathfinding Sequence](diagrams/sequence_pathfinding.png)
 
 SVG: [sequence_pathfinding.svg](diagrams/sequence_pathfinding.svg) · Source: [sequence_pathfinding.puml](diagrams/sequence_pathfinding.puml)
+
+---
+
+<a id="path-weight-modes"></a>
+## Activity — Path-Weight Modes
+
+Shows what Distance, Solo, and Adaptive optimize, and separates Adaptive's
+initial route cost from its later in-motion rerouting decisions.
+
+![Path-Weight Modes](diagrams/activity_path_weight_modes.png)
+
+SVG: [activity_path_weight_modes.svg](diagrams/activity_path_weight_modes.svg) · Source: [activity_path_weight_modes.puml](diagrams/activity_path_weight_modes.puml)
+
+---
+
+<a id="fleet-planner-modes"></a>
+## Activity — Fleet Planner Modes
+
+Explains Independent, Cooperative, and CBS planning, plus the five variants
+run by `--compare`. A fleet planner is a separate choice from path weighting.
+
+![Fleet Planner Modes](diagrams/activity_fleet_planner_modes.png)
+
+SVG: [activity_fleet_planner_modes.svg](diagrams/activity_fleet_planner_modes.svg) · Source: [activity_fleet_planner_modes.puml](diagrams/activity_fleet_planner_modes.puml)
+
+---
+
+<a id="fleet-planning-sequence"></a>
+## Sequence — Fleet Planning and Adaptive Execution
+
+Shows how each planner obtains and evaluates routes, followed by event-driven
+replanning, Adaptive in-motion detours, and the optional `--lines` admission
+step during the simulation.
+
+![Fleet Planning Sequence](diagrams/sequence_fleet_planning.png)
+
+SVG: [sequence_fleet_planning.svg](diagrams/sequence_fleet_planning.svg) · Source: [sequence_fleet_planning.puml](diagrams/sequence_fleet_planning.puml)
+
+---
+
+## Bonus — Multiple Lines per Edge
+
+These two diagrams cover the opt-in `--lines` behavior. They apply to any
+multi-line network; they are not specific to the Greater Lisbon sample.
+
+![Lines class diagram](diagrams/class_lines.png)
+
+SVG: [class_lines.svg](diagrams/class_lines.svg) · Source: [class_lines.puml](diagrams/class_lines.puml)
+
+![Line admission sequence](diagrams/sequence_line_admission.png)
+
+SVG: [sequence_line_admission.svg](diagrams/sequence_line_admission.svg) · Source: [sequence_line_admission.puml](diagrams/sequence_line_admission.puml)
 
 ---
 
