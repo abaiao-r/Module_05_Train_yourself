@@ -136,6 +136,16 @@ struct TrainStatRow
 
 Q_DECLARE_METATYPE(QVector<TrainStatRow>)
 
+/** Delay and event-trigger totals accumulated over all completed runs. */
+struct MultiRunTotals
+{
+	int eventTriggers = 0;
+	double eventDelaySec = 0.0;
+	double otherDelaySec = 0.0;
+};
+
+Q_DECLARE_METATYPE(MultiRunTotals)
+
 /** Average travel time of one train under Distance / Solo / Adaptive. */
 struct CompareRow
 {
@@ -145,6 +155,16 @@ struct CompareRow
 };
 
 Q_DECLARE_METATYPE(QVector<CompareRow>)
+
+/** Event totals accumulated across all runs of each comparison mode. */
+struct CompareEventRow
+{
+	QString name;
+	int triggers[5] = {};
+	double delaySec[5] = {};
+};
+
+Q_DECLARE_METATYPE(QVector<CompareEventRow>)
 
 /**
  * Runs a simulation in a background thread, emitting per-tick snapshots
@@ -215,7 +235,8 @@ class SimulationWorker : public QObject
 					bool multiLines = false);
 
   signals:
-	void compareFinished(QVector<CompareRow> rows, int runsEach);
+	void compareFinished(QVector<CompareRow> rows,
+						 QVector<CompareEventRow> events, int runsEach);
 	void tick(double simTime, QVector<TrainSnapshot> snapshots);
 	void finished(QStringList results);
 	/** Emitted just before finished() with the data behind the results. */
@@ -223,7 +244,8 @@ class SimulationWorker : public QObject
 					   QVector<EventOutcome> events);
 	void error(const QString &message);
 	void runProgress(int currentRun, int totalRuns);
-	void multiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
+	void multiRunFinished(QVector<TrainStatRow> stats, MultiRunTotals totals,
+						  int completedRuns);
 	/** A live-added node/rail was accepted — the GUI should draw it. */
 	void nodeAdded(QString name);
 	void railAdded(QString from, QString to, double distanceKm,
