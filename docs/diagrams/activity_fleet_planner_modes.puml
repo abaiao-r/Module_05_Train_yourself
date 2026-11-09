@@ -45,6 +45,8 @@ else (CBS)
     Conflict branching needs --lines;
     without it there are no modeled
     head-on conflicts to resolve.
+    Route-set cost adds expected event
+    delay to the event-free fleet time.
   end note
 endif
 

@@ -63,6 +63,12 @@ else CBS
     Planner -> Planner : independent root + prioritized fallback
     Planner -> Evaluator : score route set
     Evaluator --> Planner : fleet cost
+    note over Planner
+      CBS adds expected event delay
+      (probability × duration) for each
+      traversed segment to the event-free
+      fleet dry-run cost.
+    end note
     loop conflict found and expansion budget remains
         Planner -> Planner : find first overlapping head-on conflict
         alt --lines enabled and conflict exists
