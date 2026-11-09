@@ -236,6 +236,22 @@ The `SimDashboard` widget (right panel) mirrors the terminal `--animate` dashboa
 | **Running** | Live updating train status (every tick) |
 | **Finished** | Final results table |
 
+#### Multi-run summaries and mode comparison
+
+The multi-run view reports train statistics and aggregate totals across the
+completed runs. It separates:
+
+- **Direct event delay** — the durations actually added when events trigger.
+- **Other train delay** — recorded train delay minus direct event delay,
+  including traffic and waiting.
+- **Event triggers** — the number of event activations across the runs.
+
+The five-mode comparison shows each event's trigger count and direct delay for
+each variant, plus a total row. These are observed totals across the displayed
+number of runs, not averages or probability forecasts. Secondary traffic
+effects remain part of other train delay rather than being attributed directly
+to an event.
+
 ### 6. Logging
 
 A colour-coded log panel at the bottom records all actions:

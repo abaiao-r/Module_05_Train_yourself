@@ -342,10 +342,12 @@ MainWindow::MainWindow(QWidget *parent)
 	_worker->moveToThread(&_simThread);
 	qRegisterMetaType<QVector<TrainSnapshot>>("QVector<TrainSnapshot>");
 	qRegisterMetaType<QVector<TrainStatRow>>("QVector<TrainStatRow>");
+	qRegisterMetaType<MultiRunTotals>("MultiRunTotals");
 	qRegisterMetaType<QVector<EventInfo>>("QVector<EventInfo>");
 	qRegisterMetaType<QVector<TrainRunInfo>>("QVector<TrainRunInfo>");
 	qRegisterMetaType<QVector<EventOutcome>>("QVector<EventOutcome>");
 	qRegisterMetaType<QVector<CompareRow>>("QVector<CompareRow>");
+	qRegisterMetaType<QVector<CompareEventRow>>("QVector<CompareEventRow>");
 
 	connect(&_simThread, &QThread::finished, _worker, &QObject::deleteLater);
 	connect(_worker, &SimulationWorker::tick,
@@ -3659,7 +3661,9 @@ void MainWindow::onLiveRailAdded(QString from, QString to,
 	refreshLists();
 }
 
-void MainWindow::onCompareFinished(QVector<CompareRow> rows, int runsEach)
+void MainWindow::onCompareFinished(QVector<CompareRow> rows,
+								   QVector<CompareEventRow> events,
+								   int runsEach)
 {
 	_runBtn->setEnabled(true);
 	_runBtn->setText("  Run Simulation  ");
@@ -3687,7 +3691,7 @@ void MainWindow::onCompareFinished(QVector<CompareRow> rows, int runsEach)
 				.arg(static_cast<int>(total[2]))
 				.arg(static_cast<int>(total[3]))
 				.arg(static_cast<int>(total[4])));
-	_dashboard->showCompare(rows, runsEach);
+	_dashboard->showCompare(rows, events, runsEach);
 	QList<int> sizes = _hSplit->sizes();
 	if (sizes.size() == 2 && sizes[1] < DASH_STATS_W)
 	{
@@ -3698,7 +3702,7 @@ void MainWindow::onCompareFinished(QVector<CompareRow> rows, int runsEach)
 }
 
 void MainWindow::onMultiRunFinished(QVector<TrainStatRow> stats,
-									int completedRuns)
+									MultiRunTotals totals, int completedRuns)
 {
 	_runBtn->setEnabled(true);
 	_runBtn->setText("  Run Simulation  ");
@@ -3724,7 +3728,7 @@ void MainWindow::onMultiRunFinished(QVector<TrainStatRow> stats,
 					.arg(static_cast<int>(s.maxActual))
 					.arg(static_cast<int>(s.avgDelay)));
 	}
-	_dashboard->showMultiRunStats(stats, completedRuns);
+	_dashboard->showMultiRunStats(stats, totals, completedRuns);
 
 	/* Widen dashboard to fit the wider stats table */
 	QList<int> sizes = _hSplit->sizes();

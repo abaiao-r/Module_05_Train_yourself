@@ -30,6 +30,7 @@
 #include "TrainFactory.hpp"
 
 #include <atomic>
+#include <array>
 #include <limits>
 #include <map>
 #include <mutex>
@@ -562,6 +563,7 @@ void SimulationWorker::runCompare(const QString &networkFile,
 		struct RunOut
 		{
 			std::map<std::string, double> actual, delay;
+			std::map<std::string, std::pair<int, double>> events;
 		};
 		std::vector<RunOut> outs(static_cast<size_t>(5) * numRuns);
 		std::atomic<int> done{0};
@@ -575,6 +577,10 @@ void SimulationWorker::runCompare(const QString &networkFile,
 			auto data = InputHandler::loadData(
 				networkFile.toStdString(), trainFile.toStdString(),
 				LinesOptions{multiLines});
+			RunOut &out = outs[static_cast<size_t>(k)];
+			for (const auto &event : data.events)
+				out.events.emplace(event.getName(),
+								   std::make_pair(0, 0.0));
 			Simulation sim(std::move(data.network),
 						   std::move(data.trains),
 						   std::move(data.events),
@@ -583,6 +589,13 @@ void SimulationWorker::runCompare(const QString &networkFile,
 			setPlanner(sim, code);
 			sim.setQuiet(true);
 			sim.setWriteResults(false);
+			sim.setEventTriggerCallback(
+				[&out](const std::string &, const std::string &name,
+					   const std::string &, double delaySec) {
+					auto &event = out.events[name];
+					++event.first;
+					event.second += delaySec;
+				});
 			sim.setAnimCallback(
 				[this](double, const std::vector<TrainState> &) {
 					if (_stopRequested.load(std::memory_order_relaxed))
@@ -590,7 +603,6 @@ void SimulationWorker::runCompare(const QString &networkFile,
 				});
 			sim.run();
 			std::map<std::string, int> seen;
-			RunOut &out = outs[static_cast<size_t>(k)];
 			for (const auto &r : sim.getResults())
 			{
 				int n = seen[r.name]++;
@@ -602,13 +614,21 @@ void SimulationWorker::runCompare(const QString &networkFile,
 			/* Shown as "N/runs": one step = the same run in all 5 variants. */
 			emit runProgress(++done / 5, numRuns);
 		});
+		std::map<std::string, std::array<int, 5>> eventTriggers;
+		std::map<std::string, std::array<double, 5>> eventDelay;
 		for (int k = 0; k < 5 * numRuns; ++k)
 		{
 			const int m = k / numRuns;
-			for (const auto &kv : outs[static_cast<size_t>(k)].actual)
+			const RunOut &out = outs[static_cast<size_t>(k)];
+			for (const auto &kv : out.actual)
 				sums[m][kv.first].push_back(kv.second);
-			for (const auto &kv : outs[static_cast<size_t>(k)].delay)
+			for (const auto &kv : out.delay)
 				delays[m][kv.first].push_back(kv.second);
+			for (const auto &event : out.events)
+			{
+				eventTriggers[event.first][m] += event.second.first;
+				eventDelay[event.first][m] += event.second.second;
+			}
 		}
 
 		QVector<CompareRow> rows;
@@ -632,11 +652,24 @@ void SimulationWorker::runCompare(const QString &networkFile,
 			}
 			rows.push_back(row);
 		}
-		emit compareFinished(rows, numRuns);
+		QVector<CompareEventRow> eventRows;
+		for (const auto &event : eventTriggers)
+		{
+			CompareEventRow row;
+			row.name = QString::fromStdString(event.first);
+			for (int m = 0; m < 5; ++m)
+			{
+				row.triggers[m] = event.second[m];
+				row.delaySec[m] = eventDelay[event.first][m];
+			}
+			eventRows.push_back(row);
+		}
+		emit compareFinished(rows, eventRows, numRuns);
 	}
 	catch (const SimulationStopException &)
 	{
-		emit compareFinished(QVector<CompareRow>(), 0);
+		emit compareFinished(QVector<CompareRow>(),
+							 QVector<CompareEventRow>(), 0);
 	}
 	catch (const std::exception &e)
 	{
@@ -666,6 +699,8 @@ void SimulationWorker::runMulti(const QString &networkFile,
 		std::map<std::string, std::vector<double>> statActual;
 		std::map<std::string, std::vector<double>> statDelay;
 		std::map<std::string, double> statEstimated;
+		MultiRunTotals multiRunTotals;
+		double totalTrainDelaySec = 0.0;
 
 		std::atomic<int> completedRuns{0};
 		std::mutex statMutex;
@@ -690,6 +725,21 @@ void SimulationWorker::runMulti(const QString &networkFile,
 			if (run != 0)
 				sim.setWriteResults(false);
 
+			int runEventTriggers = 0;
+			double runEventDelaySec = 0.0;
+			sim.setEventTriggerCallback(
+				[this, &runEventTriggers, &runEventDelaySec, run, animateFirst](
+					const std::string &trainName, const std::string &eventName,
+					const std::string &loc, double delaySec) {
+					++runEventTriggers;
+					runEventDelaySec += delaySec;
+					if (animateFirst && run == 0)
+						emit eventTriggered(
+							QString::fromStdString(trainName),
+							QString::fromStdString(eventName),
+							QString::fromStdString(loc), delaySec);
+				});
+
 			if (animateFirst && run == 0)
 			{
 				{
@@ -707,15 +757,6 @@ void SimulationWorker::runMulti(const QString &networkFile,
 					}
 					emit eventsAvailable(evInfos);
 				}
-				sim.setEventTriggerCallback(
-					[this](const std::string &trainName,
-						  const std::string &eventName,
-						  const std::string &loc, double delaySec) {
-						emit eventTriggered(
-							QString::fromStdString(trainName),
-							QString::fromStdString(eventName),
-							QString::fromStdString(loc), delaySec);
-					});
 				sim.setRerouteCallback(
 					[this](const std::string &trainName,
 						  const std::string &fromNode,
@@ -766,10 +807,12 @@ void SimulationWorker::runMulti(const QString &networkFile,
 			/* Same-named trains (different departures) get separate rows:
 			   results keep load order, so the Nth duplicate is stable. */
 			std::map<std::string, int> seen;
+			double runTrainDelaySec = 0.0;
 			{
 				std::lock_guard<std::mutex> lk(statMutex);
 				for (const auto &r : sim.getResults())
 				{
+					runTrainDelaySec += r.totalDelay;
 					int n = seen[r.name]++;
 					std::string key = n ? r.name + " #" + std::to_string(n + 1)
 										: r.name;
@@ -777,6 +820,9 @@ void SimulationWorker::runMulti(const QString &networkFile,
 					statDelay[key].push_back(r.totalDelay);
 					statEstimated[key] = r.estimatedTime;
 				}
+				totalTrainDelaySec += runTrainDelaySec;
+				multiRunTotals.eventTriggers += runEventTriggers;
+				multiRunTotals.eventDelaySec += runEventDelaySec;
 			}
 
 			emit runProgress(++completedRuns, numRuns);
@@ -823,12 +869,14 @@ void SimulationWorker::runMulti(const QString &networkFile,
 			stats.push_back(row);
 		}
 
-		emit multiRunFinished(stats, completedRuns.load());
+		multiRunTotals.otherDelaySec =
+			totalTrainDelaySec - multiRunTotals.eventDelaySec;
+		emit multiRunFinished(stats, multiRunTotals, completedRuns.load());
 	}
 	catch (const SimulationStopException &)
 	{
 		/* Stopped mid-run — still emit partial stats if we have any */
-		emit multiRunFinished(QVector<TrainStatRow>(), 0);
+		emit multiRunFinished(QVector<TrainStatRow>(), MultiRunTotals{}, 0);
 	}
 	catch (const std::exception &e)
 	{

@@ -47,9 +47,10 @@ class SimDashboard : public QTextEdit
 	void setSelection(const QSet<QString> &trains,
 					  const QSet<QString> &events);
 	/** Show aggregated multi-run statistics table. */
-	void showCompare(const QVector<CompareRow> &rows, int runsEach);
+	void showCompare(const QVector<CompareRow> &rows,
+					 const QVector<CompareEventRow> &events, int runsEach);
 	void showMultiRunStats(const QVector<TrainStatRow> &stats,
-						   int completedRuns);
+						   const MultiRunTotals &totals, int completedRuns);
 	void clear();
 
   signals:

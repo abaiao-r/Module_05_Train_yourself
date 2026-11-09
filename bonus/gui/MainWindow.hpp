@@ -92,8 +92,10 @@ class MainWindow : public QMainWindow
 	void onSpeedChanged(int value);
 	void onFitGraph();
 	void onRunProgress(int currentRun, int totalRuns);
-	void onCompareFinished(QVector<CompareRow> rows, int runsEach);
-	void onMultiRunFinished(QVector<TrainStatRow> stats, int completedRuns);
+	void onCompareFinished(QVector<CompareRow> rows,
+						   QVector<CompareEventRow> events, int runsEach);
+	void onMultiRunFinished(QVector<TrainStatRow> stats, MultiRunTotals totals,
+							int completedRuns);
 	void onMutationApplied(QString description);
 	void onMutationRejected(QString reason);
 	void onLiveNodeAdded(QString name);

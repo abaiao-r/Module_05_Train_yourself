@@ -421,7 +421,7 @@ void SimDashboard::renderAnalysis()
 				.arg(e.durationSec / 60.0, 0, 'f', 1);
 			if (o)
 				inner += QString("<br><span style='color:%1;'>%2 of delay "
-								 "added; e.g. %3</span>")
+								 "of direct event delay; e.g. %3</span>")
 							 .arg(C_DIM, fmtTime(o->totalDelaySec),
 								  o->trains.join(", ").toHtmlEscaped());
 			html += card(inner, sel ? "#ff4da6" : C_YELLOW);
@@ -465,7 +465,36 @@ void SimDashboard::renderAnalysis()
 				 .arg(C_YELLOW, r.cause.toHtmlEscaped()));
 		t += "</tr>";
 	}
-	html += t + "</table></body>";
+	html += t + "</table>";
+	double totalExpected = 0.0, totalActual = 0.0, totalDelay = 0.0;
+	double totalEventDelay = 0.0;
+	int totalEventHits = 0;
+	for (const auto &r : rows)
+	{
+		totalExpected += r.expectedSec;
+		totalActual += r.actualSec;
+		totalDelay += r.delaySec;
+	}
+	for (const auto &event : _outcomes)
+	{
+		totalEventHits += event.hits;
+		totalEventDelay += event.totalDelaySec;
+	}
+	html += card(
+		QString("<b style='color:%1;'>TOTALS</b><br>"
+				"<span style='color:%2;'>Estimated trip time:</span> %3"
+				"&nbsp;&nbsp; <span style='color:%4;'>Actual trip time:</span> %5"
+				"&nbsp;&nbsp; <span style='color:%6;'>Total train delay "
+				"(events + traffic):</span> %7"
+				"&nbsp;&nbsp; <span style='color:%8;'>Events:</span> %9x"
+				" &middot; direct event delay %10")
+			.arg(C_TITLE, C_DIM, fmtTime(totalExpected), C_CYAN,
+				 fmtTime(totalActual), C_RED, fmtTime(totalDelay))
+			.arg(C_YELLOW)
+			.arg(totalEventHits)
+			.arg(fmtTime(totalEventDelay)),
+		C_CYAN);
+	html += "</body>";
 	setHtml(html);
 	verticalScrollBar()->setValue(scroll);
 }
@@ -529,6 +558,7 @@ void SimDashboard::showResults(const QStringList &results)
 }
 
 void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
+									 const MultiRunTotals &totals,
 									 int completedRuns)
 {
 	QString html = QString("<body style='background-color:%1;'>").arg(C_PANEL);
@@ -536,7 +566,7 @@ void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
 					QString("%1 runs").arg(completedRuns));
 	QString t = QString("<table width='100%' cellspacing='0' cellpadding='5'>"
 						"<tr>");
-	for (const char *h : {"Train", "Est.", "Avg", "Min", "Max", "Delay"})
+	for (const char *h : {"Train", "Est.", "Avg", "Min", "Max", "Avg delay"})
 		t += QString("<td><b style='color:%1;'>%2</b></td>").arg(C_CYAN, h);
 	t += "</tr>";
 	for (const auto &s : stats)
@@ -569,11 +599,34 @@ void SimDashboard::showMultiRunStats(const QVector<TrainStatRow> &stats,
 				 "<td style='color:%2;'><b>%6</b></td></tr>")
 			 .arg(C_PANEL, C_DIM, fmtTime(tEst), C_YELLOW, fmtTime(tAvg),
 				  fmtTime(tDelay));
-	html += t + "</table></body>";
+	html += t + "</table>";
+	html += card(
+		QString("<b style='color:%1;'>DELAY BREAKDOWN across %2 completed "
+				"runs</b><br>"
+				"<span style='color:%3;'>Direct event-added delay:</span> %4"
+				"&nbsp;&nbsp; <span style='color:%5;'>Other train delay "
+				"(e.g. traffic/waiting):</span> %6"
+				"&nbsp;&nbsp; <span style='color:%7;'>Event triggers:</span> %8"
+				"<br><span style='color:%9;'>Only direct event-added time is "
+				"attributed to events. Other delay includes traffic/waiting, "
+				"including any secondary effects of events.</span>")
+			.arg(C_TITLE)
+			.arg(completedRuns)
+			.arg(C_YELLOW)
+			.arg(fmtTime(totals.eventDelaySec))
+			.arg(C_CYAN)
+			.arg(fmtTime(totals.otherDelaySec))
+			.arg(C_YELLOW)
+			.arg(totals.eventTriggers)
+			.arg(C_DIM),
+		C_CYAN);
+	html += "</body>";
 	setHtml(html);
 }
 
-void SimDashboard::showCompare(const QVector<CompareRow> &rows, int runsEach)
+void SimDashboard::showCompare(const QVector<CompareRow> &rows,
+							   const QVector<CompareEventRow> &events,
+							   int runsEach)
 {
 	QString html = QString("<body style='background-color:%1;'>").arg(C_PANEL);
 	html += heading(QString::fromUtf8("Mode comparison \xE2\x9C\x93"),
@@ -615,6 +668,51 @@ void SimDashboard::showCompare(const QVector<CompareRow> &rows, int runsEach)
 	};
 	html += table("Average travel time", false);
 	html += table("Average delay (events + waiting for other trains)", true);
+	if (events.isEmpty())
+		html += QString("<p style='color:%1;'>No events configured.</p>")
+					.arg(C_DIM);
+	else
+	{
+		QString eventTable = QString(
+			"<p style='color:%1;'><b>Event triggers and direct delay "
+			"(totals across %2 runs each)</b></p>"
+			"<span style='color:%1;'>Direct event delay is the time added by "
+			"events themselves; train delay above also includes traffic "
+			"waiting.</span><br>"
+			"<table width='100%' cellspacing='0' cellpadding='5'><tr>")
+								 .arg(C_DIM)
+								 .arg(runsEach);
+		for (const char *h : {"Event", "Distance", "Solo", "Adaptive",
+							  "Cooperative", "CBS"})
+			eventTable += QString("<td><b style='color:%1;'>%2</b></td>")
+							  .arg(C_CYAN, h);
+		eventTable += "</tr>";
+		int totalHits[5] = {};
+		double totalEventDelay[5] = {};
+		for (const auto &event : events)
+		{
+			eventTable += QString("<tr bgcolor='%1'><td>%2</td>")
+							  .arg(C_CARD, event.name.toHtmlEscaped());
+			for (int m = 0; m < 5; ++m)
+			{
+				totalHits[m] += event.triggers[m];
+				totalEventDelay[m] += event.delaySec[m];
+				eventTable += QString("<td style='color:%1;'>%2x / %3</td>")
+								  .arg(C_TITLE)
+								  .arg(event.triggers[m])
+								  .arg(fmtTime(event.delaySec[m]));
+			}
+			eventTable += "</tr>";
+		}
+		eventTable += QString("<tr bgcolor='%1'><td><b>TOTAL</b></td>")
+						  .arg(C_PANEL);
+		for (int m = 0; m < 5; ++m)
+			eventTable += QString("<td style='color:%1;'><b>%2x / %3</b></td>")
+							  .arg(C_YELLOW)
+							  .arg(totalHits[m])
+							  .arg(fmtTime(totalEventDelay[m]));
+		html += eventTable + "</tr></table>";
+	}
 	html += "</body>";
 	setHtml(html);
 }
