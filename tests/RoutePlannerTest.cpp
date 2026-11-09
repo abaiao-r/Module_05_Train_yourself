@@ -70,6 +70,42 @@ class ForcedViaC : public IRoutePlanner
 	const char *name() const override { return "stub"; }
 };
 
+class CbsScoringPathfinder : public IPathfinding
+{
+  public:
+	std::vector<std::shared_ptr<Node>> findPath(
+		const std::string &start, const std::string &,
+		const RailNetwork &network,
+		PathWeightMode = PathWeightMode::Distance) const override
+	{
+		return path(network, start == "A"
+								 ? std::vector<std::string>{"A", "B", "D"}
+								 : std::vector<std::string>{"D", "B", "A"});
+	}
+
+	std::vector<std::shared_ptr<Node>> findConstrainedPath(
+		const std::string &start, const std::string &,
+		const RailNetwork &network, const ForbiddenEdges &forbidden,
+		const SegmentEventRisk &, double) const override
+	{
+		if (forbidden.empty())
+			return findPath(start, "", network);
+		return path(network, start == "A"
+								 ? std::vector<std::string>{"A", "C", "D"}
+								 : std::vector<std::string>{"D", "C", "A"});
+	}
+
+  private:
+	static std::vector<std::shared_ptr<Node>> path(
+		const RailNetwork &network, const std::vector<std::string> &names)
+	{
+		std::vector<std::shared_ptr<Node>> out;
+		for (const auto &name : names)
+			out.push_back(network.findNode(name));
+		return out;
+	}
+};
+
 static std::unique_ptr<Train> trainAt(const std::string &name, double dep,
 									  const std::string &from = "A",
 									  const std::string &to = "D")
@@ -535,6 +571,36 @@ int main()
 							  msg);
 				  ASSERT_TRUE(c <= prio, msg);
 				  ASSERT_NEAR(1440.0, c, 1.0, msg);
+				  return true;
+			  });
+
+	suite.run("cbs: whole-fleet score includes expected event delay",
+			  [&](std::string &msg) {
+				  TrainFactory::resetIdCounter();
+				  RailNetwork net = diamond(10.0);
+				  auto t1 = trainAt("T1", 28800.0, "A", "D");
+				  auto t2 = trainAt("T2", 28600.0, "D", "A");
+				  CbsScoringPathfinder pathfinder;
+				  FleetSnapshot fleet{
+					  net,
+					  {t1.get(), t2.get()},
+					  PathWeightMode::Adaptive,
+					  {{"A->C", 5.0}},
+					  pathfinder,
+					  true};
+				  fleet.evaluate = [](const std::vector<Route> &routes) {
+					  if (names(routes[0]) == "ACD")
+						  return 100.0;
+					  if (names(routes[1]) == "DCA")
+						  return 101.0;
+					  return 200.0;
+				  };
+
+				  CbsPlanner cbs;
+				  const auto routes = cbs.planAll(fleet);
+				  ASSERT_EQ(1, cbs.lastExpansions(), msg);
+				  ASSERT_STR_EQ("ABD", names(routes[0]), msg);
+				  ASSERT_STR_EQ("DCA", names(routes[1]), msg);
 				  return true;
 			  });
 

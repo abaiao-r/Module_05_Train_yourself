@@ -61,6 +61,12 @@ diagram](DIAGRAMS.md#path-weight-modes), [fleet-planner
 diagram](DIAGRAMS.md#fleet-planner-modes), and [planning
 sequence](DIAGRAMS.md#fleet-planning-sequence).
 
+Cooperative and CBS rank candidate route sets using an event-free fleet
+dry-run plus the expected event delay on each route (`probability × duration`
+per traversed segment). CBS uses that same score to order its conflict
+branches. Events still trigger randomly during simulation; the expected cost
+guides route selection but does not predict which events will occur.
+
 Pass `--distance`, `--solo`, or `--adaptive` on the command line (mutually
 exclusive). If no route exists for a train, the simulation aborts with a
 `runtime_error` naming that train (`No path found for <train> (A -> B)`);

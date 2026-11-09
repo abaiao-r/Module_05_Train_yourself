@@ -23,8 +23,9 @@
  * expanded best-first by fleet cost. The prioritized solution is the
  * upper bound, so the result is never costlier than PrioritizedPlanner.
  *
- * Cost: FleetSnapshot::evaluate if provided, else the prioritized
- * free-flow timeline. Conflicts exist only when lanes are enabled.
+ * Cost: event-free FleetSnapshot::evaluate if provided, else the
+ * prioritized free-flow timeline, plus expected event delay on each route.
+ * Conflicts exist only when lanes are enabled.
  */
 class CbsPlanner : public IRoutePlanner
 {
@@ -126,9 +127,19 @@ class CbsPlanner : public IRoutePlanner
 	static double cost(const FleetSnapshot &fleet,
 					   const std::vector<Route> &routes)
 	{
-		return fleet.evaluate ? fleet.evaluate(routes)
-							  : PrioritizedPlanner::timelineSeconds(fleet,
-																	routes);
+		double total = fleet.evaluate
+						   ? fleet.evaluate(routes)
+						   : PrioritizedPlanner::timelineSeconds(fleet, routes);
+		for (const Route &route : routes)
+			for (size_t k = 0; k + 1 < route.size(); ++k)
+			{
+				const std::string key = route[k]->getName() + "->"
+										+ route[k + 1]->getName();
+				auto risk = fleet.eventRisk.find(key);
+				if (risk != fleet.eventRisk.end())
+					total += risk->second;
+			}
+		return total;
 	}
 
 	static bool replan(const FleetSnapshot &fleet, Node &node, size_t who)
