@@ -46,6 +46,7 @@
 #include <QTabWidget>
 #include <QTemporaryFile>
 #include <QTextStream>
+#include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -422,13 +423,17 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-	QSettings st;
-	st.setValue("geometry", saveGeometry());
-	st.setValue("runs", _runsSpinBox->value());
-	st.setValue("animate", _animateCheck->isChecked());
-	st.setValue("multiLine", _linesCheck->isChecked());
-	st.setValue("mode", _modeCombo->currentIndex());
-	st.setValue("showLog", _showLogAct->isChecked());
+	/* A demo run must not overwrite the user's saved window/options. */
+	if (!_demo)
+	{
+		QSettings st;
+		st.setValue("geometry", saveGeometry());
+		st.setValue("runs", _runsSpinBox->value());
+		st.setValue("animate", _animateCheck->isChecked());
+		st.setValue("multiLine", _linesCheck->isChecked());
+		st.setValue("mode", _modeCombo->currentIndex());
+		st.setValue("showLog", _showLogAct->isChecked());
+	}
 
 	_simThread.quit();
 	_simThread.wait();
@@ -1455,6 +1460,30 @@ void MainWindow::refreshLists()
 			.arg(_eventList->count()));
 }
 
+void MainWindow::loadNetworkPath(const QString &path)
+{
+	RailNetwork net;
+	std::vector<Event> events;
+	parseNetworkAuto(path.toStdString(), net, events);
+	_network = std::move(net);
+	_eventDefs = std::move(events);
+	_networkFilePath = path;
+
+	_scene->setLayoutFile(layoutPathFor(path));
+	_scene->loadFromNetwork(_network);
+	_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
+					 Qt::KeepAspectRatio);
+	refreshLists();
+}
+
+void MainWindow::loadTrainPath(const QString &path)
+{
+	auto trains = InputHandler::parseTrainFile(path.toStdString());
+	_trainDefs = std::move(trains);
+	_trainFilePath = path;
+	refreshLists();
+}
+
 void MainWindow::onLoadNetwork()
 {
 	if (guardSimRunning("load a network"))
@@ -1468,18 +1497,7 @@ void MainWindow::onLoadNetwork()
 
 	try
 	{
-		RailNetwork net;
-		std::vector<Event> events;
-		parseNetworkAuto(path.toStdString(), net, events);
-		_network = std::move(net);
-		_eventDefs = std::move(events);
-		_networkFilePath = path;
-
-		_scene->setLayoutFile(layoutPathFor(path));
-		_scene->loadFromNetwork(_network);
-		_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
-						 Qt::KeepAspectRatio);
-		refreshLists();
+		loadNetworkPath(path);
 		logSuccess("Loaded network: " + QFileInfo(path).fileName());
 	}
 	catch (const std::exception &e)
@@ -1511,10 +1529,7 @@ void MainWindow::onLoadTrains()
 
 	try
 	{
-		auto trains = InputHandler::parseTrainFile(path.toStdString());
-		_trainDefs = std::move(trains);
-		_trainFilePath = path;
-		refreshLists();
+		loadTrainPath(path);
 		logSuccess("Loaded " + QString::number(_trainDefs.size())
 				   + " train(s) from " + QFileInfo(path).fileName());
 		if (_network.getNodeNames().empty())
@@ -1573,18 +1588,7 @@ void MainWindow::onLoadPresetNetwork(int index)
 
 	try
 	{
-		RailNetwork net;
-		std::vector<Event> events;
-		parseNetworkAuto(path.toStdString(), net, events);
-		_network = std::move(net);
-		_eventDefs = std::move(events);
-		_networkFilePath = path;
-
-		_scene->setLayoutFile(layoutPathFor(path));
-		_scene->loadFromNetwork(_network);
-		_view->fitInView(_scene->itemsBoundingRect().adjusted(-60, -60, 60, 60),
-						 Qt::KeepAspectRatio);
-		refreshLists();
+		loadNetworkPath(path);
 		logSuccess("Loaded preset network: "
 				   + _presetNetworkCombo->itemText(index));
 	}
@@ -1608,10 +1612,7 @@ void MainWindow::onLoadPresetTrains(int index)
 
 	try
 	{
-		auto trains = InputHandler::parseTrainFile(path.toStdString());
-		_trainDefs = std::move(trains);
-		_trainFilePath = path;
-		refreshLists();
+		loadTrainPath(path);
 		logSuccess("Loaded preset trains: "
 				   + _presetTrainCombo->itemText(index)
 				   + " (" + QString::number(_trainDefs.size()) + " trains)");
@@ -3461,6 +3462,11 @@ void MainWindow::onSimTick(double simTime,
 	_lastSnaps = snapshots;
 	_scene->updateTrains(simTime, snapshots);
 	_dashboard->update(simTime, snapshots);
+	if (_demo)
+	{
+		demoSelectLive(snapshots);
+		demoCaptureFrame();
+	}
 	_worker->frameConsumed();
 
 	int h = static_cast<int>(simTime) / 3600;
@@ -3500,6 +3506,15 @@ void MainWindow::onSimFinished(QStringList results)
 	else
 		_dashboard->showResults(results);
 	statusBar()->showMessage("Simulation finished successfully");
+	if (_demo)
+	{
+		/* Re-draw the requested routes on the finished run. */
+		for (const auto &name : _demoOpts.select)
+			for (auto it = _runInfo.cbegin(); it != _runInfo.cend(); ++it)
+				if (it.value().name == name && !_selTrains.contains(it.key()))
+					toggleTrain(it.key());
+		demoFinish();
+	}
 }
 
 void MainWindow::resetSelections()
@@ -3566,6 +3581,12 @@ void MainWindow::onSimError(const QString &msg)
 	updateRunState();
 	_stopBtn->setEnabled(false);
 	_stopBtn->setText("  Stop  ");
+	if (_demo && _demoOpts.quit)
+	{
+		qCritical("Demo: simulation error: %s", qPrintable(msg));
+		QCoreApplication::exit(1);
+		return;
+	}
 
 	/* Try to give a more specific diagnosis */
 	QString detail = msg;
@@ -3699,6 +3720,8 @@ void MainWindow::onCompareFinished(QVector<CompareRow> rows,
 		_hSplit->setSizes({t - DASH_STATS_W, DASH_STATS_W});
 	}
 	statusBar()->showMessage("Comparison finished");
+	if (_demo)
+		demoFinish();
 }
 
 void MainWindow::onMultiRunFinished(QVector<TrainStatRow> stats,
@@ -3740,6 +3763,8 @@ void MainWindow::onMultiRunFinished(QVector<TrainStatRow> stats,
 
 	statusBar()->showMessage(
 		QString("Multi-run finished: %1 runs completed").arg(completedRuns));
+	if (_demo)
+		demoFinish();
 }
 
 void MainWindow::onSpeedChanged(int value)
@@ -3844,4 +3869,123 @@ QString MainWindow::writeTemporaryTrainFile() const
 			<< "\n";
 	}
 	return tmpPath;
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Demo capture (TrainGUI --demo-*): scripted runs for recording videos   */
+/* ---------------------------------------------------------------------- */
+
+bool MainWindow::startDemo(const DemoOptions &opts)
+{
+	static const QStringList modes = {"distance", "solo", "adaptive",
+									  "cooperative", "cbs", "compare"};
+	const int modeIdx = modes.indexOf(opts.mode.toLower());
+	if (modeIdx < 0)
+	{
+		logError("Demo: unknown mode '" + opts.mode + "'");
+		return false;
+	}
+	if (!opts.captureDir.isEmpty() && !QDir().mkpath(opts.captureDir))
+	{
+		logError("Demo: cannot create " + opts.captureDir);
+		return false;
+	}
+	_demo = true;
+	_demoOpts = opts;
+	_demoFrame = 0;
+	_demoPendingSelect = opts.select;
+	_worker->setLockstep(!opts.captureDir.isEmpty());
+
+	{
+		QSignalBlocker block(_linesCheck);
+		_linesCheck->setChecked(opts.lines);
+	}
+	try
+	{
+		loadNetworkPath(opts.network);
+		loadTrainPath(opts.trains);
+	}
+	catch (const std::exception &e)
+	{
+		logError("Demo: " + QString::fromStdString(e.what()));
+		return false;
+	}
+	_modeCombo->setCurrentIndex(modeIdx);
+	_runsSpinBox->setValue(std::max(1, opts.runs));
+	_animateCheck->setChecked(true);
+	_speedSlider->setValue(std::clamp(
+		static_cast<int>(std::lround(20 + 10 * std::log10(opts.speed))), 0,
+		30));
+	_worker->setSpeedMultiplier(opts.speed);
+	_showLogAct->setChecked(false);
+	/* Recording layout: map, toolbar (shows the Strategy) and dashboard. */
+	for (auto *dock : findChildren<QDockWidget *>())
+		dock->hide();
+	menuBar()->hide();
+	for (auto *legend : _view->findChildren<QLabel *>())
+		legend->hide();
+
+	/* Let the window settle at its final size before fitting and running. */
+	QTimer::singleShot(300, this, [this]() {
+		onFitGraph();
+		onRunSimulation();
+	});
+	return true;
+}
+
+void MainWindow::demoSelectLive(const QVector<TrainSnapshot> &snapshots)
+{
+	for (const auto &s : snapshots)
+	{
+		if (!_demoPendingSelect.contains(s.name) || s.path.isEmpty())
+			continue;
+		_demoPendingSelect.removeAll(s.name);
+		const QString key = s.name + QString::number(s.id);
+		if (!_selTrains.contains(key))
+			toggleTrain(key);
+	}
+}
+
+void MainWindow::demoCaptureFrame()
+{
+	if (_demoOpts.captureDir.isEmpty())
+		return;
+	const QString n = QString("%1").arg(_demoFrame++, 5, 10, QChar('0'));
+	const QString dir = _demoOpts.captureDir;
+	/* "split" saves the map and the dashboard apart, to compose later. */
+	if (_demoOpts.target == "split")
+	{
+		/* Rendered at a high pixel ratio so text stays sharp when the
+		   frames are composed and scaled down. */
+		auto render = [](QWidget *w, double ratio, const QString &file) {
+			QImage img(w->size() * ratio, QImage::Format_ARGB32);
+			img.setDevicePixelRatio(ratio);
+			img.fill(Qt::transparent);
+			w->render(&img);
+			img.save(file);
+		};
+		render(_view, 2.0, dir + "/view_" + n + ".png");
+		render(_dashboard, 3.0, dir + "/dash_" + n + ".png");
+		return;
+	}
+	QWidget *w = this;
+	if (_demoOpts.target == "view")
+		w = _view;
+	else if (_demoOpts.target == "dashboard")
+		w = _dashboard;
+	w->grab().save(dir + "/frame_" + n + ".png");
+}
+
+void MainWindow::demoFinish()
+{
+	/* Give the result panels one event-loop pass to lay out first. */
+	QTimer::singleShot(100, this, [this]() {
+		for (int i = 0; i < _demoOpts.holdFrames; ++i)
+			demoCaptureFrame();
+		if (!_demoOpts.captureDir.isEmpty())
+			logSuccess(QString("Demo: %1 frames in %2")
+						   .arg(_demoFrame).arg(_demoOpts.captureDir));
+		if (_demoOpts.quit)
+			QCoreApplication::quit();
+	});
 }

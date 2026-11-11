@@ -192,6 +192,11 @@ class SimulationWorker : public QObject
 	    worker only sends a new frame when the previous one is done. */
 	void frameConsumed();
 
+	/** Lockstep (used by demo capture): wait for the GUI to consume each
+	    frame instead of dropping it, so frames are evenly spaced in
+	    simulation time. */
+	void setLockstep(bool on);
+
 	/**
 	 * Thread-safe: queue an addition into the currently-running
 	 * simulation. Returns false (no-op) if no simulation is running.
@@ -268,6 +273,7 @@ class SimulationWorker : public QObject
 	std::atomic<double> _speedMult{1.0};
 	std::atomic<bool> _stopRequested{false};
 	std::atomic<int> _pendingFrames{0};
+	std::atomic<bool> _lockstep{false};
 	mutable std::mutex _liveSimMutex;
 	Simulation *_liveSim = nullptr;
 };

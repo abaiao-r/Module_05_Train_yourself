@@ -1,0 +1,27 @@
+Node Harbor
+Node Old_Town
+Node Ridge
+Node Central
+Node Airport
+Node Campus
+Node Stadium
+Node Market
+Node Beach
+Node Hills
+Rail Harbor Old_Town 8.0 60.0 1
+Rail Old_Town Central 8.0 60.0 1
+Rail Harbor Ridge 12.0 200.0 1
+Rail Ridge Central 12.0 200.0 1
+Rail Central Airport 14.0 160.0 2
+Rail Central Campus 14.0 120.0 1
+Rail Airport Campus 14.0 120.0 1
+Rail Central Stadium 10.0 120.0 1
+Rail Stadium Campus 14.0 100.0 1
+Rail Harbor Beach 10.0 100.0 1
+Rail Beach Market 12.0 100.0 1
+Rail Market Stadium 12.0 120.0 1
+Rail Old_Town Market 9.0 80.0 1
+Rail Ridge Hills 12.0 120.0 1
+Rail Hills Airport 14.0 160.0 1
+Event Signal_fault 0.3 15m Central Airport
+Event Crowd 0.3 10m Central

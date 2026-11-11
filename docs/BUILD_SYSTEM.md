@@ -21,7 +21,7 @@ Plain `Makefile` with:
 | Target | Description |
 |--------|-------------|
 | `make` | Build the CLI simulator |
-| `make test` | Run all 555 tests |
+| `make test` | Run all 630 tests |
 | `make run` | Run with sample data |
 | `make run-solo` | Run with solo (fastest-alone) routing |
 | `make run-animate` | Run with terminal animation |
@@ -60,27 +60,29 @@ make setup      # check & install all dependencies (compiler, make, Qt >= 6.3)
 
 ## Testing
 
-**555 tests** across **16 suites**, all using the custom `TestFramework.hpp`:
+**630 tests** across **18 suites**, all using the custom `TestFramework.hpp`:
 
 | Suite | Tests | Coverage |
 |-------|------:|----------|
 | NodeTest | 5 | Construction, naming, exceptions |
-| RailNetworkTest | 15 | Graph operations, validation |
+| RailNetworkTest | 18 | Graph operations, validation |
 | TrainTest | 16 | Properties, physics calculations |
 | EventTest | 14 | Probability, duration, rail events |
 | DijkstraTest | 11 | Shortest path, weight modes |
-| InputHandlerTest | 32 | Parsing, validation, error handling |
+| InputHandlerTest | 42 | Parsing, validation, error handling |
 | TrainFactoryTest | 16 | Factory method, ID assignment, validation |
 | OutputManagerTest | 5 | Formatting, console output |
-| IntegrationTest | 7 | End-to-end with .result file checks |
+| IntegrationTest | 8 | End-to-end with .result file checks |
 | EdgeCaseTest | 9 | Boundary values, error paths |
 | CombinationTest | 315 | Exhaustive parameter combinations |
-| EndToEndTest | 33 | Subprocess binary validation, exit codes |
+| EndToEndTest | 43 | Subprocess binary validation, exit codes |
 | InputComboTest | 36 | All input file pairs, ASan leak checks |
 | LiveMutationTest | 14 | Live AddNode/AddRail/AddEvent/AddTrain mutations, rejections |
 | CongestionTest | 18 | Congestion detection and adaptive rerouting |
 | AdaptiveRerouteTest | 9 | Replay-ETA reroute decision, cooldown |
-| **Total** | **555** | |
+| LinesTest | 19 | Multi-line rails, no head-on, per-line speeds and events |
+| RoutePlannerTest | 32 | Cooperative and CBS route planners, replanning |
+| **Total** | **630** | |
 
 ### Test Framework
 
@@ -93,7 +95,7 @@ Custom `TestFramework.hpp` provides:
 ### Running Tests
 
 ```bash
-make test     # run all 555 tests
+make test     # run all 630 tests
 ```
 
 ---

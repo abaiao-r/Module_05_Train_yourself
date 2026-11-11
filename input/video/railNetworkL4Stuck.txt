@@ -1,0 +1,8 @@
+Node Harbor
+Node Old_Town
+Node Ridge
+Node Central
+Rail Harbor Old_Town 8.0 60.0 1
+Rail Old_Town Central 8.0 60.0 1
+Rail Harbor Ridge 12.0 200.0 1
+Rail Ridge Central 12.0 200.0 1
