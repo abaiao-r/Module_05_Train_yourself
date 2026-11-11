@@ -6,6 +6,12 @@ A physics-based train simulation engine that models rail traffic across a config
 
 ---
 
+
+
+https://github.com/user-attachments/assets/189c7669-e0c2-42a1-b3cb-472f95692029
+
+
+
 ## Features
 
 ### Mandatory
