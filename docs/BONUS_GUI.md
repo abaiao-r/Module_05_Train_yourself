@@ -297,6 +297,7 @@ a display.
 | `--demo-size WxH` | Window size (default `1200x800`) |
 | `--demo-select A,B` | Trains whose route is highlighted |
 | `--demo-hold N` | Extra copies of the last frame |
+| `--demo-clean` | Hide rail, lane and train labels (station names stay), for dense maps |
 | `--demo-quit` | Exit when the run ends (exit code 1 on a simulation error) |
 
 In demo mode the worker runs in *lockstep*: it waits until the GUI has drawn

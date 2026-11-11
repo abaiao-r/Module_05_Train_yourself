@@ -3952,6 +3952,13 @@ void MainWindow::demoCaptureFrame()
 		return;
 	const QString n = QString("%1").arg(_demoFrame++, 5, 10, QChar('0'));
 	const QString dir = _demoOpts.captureDir;
+	/* Clean maps keep only the station names (z 11); rail, lane and train
+	   labels are hidden. Train labels are re-shown every tick, so this
+	   runs before each capture. */
+	if (_demoOpts.clean)
+		for (QGraphicsItem *it : _scene->items())
+			if (it->type() == QGraphicsTextItem::Type && it->zValue() != 11)
+				it->setVisible(false);
 	/* "split" saves the map and the dashboard apart, to compose later. */
 	if (_demoOpts.target == "split")
 	{

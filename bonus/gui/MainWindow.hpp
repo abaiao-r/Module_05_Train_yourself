@@ -55,6 +55,7 @@ struct DemoOptions
 	QString target = "window";  // window|view|dashboard
 	QStringList select;     // train names whose route is highlighted
 	int holdFrames = 0;     // extra frames of the final result
+	bool clean = false;     // hide rail and train labels in captures
 	bool quit = false;      // quit when the run and capture are done
 };
 

@@ -101,4 +101,89 @@ for i in range(30):
     preset = rng.choice([COMMUTER, COMMUTER, EXPRESS])
     trains.append(f"T{i + 1:02d} {preset} {a} {b} 08h{(i // 3) * 2:02d} 00h02")
 write("L6RushHour", L6_NODES, L6_RAILS, trains, L6_EVENTS)
+
+# L7 Greater Lisbon: CP/Fertagus heavy rail (OSM positions) plus the Metro on
+# the same map. The two systems share no track: Metro stations that have the
+# same name as a CP station get a "_M" suffix, so no train can cross between
+# them. The schematic Metro layout is fitted onto the OSM one (least-squares
+# affine transform over the shared interchange stations).
+def read_net(path):
+    nodes, rails, events = [], [], []
+    for ln in open(path, encoding="utf-8"):
+        t = ln.split()
+        if not t:
+            continue
+        {"Node": nodes, "Rail": rails, "Event": events}.get(t[0], []).append(t[1:])
+    return [n[0] for n in nodes], rails, events
+
+def read_layout(path):
+    pos = {}
+    for ln in open(path, encoding="utf-8"):
+        t = ln.split()
+        if len(t) == 3 and not ln.startswith("#"):
+            pos[t[0]] = (float(t[1]), float(t[2]))
+    return pos
+
+def affine_fit(src, dst):
+    """Least-squares x' = a*x + b*y + c, y' = d*x + e*y + f (normal equations)."""
+    def solve(A, b):
+        n = len(A)
+        M = [row[:] + [b[i]] for i, row in enumerate(A)]
+        for c in range(n):
+            p = max(range(c, n), key=lambda r: abs(M[r][c]))
+            M[c], M[p] = M[p], M[c]
+            for r in range(n):
+                if r != c:
+                    k = M[r][c] / M[c][c]
+                    M[r] = [x - k * y for x, y in zip(M[r], M[c])]
+        return [M[i][n] / M[i][i] for i in range(n)]
+    rows = [(x, y, 1.0) for x, y in src]
+    AtA = [[sum(r[i] * r[j] for r in rows) for j in range(3)] for i in range(3)]
+    cx = solve(AtA, [sum(r[i] * q[0] for r, q in zip(rows, dst)) for i in range(3)])
+    cy = solve(AtA, [sum(r[i] * q[1] for r, q in zip(rows, dst)) for i in range(3)])
+    return lambda x, y: (cx[0] * x + cx[1] * y + cx[2], cy[0] * x + cy[1] * y + cy[2])
+
+def greater_lisbon():
+    src = os.path.join(ROOT, "input")
+    net = lambda n: os.path.join(src, "railNetworkPrintFolder", f"railNetwork{n}")
+    trn = lambda n: os.path.join(src, "trainPrintFolder", f"trainPrint{n}.txt")
+    cp_nodes, cp_rails, _ = read_net(net("Bonus14GreaterLisbon") + ".txt")
+    m_nodes, m_rails, m_events = read_net(net("Bonus11LisbonMetro") + ".txt")
+    cp_pos = read_layout(net("Bonus14GreaterLisbon") + ".layout")
+    m_pos = read_layout(net("Bonus11LisbonMetro") + ".layout")
+    shared = sorted(set(cp_nodes) & set(m_nodes))
+    ren = {n: (n + "_M" if n in shared else n) for n in m_nodes}
+    fit = affine_fit([m_pos[n] for n in shared], [cp_pos[n] for n in shared])
+    rails = cp_rails + [[ren[r[0]], ren[r[1]]] + r[2:] for r in m_rails]
+    events = [[e[0]] + [ren.get(x, x) for x in e[1:]] for e in m_events]
+    pos = dict(cp_pos)
+    for n in m_nodes:
+        pos[ren[n]] = fit(*m_pos[n])
+    trains = []
+    for name, ren_map in (("Bonus14GreaterLisbon", {}), ("Bonus11LisbonMetro", ren)):
+        for ln in open(trn(name), encoding="utf-8"):
+            t = ln.split()
+            if len(t) < 9:
+                continue
+            for k in range(4):  # same services every 15 minutes, 08:00-08:45
+                h, m = int(t[7][:2]), int(t[7][3:]) + 15 * k
+                trains.append(" ".join([f"{t[0]}_{k + 1}"] + t[1:5]
+                                       + [ren_map.get(t[5], t[5]), ren_map.get(t[6], t[6]),
+                                          f"{h + m // 60:02d}h{m % 60:02d}", t[8]]))
+    name = "L7GreaterLisbon"
+    with open(os.path.join(OUT, f"railNetwork{name}.txt"), "w", encoding="utf-8") as f:
+        for n in cp_nodes + [ren[n] for n in m_nodes]:
+            f.write(f"Node {n}\n")
+        for r in rails:
+            f.write("Rail " + " ".join(r) + "\n")
+        for e in events:
+            f.write("Event " + " ".join(e) + "\n")
+    with open(os.path.join(OUT, f"railNetwork{name}.layout"), "w", encoding="utf-8") as f:
+        f.write("# CP/Fertagus: OSM positions; Metro: schematic fitted onto them\n")
+        for n in cp_nodes + [ren[n] for n in m_nodes]:
+            f.write(f"{n} {pos[n][0]:.0f} {pos[n][1]:.0f}\n")
+    with open(os.path.join(OUT, f"trainPrint{name}.txt"), "w", encoding="utf-8") as f:
+        f.write("\n".join(trains) + "\n")
+
+greater_lisbon()
 print("wrote", OUT)

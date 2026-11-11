@@ -52,8 +52,10 @@ const QCommandLineOption select("demo-select",
 const QCommandLineOption hold("demo-hold",
 	"Extra frames of the final result (default 0).", "n", "0");
 const QCommandLineOption quit("demo-quit", "Quit when done.");
+const QCommandLineOption clean("demo-clean",
+	"Hide rail and train labels; keep station names.");
 cli.addOptions({net, trains, mode, lines, speed, runs, capture, target, size,
-				select, hold, quit});
+				select, hold, quit, clean});
 cli.process(app);
 
 MainWindow win;
@@ -83,6 +85,7 @@ if (cli.isSet(net) || cli.isSet(trains))
 		opts.select = cli.value(select).split(',', Qt::SkipEmptyParts);
 	opts.holdFrames = std::max(0, cli.value(hold).toInt());
 	opts.quit = cli.isSet(quit);
+	opts.clean = cli.isSet(clean);
 	if (!win.startDemo(opts))
 		return 1;
 }

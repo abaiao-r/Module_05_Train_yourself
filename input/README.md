@@ -55,6 +55,7 @@ One invented city that gains one idea per level, built for screen recordings
 | `L4Stuck` / `L4Overtake` | Express behind freight | `Express` arrives 08:33 when stuck, 08:13 when it can overtake |
 | `L5Bridge` | Certain 30 min closure on the fast route | `--solo` waits (08:41); `--adaptive` goes via Old_Town (08:19) |
 | `L6RushHour` | 30 trains, random events | compare planners with `--compare --runs 100` |
+| `L7GreaterLisbon` | Lisbon-inspired model: Metro (50 stations) + CP/Fertagus (71 stations), separate track systems, 96 trains | all trains arrive (`--lines --adaptive`); planners within 1% (`--compare --runs 40`) |
 
 ## Drawing layout (GUI only)
 
