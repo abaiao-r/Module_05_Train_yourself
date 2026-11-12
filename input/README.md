@@ -41,6 +41,22 @@ N=input/railNetworkPrintFolder/railNetwork; T=input/trainPrintFolder/trainPrint
 
 Bonus files are rejected without `--lines` (the line-count token is invalid by design).
 
+## Video levels (`input/video/`, `--lines`)
+
+One invented city that gains one idea per level, built for screen recordings
+(big labels, fixed `.layout` positions). Regenerate with
+`scripts/gen_video_scenarios.py`.
+
+| Pair | Idea | What you should see |
+|------|------|---------------------|
+| `L1Physics` | One train, one rail | `Blue` accelerates, cruises and brakes into Old_Town (08:03:53) |
+| `L2Route` | Short-slow vs long-fast route | `--distance` goes via Old_Town (18 min 40 s); `--solo` via Ridge (11 min 24 s) |
+| `L3HeadOn` / `L3TwoLines` | Opposite trains, 1 vs 2 lines | `Blue` waits for `Red` on one line (08:15); no wait with two (08:11) |
+| `L4Stuck` / `L4Overtake` | Express behind freight | `Express` arrives 08:33 when stuck, 08:13 when it can overtake |
+| `L5Bridge` | Certain 30 min closure on the fast route | `--solo` waits (08:41); `--adaptive` goes via Old_Town (08:19) |
+| `L6RushHour` | 30 trains, random events | compare planners with `--compare --runs 100` |
+| `L7GreaterLisbon` | Lisbon-inspired model: Metro (50 stations) + CP/Fertagus (71 stations), separate track systems, 96 trains | all trains arrive (`--lines --adaptive`); planners within 1% (`--compare --runs 40`) |
+
 ## Drawing layout (GUI only)
 
 A network file may have a sidecar `railNetwork<Name>.layout` with one

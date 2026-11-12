@@ -15,7 +15,7 @@ This is the central index for the project's technical documentation. Each topic 
 | [DESIGN_PATTERNS.md](DESIGN_PATTERNS.md) | Strategy, Factory, Observer, Mediator patterns · Dependency Injection · Orthodox Canonical Form · Class Relationships (UML) · Design Principles (KISS, DRY, Encapsulation, SRP, Separation of Concerns, Interface Segregation) |
 | [CLASS_REFERENCE.md](CLASS_REFERENCE.md) | Per-class API: Node, Edge, RailNetwork, Train, TrainStatus, TrainState, TrainResult, Event, TrainFactory, InputHandler, SimulationData, Simulation, OutputManager, FileOutputObserver, GraphExporter, TerminalAnimDisplay, GUI classes |
 | [DIAGRAMS.md](DIAGRAMS.md) | All 7 UML diagrams: class, state machine, 2 activity, 3 sequence — with rendered PNGs and PlantUML sources |
-| [BUILD_SYSTEM.md](BUILD_SYSTEM.md) | Makefile targets, dependency management (cross-platform), testing (555 tests / 16 suites), CI pipeline |
+| [BUILD_SYSTEM.md](BUILD_SYSTEM.md) | Makefile targets, dependency management (cross-platform), testing (630 tests / 18 suites), CI pipeline |
 
 ### Bonus Features
 
@@ -50,7 +50,7 @@ This is the central index for the project's technical documentation. Each topic 
 
 ```bash
 make            # build CLI
-make test       # 555 tests
+make test       # 630 tests
 make bonus      # build GUI (Qt >= 6.3)
 make setup      # auto-install all dependencies
 ```

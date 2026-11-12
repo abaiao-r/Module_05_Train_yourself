@@ -1,0 +1,2 @@
+Blue 200 0.05 300.0 50.0 Harbor Central 08h00 00h02
+Red 200 0.05 300.0 50.0 Central Harbor 08h06 00h02

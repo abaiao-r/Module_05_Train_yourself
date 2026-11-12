@@ -42,6 +42,23 @@
 
 class QToolButton;
 
+/** Scripted run for recording demo videos (TrainGUI --demo-*). */
+struct DemoOptions
+{
+	QString network;
+	QString trains;
+	QString mode = "solo";  // distance|solo|adaptive|cooperative|cbs|compare
+	bool lines = false;
+	double speed = 1.0;     // same multiplier as the Speed slider
+	int runs = 1;
+	QString captureDir;     // empty: run on screen, no frames saved
+	QString target = "window";  // window|view|dashboard
+	QStringList select;     // train names whose route is highlighted
+	int holdFrames = 0;     // extra frames of the final result
+	bool clean = false;     // hide rail and train labels in captures
+	bool quit = false;      // quit when the run and capture are done
+};
+
 /**
  * Main application window with interactive graph, sidebar lists,
  * preset file browser, and full CRUD for nodes/edges/trains/events.
@@ -53,6 +70,9 @@ class MainWindow : public QMainWindow
   public:
 	explicit MainWindow(QWidget *parent = nullptr);
 	~MainWindow();
+
+	/** Load files, apply options and start the run (see DemoOptions). */
+	bool startDemo(const DemoOptions &opts);
 
   private slots:
 	void onLoadNetwork();
@@ -104,6 +124,11 @@ class MainWindow : public QMainWindow
 
   private:
 	void buildMenus();
+	void loadNetworkPath(const QString &path);
+	void loadTrainPath(const QString &path);
+	void demoCaptureFrame();
+	void demoSelectLive(const QVector<TrainSnapshot> &snapshots);
+	void demoFinish();
 	void buildToolbar();
 	void buildCentralWidget();
 	void buildSidebar();
@@ -182,6 +207,11 @@ class MainWindow : public QMainWindow
 
 	QThread _simThread;
 	SimulationWorker *_worker;
+
+	bool _demo = false;
+	DemoOptions _demoOpts;
+	int _demoFrame = 0;
+	QStringList _demoPendingSelect;
 };
 
 #endif

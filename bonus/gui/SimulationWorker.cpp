@@ -189,6 +189,11 @@ void SimulationWorker::frameConsumed()
 		;
 }
 
+void SimulationWorker::setLockstep(bool on)
+{
+	_lockstep.store(on, std::memory_order_relaxed);
+}
+
 namespace
 {
 /* macOS: bin/TrainGUI.app/Contents/MacOS -> four levels up; other
@@ -474,16 +479,28 @@ void SimulationWorker::runSimulation(const QString &networkFile,
 				if (interval < 1.0) interval = 1.0;
 				if (simTime - lastEmit < interval)
 					return;
+				const bool lockstep =
+					_lockstep.load(std::memory_order_relaxed);
+				if (lockstep)
+				{
+					while (_pendingFrames.load(std::memory_order_acquire) > 0)
+					{
+						if (_stopRequested.load(std::memory_order_relaxed))
+							throw SimulationStopException();
+						QThread::usleep(1000);
+					}
+				}
 				/* The GUI still owns the previous frame: drop this one
 				   rather than queueing events it can never catch up on. */
-				if (_pendingFrames.load(std::memory_order_acquire) > 0)
+				else if (_pendingFrames.load(std::memory_order_acquire) > 0)
 					return;
 				lastEmit = simTime;
 
 				QVector<TrainSnapshot> snaps = buildSnapshots(states, sim);
 				_pendingFrames.fetch_add(1, std::memory_order_acq_rel);
 				emit tick(simTime, snaps);
-				QThread::usleep(FRAME_DELAY_US); // constant ~20 FPS
+				if (!lockstep)
+					QThread::usleep(FRAME_DELAY_US); // constant ~20 FPS
 			});
 
 		sim.run();

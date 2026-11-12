@@ -270,6 +270,41 @@ A colour-coded log panel at the bottom records all actions:
 - **Deferred validation**: Loading network/train files only parses (no cross-validation). Full validation (station existence, route validity) happens at Run time via the simulation worker
 - **Node name validation**: Checked on create/edit to prevent empty or invalid names
 
+### 8. Scripted Demo & Frame Capture
+
+`TrainGUI` accepts `--demo-*` options that load a scenario, run it and save
+every animation frame as a PNG, with no clicks. It is used to record videos of
+the scenarios in `input/video/`. Use `-platform offscreen` to run it without
+a display.
+
+```bash
+./bin/TrainGUI.app/Contents/MacOS/TrainGUI -platform offscreen \
+    --demo-network input/video/railNetworkL5Bridge.txt \
+    --demo-trains  input/video/trainPrintL5Bridge.txt \
+    --demo-mode adaptive --demo-lines --demo-speed 0.3 \
+    --demo-capture /tmp/frames --demo-target split --demo-quit
+```
+
+| Option | Meaning |
+|--------|---------|
+| `--demo-network FILE`, `--demo-trains FILE` | Files to load (a `.layout` sidecar is used if present) |
+| `--demo-mode MODE` | `distance`, `solo`, `adaptive`, `cooperative`, `cbs` or `compare` |
+| `--demo-lines` | Enable multi-line rails |
+| `--demo-speed X` | Speed multiplier; each frame advances 30 s × X of simulated time (min 1 s) |
+| `--demo-runs N` | Runs for multi-run and compare modes |
+| `--demo-capture DIR` | Save `frame_NNNNN.png` per animation frame |
+| `--demo-target T` | `window`, `view`, `dashboard`, or `split` (map and dashboard saved apart as `view_`/`dash_` PNGs at 2× and 3× pixel ratio) |
+| `--demo-size WxH` | Window size (default `1200x800`) |
+| `--demo-select A,B` | Trains whose route is highlighted |
+| `--demo-hold N` | Extra copies of the last frame |
+| `--demo-clean` | Hide rail, lane and train labels (station names stay), for dense maps |
+| `--demo-quit` | Exit when the run ends (exit code 1 on a simulation error) |
+
+In demo mode the worker runs in *lockstep*: it waits until the GUI has drawn
+each frame instead of dropping frames, so captures are complete and
+reproducible. The menu bar, docks, log and map legend are hidden, and the
+window settings are not saved.
+
 ---
 
 ## Class Details

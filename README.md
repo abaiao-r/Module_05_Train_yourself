@@ -4,6 +4,12 @@ A physics-based train simulation engine that models rail traffic across a config
 
 > **42 OOP Piscine — Module 05**
 
+<p align="center">
+  <img src="docs/images/demo_rush_hour.gif" alt="Qt GUI: 30 trains at rush hour, Solo routing jams while Adaptive re-plans around traffic" width="540">
+</p>
+
+<sub>Rush hour in the Qt GUI (`input/video/railNetworkL6RushHour.txt`): with Solo every train picks the same fastest route and it jams; Adaptive re-plans live.</sub>
+
 ---
 
 
@@ -24,7 +30,7 @@ https://github.com/user-attachments/assets/189c7669-e0c2-42a1-b3cb-472f95692029
 | **Per-train output** | `TrainName_HHhMM.result` file with header, estimated time, every-minute rail graph, events, actual time |
 | **Strict input validation** | Trailing content, unknown keywords and partly-numeric values rejected with `file:line:` errors · finite-number checks · duplicate (name, departure) trains rejected · cross-file checks (events/rails/stations must exist) |
 | **Random events** | Probability-based disruptions at stations (riots, discomfort, …) inject delays |
-| **555 unit / integration tests** | Custom TestFramework, 16 suites covering nodes, networks, trains, events, pathfinding, I/O, factories, edge cases, combinations, end-to-end, input combos |
+| **630 unit / integration tests** | Custom TestFramework, 18 suites covering nodes, networks, trains, events, pathfinding, I/O, factories, edge cases, combinations, end-to-end, input combos |
 | **5 design patterns + 6 principles** | Strategy, Factory, Observer, Mediator, Dependency Injection · KISS, DRY, Encapsulation, SRP, Separation of Concerns, Interface Segregation |
 | **12 UML diagrams** | 7 foundational diagrams, 3 routing-mode diagrams, and 2 multi-line diagrams — PlantUML sources + PNG + SVG |
 
@@ -140,7 +146,7 @@ The `--graph` flag exports the rail network and all computed train paths as a **
 ### Run Tests
 
 ```bash
-make test     # 555 tests across 16 suites
+make test     # 630 tests across 18 suites
 ```
 
 ### Clean
@@ -221,7 +227,7 @@ See [docs/TECHNICAL.md](docs/TECHNICAL.md) for the full documentation index, or 
 | [Diagrams](docs/DIAGRAMS.md) | 7 foundational, 3 routing-mode, and 2 multi-line UML diagrams |
 | [Diagrams explained](docs/DIAGRAMS_EXPLAINED.md) | Plain-English walkthrough of the diagrams (no tech background needed) |
 | [Diagrams explained + code](docs/DIAGRAMS_EXPLAINED_CODE.md) | Same walkthrough with code snippets and file locations |
-| [Build & Testing](docs/BUILD_SYSTEM.md) | Makefile targets, 555 tests, CI pipeline |
+| [Build & Testing](docs/BUILD_SYSTEM.md) | Makefile targets, 630 tests, CI pipeline |
 
 ### Design Patterns
 

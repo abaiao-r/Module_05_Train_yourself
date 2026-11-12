@@ -1,0 +1,2 @@
+Freight 1000 0.05 520.0 400.0 Harbor Central 08h00 00h02
+Express 200 0.05 360.0 60.0 Harbor Central 08h02 00h02
